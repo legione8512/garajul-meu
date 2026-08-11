@@ -1,0 +1,30 @@
+# Line-ending policy for Garajul Meu.
+#
+# This file is authoritative and overrides each developer's local core.autocrlf.
+# The repository stores LF; the working tree gets LF on every platform.
+# Rationale: mvnw, CI shell steps and the macOS iOS build (Phase 18) break with CRLF.
+
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF or cmd.exe misparses them.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Binary assets: never normalise, never diff as text.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.svg       text
+*.pdf       binary
+*.zip       binary
+*.jar       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+*.keystore  binary
+*.jks       binary

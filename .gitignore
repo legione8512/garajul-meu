@@ -1,0 +1,75 @@
+# ---------------------------------------------------------------------------
+# Secrets and local configuration -- NEVER commit these.
+# Spec section 33: no API key, database credential, JWT secret, service
+# credential, push token or private key is hardcoded or committed to Git.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+application-local.yaml
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# ---------------------------------------------------------------------------
+# Java / Maven
+# ---------------------------------------------------------------------------
+target/
+*.class
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Playwright (Phase 14)
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# ---------------------------------------------------------------------------
+# Eclipse -- machine-specific project metadata.
+# pom.xml is the source of truth for project structure; any IDE can reimport.
+# ---------------------------------------------------------------------------
+.project
+.classpath
+.settings/
+.factorypath
+.apt_generated/
+bin/
+
+# ---------------------------------------------------------------------------
+# Other IDEs
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+# ---------------------------------------------------------------------------
+# Claude Code -- local, per-machine settings
+# ---------------------------------------------------------------------------
+.claude/settings.local.json
+
+# ---------------------------------------------------------------------------
+# Operating system noise
+# ---------------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+.DS_Store
