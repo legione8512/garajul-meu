@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 3 — Common Backend Infrastructure — **in progress** |
-| Last milestone | 3.1 test infrastructure: Testcontainers PostgreSQL wired, Mockito attached as an explicit JVM agent, both backend tests green |
-| Next verified step | 3.2 — canonical error-code catalog and global exception handler, per specification section 17 |
+| Last milestone | 3.2 canonical error-code catalog and global exception handler, verified to leak nothing |
+| Next verified step | 3.3 — request/correlation ID in logs and in the error response, per specification section 27 |
 
 ## Project paths
 
@@ -91,6 +91,25 @@ table in Phase 4.
 
 No `/api/v1` endpoints and no JPA entities or repositories exist yet.
 
+#### Package `ro.garajulmeu.exception`
+
+| Class | Role |
+|---|---|
+| `ErrorCode` | The canonical catalogue from specification section 17, each code carrying its HTTP status so the same failure cannot answer differently in two endpoints |
+| `ApiException` | Thrown for expected business failures; carries an `ErrorCode`, never user-facing text |
+| `ApiErrorResponse` | The single JSON shape for every failure: `code`, `status`, `path`, `timestamp`, `fieldErrors`. Deliberately has **no message field**, so the frontend cannot display untranslated server English |
+| `GlobalExceptionHandler` | `@RestControllerAdvice` mapping every exception to that shape |
+
+Log levels follow specification section 27: expected 4xx outcomes log at INFO,
+only unhandled exceptions log at ERROR — so Sentry, from Phase 15, will not
+raise alerts for ordinary business failures.
+
+**Codes added beyond the section 17 examples**, for HTTP-level failures that
+belong to no domain: `MALFORMED_REQUEST`, `RESOURCE_NOT_FOUND`,
+`METHOD_NOT_ALLOWED`. Without them an unparseable request body would be
+reported as `INTERNAL_ERROR`, blaming us for a client mistake. Section 17
+explicitly allows extending the canonical catalogue.
+
 ### frontend — React 19.2.8, TypeScript ~6.0.2, Vite 8.2.0
 
 | Item | State |
@@ -109,6 +128,8 @@ belong to Phase 5.
 |---|---|
 | `BackendApplicationTests.contextLoads` | Spring context boots against a throwaway PostgreSQL container |
 | `BackendApplicationTests.usesThrowawayContainerAndNeverTheHostedDatabase` | Asserts the live JDBC URL contains `localhost` and not `neon.tech` |
+| `GlobalExceptionHandlerTest.businessFailureAnswersWithItsOwnCodeAndStatus` | `ApiException(VEHICLE_NOT_FOUND)` produces 404 with that code |
+| `GlobalExceptionHandlerTest.unexpectedFailureNeverLeaksInternalDetail` | An exception whose message contains an internal host and a database user yields only `INTERNAL_ERROR`; neither string nor the exception class name appears in the body |
 
 The second test guards specification section 20. Configuration changes are
 frequent and a Neon URL leaking into the test context would be invisible — tests
@@ -151,6 +172,10 @@ Sentry at Phase 15.
 | 2026-08-13 | Testcontainers 2.0.5: container classes are **no longer generic**. `new PostgreSQLContainer<>(...)` from every 1.x example fails to compile; the canonical class is now `org.testcontainers.postgresql.PostgreSQLContainer`, with a legacy copy left in `org.testcontainers.containers`. Artifact ids also changed to `testcontainers-junit-jupiter` and `testcontainers-postgresql`. |
 | 2026-08-13 | The Mockito agent path resolves only because `maven-dependency-plugin`'s `properties` goal runs first; it publishes each dependency's jar path as a property named `groupId:artifactId:type`. Without that plugin, `${org.mockito:mockito-core:jar}` reaches the JVM as literal text and the forked test VM fails to start. |
 | 2026-08-13 | Test isolation is enforced by a real assertion, not only by configuration: `usesThrowawayContainerAndNeverTheHostedDatabase` fails if the live JDBC URL ever points at Neon. |
+| 2026-08-13 | Error responses use a small project-specific JSON shape rather than RFC 9457 Problem Details. Problem Details carries a human-readable `detail` field, which conflicts with the section 6 requirement that all user-facing wording is chosen and translated by the frontend. |
+| 2026-08-13 | `ErrorCode` owns its HTTP status. Keeping the mapping in the catalogue rather than at each throw site prevents the same failure answering 404 in one endpoint and 400 in another. |
+| 2026-08-13 | Boot 4 moved the test slices: `@WebMvcTest` and `@AutoConfigureMockMvc` are now in `org.springframework.boot.webmvc.test.autoconfigure`, not `org.springframework.boot.test.autoconfigure.web.servlet`. |
+| 2026-08-13 | Handler tests use the `@WebMvcTest` slice with a throwaway controller, so they need no database and run in about one second rather than twenty. Slice tests are the default; full `@SpringBootTest` is reserved for cases that genuinely need persistence. |
 
 ## Known issues and open decisions
 
