@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.3.1 `verification_tokens` table, entity and repository |
-| Next verified step | 4.3.2 — `POST /api/v1/auth/register`: email normalisation, Argon2 password hash, six-digit code, `EmailProvider` abstraction with a fake implementation |
+| Last milestone | 4.3.2 `POST /api/v1/auth/register` working end to end against Neon |
+| Next verified step | 4.4 — `POST /api/v1/auth/verify-email` and `/resend-verification`, then login with a JWT access token |
 
 ## Project paths
 
@@ -144,6 +144,21 @@ enforces one account per address.
 | `VerificationTokenType` | `EMAIL_VERIFICATION`, `PASSWORD_RESET`, `EMAIL_CHANGE`. Codes are never interchangeable between purposes, so the type is part of every lookup |
 | `VerificationToken` | `@Entity` on `verification_tokens`. Holds the owner as a plain `userId`, not a `@ManyToOne` — the auth module never needs the `User` object from a token, and the foreign key still enforces integrity. `isUsable(now)` requires unused **and** not superseded **and** unexpired |
 | `VerificationTokenRepository` | `findFirstByUserIdAndTypeOrderByCreatedAtDesc` for the newest code, and `invalidateOutstandingCodes` — a `@Modifying` bulk update so a double "resend" cannot leave two codes both valid |
+| `VerificationCodeGenerator` | `SecureRandom` plus `%06d` padding. Padding matters: returning "42" instead of "000042" would shrink the effective code space |
+| `AuthProperties` | `@ConfigurationProperties("garajul-meu.auth")`, defaults 15 minutes validity and 5 attempts |
+| `AuthService` | `register` normalises the address, rejects a duplicate, hashes the password, issues and emails a code |
+| `AuthController` | `POST /api/v1/auth/register` → 201 with an empty body |
+| `dto.RegisterRequest` | Bean Validation constraints; password 12–128 characters; language is a `@Pattern("ro\|en")` **string**, not the enum, because JSON carries the lower-case tag while Jackson would expect the constant name |
+
+#### Package `ro.garajulmeu.email`
+
+`EmailProvider` (specification section 32) with `sendVerificationCode(recipient, code, language)`.
+`LoggingEmailProvider` writes the message to the log instead of sending it, gated
+by `@ConditionalOnProperty(garajul-meu.email.provider=logging)` with **no**
+`matchIfMissing`: if the property is absent there is no `EmailProvider` bean and
+the application refuses to start, rather than silently writing codes to a
+production log. `EmailProperties` declares the key so the IDE knows it; the
+Resend API key and sender address join it later.
 
 Only the Argon2 hash of the six-digit code is stored. Argon2 rather than a fast
 hash because a six-digit code has only a million possibilities and would be
@@ -211,6 +226,12 @@ belong to Phase 5.
 | `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
+| `VerificationCodeGeneratorTest` (2 tests) | Always exactly six digits over a thousand draws, which also proves the zero padding; two hundred draws are almost all distinct |
+| `AuthServiceTest` (4 tests) | The address is stored trimmed and lower-cased and the password as `$argon2id$`; the emailed code matches the stored hash and does not appear in it; a duplicate address is rejected even in different case; the language defaults to Romanian |
+
+`AuthServiceTest` replaces `EmailProvider` with `@MockitoBean` to capture the
+emitted code. That changes the context configuration, so this class gets its own
+Spring context and therefore its own PostgreSQL container — the build starts two.
 
 The second test guards specification section 20. Configuration changes are
 frequent and a Neon URL leaking into the test context would be invisible — tests
@@ -259,6 +280,11 @@ Sentry at Phase 15.
 | 2026-08-13 | Handler tests use the `@WebMvcTest` slice with a throwaway controller, so they need no database and run in about one second rather than twenty. Slice tests are the default; full `@SpringBootTest` is reserved for cases that genuinely need persistence. |
 | 2026-08-13 | Correlation uses a plain MDC entry and `logging.pattern.correlation`, not Micrometer Tracing. Distributed tracing solves a problem a single-instance modular monolith does not have (specification section 19). If tracing is introduced later, the same pattern slot is where its trace and span ids belong. |
 | 2026-08-13 | `ApiErrorResponse` carries `requestId`, so a user can quote the identifier from an error screen and the exact request can be found in the logs without knowing their account or the time. |
+| 2026-08-13 | Verification codes are hashed with the same Argon2 encoder as passwords. A six-digit code has only a million possibilities and a fast hash would be trivially reversible from a leaked database. |
+| 2026-08-13 | Registration answers `EMAIL_ALREADY_EXISTS` rather than hiding whether an address is taken. Specification section 17 defines that code and section 14 requires non-disclosure only for forgot-password. |
+| 2026-08-13 | `existsByEmail` is backed up by catching `DataIntegrityViolationException` and re-throwing the same code. Two simultaneous registrations can both pass the check and collide only at the unique index; without the catch the caller would get `INTERNAL_ERROR` for an ordinary conflict. |
+| 2026-08-13 | Password policy: 12–128 characters, no composition rules. Current guidance favours length over forced symbols, which mostly produce predictable substitutions. The maximum bounds the Argon2 work per request. |
+| 2026-08-13 | Slice tests must name what they load. `GlobalExceptionHandlerTest` uses `@WebMvcTest(controllers = …)`: the slice instantiates every `@RestController` but excludes every `@Service`, so the first real controller broke an unrelated test. Scoping the slice is the fix, not mocking each new controller's dependencies. |
 
 ## Known issues and open decisions
 
@@ -267,6 +293,10 @@ Sentry at Phase 15.
 | Item | Phase |
 |---|---|
 | CSRF is disabled outright. It must be switched back on for the cookie-authenticated `/auth/refresh` and `/auth/logout` paths, per specification section 14. | 4.5 |
+| `/api/v1/auth/**` is permitted wholesale. Endpoints added under that prefix that should require authentication must be matched individually. | 4.5 |
+| Registration sends the email inside the transaction, so a provider outage rolls the account back. Simple and safe today; revisit if Resend proves flaky. | 4.7 |
+| Auth endpoints are not rate limited. This matters more than usual here because verifying a code costs an Argon2 hash — roughly 50 ms and 16 MB — so an unthrottled endpoint is a cheap denial-of-service. | 4.6 |
+| `spring-boot-configuration-processor` only runs because `maven.compiler.proc=full` is set in `pom.xml`. **JDK 21 requires the option to be set explicitly**; without it the processor is silently skipped and no metadata is generated. | done |
 | `HttpStatusEntryPoint` returns a bare 401 with no body, so authentication failures do not use the `ApiErrorResponse` shape every other error uses. Replace it once a suitable error code exists. | 4.4 |
 | Spring Boot auto-configures an in-memory user and prints `Using generated security password: …` at every startup, because no `UserDetailsService` bean exists yet. Harmless now — form login and HTTP Basic are disabled, so nothing can use it — but it must be gone before deployment. Providing our own `UserDetailsService` removes it. | 4.4 |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |

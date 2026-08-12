@@ -45,3 +45,12 @@ logging:
     # it keeps the standard formatting and colours instead of replacing them.
     # Lines produced outside an HTTP request - startup, scheduler - show "system".
     correlation: "[%X{requestId:-system}] "
+
+garajul-meu:
+  auth:
+    verification-code-validity: 15m
+    max-verification-attempts: 5
+  email:
+    # Development stand-in. Production must override this with "resend",
+    # otherwise verification codes are written to the log instead of sent.
+    provider: logging

@@ -16,3 +16,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+
+# Only the email provider is repeated here. The timings in AuthProperties have
+# @DefaultValue defaults and tests have no reason to change them; repeating them
+# would create two copies that quietly drift apart.
+garajul-meu:
+  email:
+    provider: logging

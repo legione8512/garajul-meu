@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Uses a throwaway controller rather than a real endpoint, so the handler can be
  * verified before any production endpoint exists.
  */
-@WebMvcTest
+@WebMvcTest(controllers = GlobalExceptionHandlerTest.FailingController.class)
 @Import({ GlobalExceptionHandler.class, RequestIdFilter.class,
 		GlobalExceptionHandlerTest.FailingController.class })
 @WithMockUser
