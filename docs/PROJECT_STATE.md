@@ -12,18 +12,19 @@ Last updated: 2026-08-12
 
 | Item | Value |
 |---|---|
-| Phase | 1 — Repository & Project Skeleton |
-| Milestone | 1.1 repository foundation created; skeletons not yet generated |
-| Next verified step | 1.2 — generate the Spring Boot backend skeleton under `backend/` |
+| Phase | 1 — Repository & Project Skeleton — **complete** |
+| Last milestone | 1.3 frontend skeleton built and pushed |
+| Next verified step | Phase 2 — Backend Foundation & Neon: create the Neon project, add Spring Data JPA + PostgreSQL driver + Flyway, write migration `V1__baseline.sql` |
 
 ## Project paths
 
 | What | Path |
 |---|---|
 | Repository root | `D:\Learning\Claude_Space\Garajul Meu` |
-| Backend (Eclipse) | `backend/` — not yet created |
-| Frontend (VS Code) | `frontend/` — not yet created |
-| Eclipse workspace | outside the repository (must never be inside it) |
+| GitHub remote | https://github.com/legione8512/garajul-meu — **public** |
+| Backend (Eclipse) | `backend/` — Maven project, imported via m2e |
+| Frontend (VS Code) | `frontend/` |
+| Eclipse workspace | outside the repository |
 | Specification source | `C:\Drive\UNI\Brunel University London\Personal Projects\Garajul Meu\` |
 
 ## Installed tool versions (verified 2026-08-12)
@@ -32,34 +33,60 @@ Last updated: 2026-08-12
 |---|---|
 | OS | Windows 11 Pro 10.0.26100 |
 | JDK | Eclipse Adoptium 21.0.10 LTS (`JAVA_HOME` set) |
-| Maven | 3.9.16 — runs on Java 21, platform encoding UTF-8 |
-| Node.js | 22.19.0 |
+| Maven | 3.9.16 global; wrapper pins the same version, `distributionType=only-script` |
+| Node.js | 24.19.0 (Active LTS — upgraded from 22.19.0) |
 | npm | 11.12.1 |
-| Git | 2.50.0.windows.1 |
+| Git | 2.50.0.windows.1, `init.defaultBranch=main` |
 | Eclipse | Platform 4.40.0 (2026-06 R), m2e 2.7.800, Spring Tools boot-ls 2.1.1 |
-| VS Code | installed at `D:\Microsoft VS Code` |
+| VS Code | `D:\Microsoft VS Code` |
 | Docker Desktop | 29.3.1 installed; daemon not started yet |
 
-Also present but unused: JDK 17.0.18.8. Eclipse's default project JRE is
-explicitly set to Adoptium 21.
+A JDK 17.0.18.8 is also present but unused. Eclipse's default project JRE is
+explicitly Adoptium 21.
 
 ## Environments
 
-None provisioned yet. Planned: Neon development branch and Neon production
-branch (EU region), Railway EU, Cloudflare Pages. Automated tests will use
-PostgreSQL Testcontainers, never the Neon development database.
+None provisioned yet. Planned: Neon development and production branches (EU),
+Railway EU, Cloudflare Pages. Automated tests will use PostgreSQL Testcontainers,
+never the Neon development database.
 
 ## Flyway migrations
 
-None yet.
+None yet. Flyway is not on the classpath until Phase 2.
 
 ## Implemented modules and endpoints
 
-None yet.
+### backend — Spring Boot 4.1.0, Java 21, `ro.garajulmeu`
+
+| Item | State |
+|---|---|
+| `BackendApplication` | boots, Tomcat on port 8080 |
+| `GET /actuator/health` | returns `UP`; liveness and readiness groups exposed by default |
+| Dependencies | `spring-boot-starter-webmvc`, `spring-boot-starter-actuator`, `spring-boot-devtools` (runtime, optional) |
+| Test dependencies | `spring-boot-starter-webmvc-test`, `spring-boot-starter-actuator-test` |
+| Artifact | `target/backend-0.0.1-SNAPSHOT.jar`, repackaged as an executable jar |
+
+No `/api/v1` endpoints exist yet.
+
+### frontend — React 19.2.8, TypeScript ~6.0.2, Vite 8.2.0
+
+| Item | State |
+|---|---|
+| Template | `react-ts` from create-vite 9.1.2 |
+| Linter | ESLint 10.8.0 with `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` |
+| `npm run dev` | serves on port 5173 |
+| `npm run build` | `tsc -b && vite build`, output in `frontend/dist/` |
+
+Default Vite starter page only. No routing, i18n or design system yet — those
+belong to Phase 5.
 
 ## Tests currently passing
 
-None yet.
+| Test | Scope |
+|---|---|
+| `ro.garajulmeu.BackendApplicationTests.contextLoads` | Spring context boots |
+
+No frontend tests yet. Vitest and Playwright arrive with Phases 5 and 14.
 
 ## External integrations configured
 
@@ -71,27 +98,37 @@ Sentry at Phase 15.
 
 | Date | Decision |
 |---|---|
-| 2026-08-12 | IDE split: backend in Eclipse, frontend in VS Code. Not a spec concern; `pom.xml` and `package.json` stay the source of truth for project structure. |
-| 2026-08-12 | Line endings handled by a committed `.gitattributes` (`* text=auto eol=lf`) rather than per-machine `core.autocrlf`, so Linux CI and the macOS iOS build behave identically. |
-| 2026-08-12 | Default branch is `main`. |
+| 2026-08-12 | IDE split: backend in Eclipse, frontend in VS Code. `pom.xml` and `package.json` remain the source of truth for project structure, so IDE metadata is gitignored and regenerable. |
+| 2026-08-12 | Line endings handled by a committed root `.gitattributes` (`* text=auto eol=lf`, `*.cmd`/`*.bat`/`*.ps1` CRLF) rather than per-machine `core.autocrlf`, so Linux CI and the macOS iOS build behave identically. |
+| 2026-08-12 | Default branch `main`. GitHub repository is **public**; secret hygiene is therefore release-critical — an exposed secret must be rotated, not merely deleted from a later commit. |
+| 2026-08-12 | Single root `.gitignore` for the whole monorepo. The `.gitignore` and `.gitattributes` files generated by Spring Initializr and by Vite were deleted; their genuinely new rules (`*.local`, `logs/`) were merged into the root file. |
+| 2026-08-12 | Base package `ro.garajulmeu`, artifact `backend`. Package name field on Initializr was overridden so packages are `ro.garajulmeu.<feature>`, matching specification section 4. |
+| 2026-08-12 | Spring Boot 4.1.0 — the only stable line Initializr still offers. Note that Boot 4 renamed starters: `spring-boot-starter-webmvc` (not `-web`) and per-module test starters (no `spring-boot-starter-test`). Spring Boot 3.x tutorials will give dependency names that no longer exist. |
+| 2026-08-12 | Frontend uses ESLint rather than the create-vite 9 default of Oxlint, because `eslint-plugin-jsx-a11y` is needed for the accessibility requirement in specification section 36. |
+| 2026-08-12 | Template `react-ts` rather than `react-compiler-ts`. React Compiler is a reversible one-line addition later if performance requires it. |
+| 2026-08-12 | Node upgraded 22.19.0 → 24.19.0 because Node 22 is Maintenance LTS and 24 is Active LTS; the version has to be declared for CI and Cloudflare Pages anyway. |
 
 ## Known issues and open decisions
 
-Carried over from specification section 35 (intentionally deferred):
+### Deferred work with a scheduled phase
+
+| Item | Phase |
+|---|---|
+| Mockito self-attaches a JVM agent, which future JDKs will disallow (`Dynamic loading of agents will be disallowed by default`). Fix by declaring the agent explicitly in the Surefire plugin configuration. | 3 |
+| `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
+| Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |
+| `application.properties` may be converted to YAML when real configuration arrives; not decided yet. | 2 |
+
+### Open decisions
+
+- Mac availability for Phase 18 (iOS) not yet confirmed. Blocks nothing before Phase 17.
+- Google Document AI processor version must be verified as currently supported at Phase 9; deliberately not frozen in advance.
+- Spring Security Argon2 encoder implementation to be verified against current documentation at Phase 4. Argon2 itself is the frozen algorithm. Spring Boot 4 implies Spring Security 7, whose API differs from the 6.x examples found in most tutorials.
+
+### Carried over from specification section 35
 
 - Final product name, logo, colours and production domain.
-- Normalised X/Y/width/height coordinates for certificate overlay fields —
-  calibrated in Phase 8, never guessed.
+- Normalised X/Y/width/height coordinates for certificate overlay fields — calibrated in Phase 8, never guessed.
 - Final OCR confidence thresholds — calibrated against representative samples.
-- Capacitor secure-storage plugin — selected during the mobile phase against
-  current documentation.
+- Capacitor secure-storage plugin — selected during the mobile phase against current documentation.
 - Final legal wording, retention periods and privacy notices before release.
-
-Open for this build:
-
-- Mac availability for Phase 18 (iOS) is not yet confirmed. Does not block any
-  phase before 17.
-- Google Document AI processor version must be verified as currently supported
-  at Phase 9; not frozen in advance.
-- Spring Security Argon2 encoder implementation to be verified against current
-  documentation at Phase 4. Argon2 itself is the frozen algorithm.
