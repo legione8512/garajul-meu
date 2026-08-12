@@ -12,9 +12,9 @@ Last updated: 2026-08-12
 
 | Item | Value |
 |---|---|
-| Phase | 1 — Repository & Project Skeleton — **complete** |
-| Last milestone | 1.3 frontend skeleton built and pushed |
-| Next verified step | Phase 2 — Backend Foundation & Neon: create the Neon project, add Spring Data JPA + PostgreSQL driver + Flyway, write migration `V1__baseline.sql` |
+| Phase | 2 — Backend Foundation & Neon — **complete** |
+| Last milestone | Application connects to Neon over the pooled endpoint and Flyway over the direct endpoint; `/actuator/health` reports `db: UP` |
+| Next verified step | Phase 3 — Common Backend Infrastructure: Testcontainers PostgreSQL, Mockito agent configuration, error-code catalog, request/correlation IDs |
 
 ## Project paths
 
@@ -46,13 +46,33 @@ explicitly Adoptium 21.
 
 ## Environments
 
-None provisioned yet. Planned: Neon development and production branches (EU),
-Railway EU, Cloudflare Pages. Automated tests will use PostgreSQL Testcontainers,
-never the Neon development database.
+### Neon PostgreSQL — provisioned 2026-08-12
+
+| Item | Value |
+|---|---|
+| Project | `garajul-meu` |
+| Region | AWS Europe Central 1 (Frankfurt), per specification section 23 |
+| Server version | PostgreSQL 18.4 |
+| Database | `neondb` |
+| Branch `production` | default branch, created by Neon, **unused so far** — reserved for Phase 15–16 |
+| Branch `development` | child of `production`, used by local development |
+| Plan | Free: 0.5 GB storage, scales to zero when idle, 10 branches |
+
+Credentials live only in `backend/application-local.yml`, which is gitignored and
+never committed. Nothing sensitive is stored in the repository.
+
+Railway and Cloudflare Pages are not provisioned yet. Automated tests will use
+PostgreSQL Testcontainers, never the Neon development branch.
 
 ## Flyway migrations
 
-None yet. Flyway is not on the classpath until Phase 2.
+Flyway is wired and runs at startup over the direct (non-pooled) endpoint. It has
+created `public.flyway_schema_history` on the `development` branch.
+
+**No migration files exist yet** — `spring.flyway.locations` resolves to the
+default `classpath:db/migration`, which does not exist, so startup logs
+`No migrations found`. This is expected. The first migration is the `users`
+table in Phase 4.
 
 ## Implemented modules and endpoints
 
@@ -60,13 +80,16 @@ None yet. Flyway is not on the classpath until Phase 2.
 
 | Item | State |
 |---|---|
-| `BackendApplication` | boots, Tomcat on port 8080 |
-| `GET /actuator/health` | returns `UP`; liveness and readiness groups exposed by default |
-| Dependencies | `spring-boot-starter-webmvc`, `spring-boot-starter-actuator`, `spring-boot-devtools` (runtime, optional) |
+| `BackendApplication` | boots on Tomcat 11.0.22, port 8080 |
+| `GET /actuator/health` | `UP`, including `db: UP` (PostgreSQL); liveness and readiness groups exposed |
+| Runtime dependencies | `spring-boot-starter-webmvc`, `-actuator`, `-data-jpa`, `-flyway`, `org.flywaydb:flyway-database-postgresql`, `org.postgresql:postgresql` (runtime), `spring-boot-devtools` (runtime, optional) |
 | Test dependencies | `spring-boot-starter-webmvc-test`, `spring-boot-starter-actuator-test` |
+| ORM | Hibernate ORM 7.4.1.Final (Spring Boot 4 baseline) |
+| Configuration | `src/main/resources/application.yml`, committed, placeholders only |
+| Local secrets | `backend/application-local.yml`, gitignored, loaded via `spring.config.import: optional:file:./application-local.yml` |
 | Artifact | `target/backend-0.0.1-SNAPSHOT.jar`, repackaged as an executable jar |
 
-No `/api/v1` endpoints exist yet.
+No `/api/v1` endpoints and no JPA entities or repositories exist yet.
 
 ### frontend — React 19.2.8, TypeScript ~6.0.2, Vite 8.2.0
 
@@ -82,9 +105,11 @@ belong to Phase 5.
 
 ## Tests currently passing
 
-| Test | Scope |
-|---|---|
-| `ro.garajulmeu.BackendApplicationTests.contextLoads` | Spring context boots |
+**None.** `ro.garajulmeu.BackendApplicationTests.contextLoads` is `@Disabled`:
+adding Spring Data JPA in Phase 2 made it require a database, and specification
+section 20 forbids running automated tests against the Neon development branch.
+It is re-enabled in Phase 3 once Testcontainers PostgreSQL is configured. The
+reason is written into the annotation so the disabled test cannot be forgotten.
 
 No frontend tests yet. Vitest and Playwright arrive with Phases 5 and 14.
 
@@ -107,6 +132,13 @@ Sentry at Phase 15.
 | 2026-08-12 | Frontend uses ESLint rather than the create-vite 9 default of Oxlint, because `eslint-plugin-jsx-a11y` is needed for the accessibility requirement in specification section 36. |
 | 2026-08-12 | Template `react-ts` rather than `react-compiler-ts`. React Compiler is a reversible one-line addition later if performance requires it. |
 | 2026-08-12 | Node upgraded 22.19.0 → 24.19.0 because Node 22 is Maintenance LTS and 24 is Active LTS; the version has to be declared for CI and Cloudflare Pages anyway. |
+| 2026-08-12 | Neon Auth left disabled at project creation. It would store its own users and sessions and displace the authentication design in specification section 14 and the `users` / `refresh_tokens` / `verification_tokens` tables in section 10. It can still be enabled later from project settings if that ever changes. |
+| 2026-08-12 | Two datasources: application runtime uses the Neon **pooled** endpoint, Flyway uses the **direct** endpoint via `spring.flyway.url`. The pooler runs in transaction mode and cannot hold the session-level lock Flyway relies on. Verified in the startup log — the two hostnames differ by the `-pooler` suffix. |
+| 2026-08-12 | Configuration moved from `application.properties` to `application.yml`, since the datasource, Hikari, JPA and Flyway trees are deeply nested. |
+| 2026-08-12 | `spring.jpa.hibernate.ddl-auto: validate` and `spring.jpa.open-in-view: false`. Flyway is the only thing allowed to change the schema; Hibernate may only verify mappings. |
+| 2026-08-12 | Local secrets pattern: committed `application.yml` contains only `${PLACEHOLDER}` references; real values come from gitignored `backend/application-local.yml` locally, and from real environment variables in production. An undefined placeholder fails startup loudly rather than failing at connection time. |
+| 2026-08-12 | Spring Boot 4 uses a `spring-boot-starter-flyway` starter rather than depending on `org.flywaydb:flyway-core` directly, as Boot 3.x did. |
+| 2026-08-12 | JDBC URLs use `channelBinding` (camelCase). Neon's native connection string uses the libpq spelling `channel_binding`, which the PostgreSQL JDBC driver rejects. |
 
 ## Known issues and open decisions
 
@@ -114,10 +146,11 @@ Sentry at Phase 15.
 
 | Item | Phase |
 |---|---|
+| `BackendApplicationTests.contextLoads` is `@Disabled` and must be re-enabled once Testcontainers PostgreSQL exists. Until then the backend has **zero** passing automated tests. | 3 |
 | Mockito self-attaches a JVM agent, which future JDKs will disallow (`Dynamic loading of agents will be disallowed by default`). Fix by declaring the agent explicitly in the Surefire plugin configuration. | 3 |
+| `application-local.yml` is loaded from the working directory, so it would also be picked up by tests. Once Testcontainers is in place, confirm that tests bind to the container and never to Neon. | 3 |
 | `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |
-| `application.properties` may be converted to YAML when real configuration arrives; not decided yet. | 2 |
 
 ### Open decisions
 

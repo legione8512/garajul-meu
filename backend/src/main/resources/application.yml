@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: backend
+
+  # Local-only values (database URLs and credentials) live in
+  # backend/application-local.yml, which is gitignored and never committed.
+  # "optional:" keeps startup working in production, where the same values
+  # arrive as real environment variables instead of a file.
+  config:
+    import: optional:file:./application-local.yml
+
+  datasource:
+    # Neon POOLED endpoint - hostname contains "-pooler".
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Neon scales the compute to zero when idle, so a cold start can take
+      # several seconds and idle connections get closed server-side.
+      connection-timeout: 30000
+      max-lifetime: 300000
+      idle-timeout: 60000
+      minimum-idle: 0
+      maximum-pool-size: 5
+
+  jpa:
+    # Never keep a database session open for the duration of view rendering.
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema. Hibernate may only verify that entity mappings
+      # match the existing tables - never create, alter or drop anything.
+      ddl-auto: validate
+
+  flyway:
+    # Neon DIRECT endpoint - no "-pooler". Flyway holds a session-level lock so
+    # two instances cannot migrate at once, and the pooler's transaction mode
+    # cannot hold session state.
+    url: ${DB_MIGRATION_URL}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
