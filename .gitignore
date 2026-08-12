@@ -36,6 +36,8 @@ dist-ssr/
 .vite/
 coverage/
 *.tsbuildinfo
+*.local
+logs/
 
 # Playwright (Phase 14)
 playwright-report/
