@@ -1,6 +1,8 @@
 package ro.garajulmeu.exception;
 
 import java.util.List;
+import org.slf4j.MDC;
+import ro.garajulmeu.common.RequestIdFilter;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -52,9 +54,10 @@ public class GlobalExceptionHandler {
 
 		return ResponseEntity
 				.status(ErrorCode.VALIDATION_ERROR.status())
-				.body(ApiErrorResponse.of(ErrorCode.VALIDATION_ERROR, request.getRequestURI(), fieldErrors));
+				.body(ApiErrorResponse.of(ErrorCode.VALIDATION_ERROR, request.getRequestURI(),
+						MDC.get(RequestIdFilter.MDC_KEY), fieldErrors));
 	}
-
+	
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ApiErrorResponse> handleMalformedBody(HttpServletRequest request) {
 		log.info("Malformed request body on {} {}", request.getMethod(), request.getRequestURI());
@@ -83,6 +86,6 @@ public class GlobalExceptionHandler {
 	private ResponseEntity<ApiErrorResponse> respond(ErrorCode code, HttpServletRequest request) {
 		return ResponseEntity
 				.status(code.status())
-				.body(ApiErrorResponse.of(code, request.getRequestURI()));
+				.body(ApiErrorResponse.of(code, request.getRequestURI(), MDC.get(RequestIdFilter.MDC_KEY)));
 	}
 }

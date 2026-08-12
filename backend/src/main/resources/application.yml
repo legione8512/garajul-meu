@@ -38,3 +38,10 @@ spring:
     url: ${DB_MIGRATION_URL}
     user: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
+logging:
+  pattern:
+    # Slot reserved by Spring Boot inside the default console pattern. Filling
+    # it keeps the standard formatting and colours instead of replacing them.
+    # Lines produced outside an HTTP request - startup, scheduler - show "system".
+    correlation: "[%X{requestId:-system}] "

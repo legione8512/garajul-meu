@@ -12,9 +12,9 @@ Last updated: 2026-08-12
 
 | Item | Value |
 |---|---|
-| Phase | 3 — Common Backend Infrastructure — **in progress** |
-| Last milestone | 3.2 canonical error-code catalog and global exception handler, verified to leak nothing |
-| Next verified step | 3.3 — request/correlation ID in logs and in the error response, per specification section 27 |
+| Phase | 3 — Common Backend Infrastructure — **complete** |
+| Last milestone | 3.3 correlation identifier in every log line, response header and error body |
+| Next verified step | Phase 4 — Authentication & Users: `users` table as the first Flyway migration, Argon2 password hashing, JWT access token, rotating refresh token |
 
 ## Project paths
 
@@ -104,6 +104,23 @@ Log levels follow specification section 27: expected 4xx outcomes log at INFO,
 only unhandled exceptions log at ERROR — so Sentry, from Phase 15, will not
 raise alerts for ordinary business failures.
 
+#### Package `ro.garajulmeu.common`
+
+`RequestIdFilter` (`@Order(HIGHEST_PRECEDENCE)`) gives each request a
+correlation identifier, places it in the SLF4J MDC under `requestId`, returns it
+in the `X-Request-Id` response header, and clears the MDC in a `finally` block
+because servlet threads are pooled.
+
+A caller-supplied `X-Request-Id` is honoured only when it is at most 64
+characters of `[A-Za-z0-9._-]`; anything else is replaced with a fresh UUID.
+An unvalidated header would be a log-injection vector — newlines let a caller
+forge log entries and an unbounded value lets them flood log storage.
+
+`logging.pattern.correlation` in `application.yml` fills the slot Spring Boot
+reserves inside its default console pattern, so the identifier appears on every
+line without replacing the standard format or losing colours. Lines produced
+outside a request show `[system]`.
+
 **Codes added beyond the section 17 examples**, for HTTP-level failures that
 belong to no domain: `MALFORMED_REQUEST`, `RESOURCE_NOT_FOUND`,
 `METHOD_NOT_ALLOWED`. Without them an unparseable request body would be
@@ -130,6 +147,10 @@ belong to Phase 5.
 | `BackendApplicationTests.usesThrowawayContainerAndNeverTheHostedDatabase` | Asserts the live JDBC URL contains `localhost` and not `neon.tech` |
 | `GlobalExceptionHandlerTest.businessFailureAnswersWithItsOwnCodeAndStatus` | `ApiException(VEHICLE_NOT_FOUND)` produces 404 with that code |
 | `GlobalExceptionHandlerTest.unexpectedFailureNeverLeaksInternalDetail` | An exception whose message contains an internal host and a database user yields only `INTERNAL_ERROR`; neither string nor the exception class name appears in the body |
+| `RequestIdFilterTest.generatesAnIdentifierWhenTheClientSendsNone` | MDC is populated during the chain and the value matches the response header |
+| `RequestIdFilterTest.reusesAnIdentifierTheClientSuppliedSoOneRequestCanBeTracedEndToEnd` | A safe caller-supplied identifier is preserved |
+| `RequestIdFilterTest.replacesAnUnsafeClientIdentifier...` | A header containing a newline is discarded rather than written to the log |
+| `RequestIdFilterTest.clearsTheMdcOnceTheRequestIsFinished` | No identifier leaks to the next request served by the same pooled thread |
 
 The second test guards specification section 20. Configuration changes are
 frequent and a Neon URL leaking into the test context would be invisible — tests
@@ -176,6 +197,8 @@ Sentry at Phase 15.
 | 2026-08-13 | `ErrorCode` owns its HTTP status. Keeping the mapping in the catalogue rather than at each throw site prevents the same failure answering 404 in one endpoint and 400 in another. |
 | 2026-08-13 | Boot 4 moved the test slices: `@WebMvcTest` and `@AutoConfigureMockMvc` are now in `org.springframework.boot.webmvc.test.autoconfigure`, not `org.springframework.boot.test.autoconfigure.web.servlet`. |
 | 2026-08-13 | Handler tests use the `@WebMvcTest` slice with a throwaway controller, so they need no database and run in about one second rather than twenty. Slice tests are the default; full `@SpringBootTest` is reserved for cases that genuinely need persistence. |
+| 2026-08-13 | Correlation uses a plain MDC entry and `logging.pattern.correlation`, not Micrometer Tracing. Distributed tracing solves a problem a single-instance modular monolith does not have (specification section 19). If tracing is introduced later, the same pattern slot is where its trace and span ids belong. |
+| 2026-08-13 | `ApiErrorResponse` carries `requestId`, so a user can quote the identifier from an error screen and the exact request can be found in the logs without knowing their account or the time. |
 
 ## Known issues and open decisions
 

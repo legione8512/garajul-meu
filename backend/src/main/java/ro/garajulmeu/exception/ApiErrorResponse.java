@@ -10,6 +10,10 @@ import java.util.List;
  * invite the frontend to display server English, defeating the bilingual
  * requirement in specification section 6.
  *
+ * <p>{@code requestId} is the correlation identifier of the failing request. A
+ * user can quote it from an error screen and we can find that exact request in
+ * the logs without knowing their account or the time of day.
+ *
  * <p>{@code fieldErrors} is empty for everything except validation failures,
  * where each entry names the rejected field and the constraint it broke, for
  * example {@code NotBlank} or {@code Size}. The frontend turns that pair into a
@@ -19,21 +23,24 @@ public record ApiErrorResponse(
 		String code,
 		int status,
 		String path,
+		String requestId,
 		Instant timestamp,
 		List<FieldError> fieldErrors) {
 
 	public record FieldError(String field, String constraint) {
 	}
 
-	public static ApiErrorResponse of(ErrorCode errorCode, String path) {
-		return of(errorCode, path, List.of());
+	public static ApiErrorResponse of(ErrorCode errorCode, String path, String requestId) {
+		return of(errorCode, path, requestId, List.of());
 	}
 
-	public static ApiErrorResponse of(ErrorCode errorCode, String path, List<FieldError> fieldErrors) {
+	public static ApiErrorResponse of(ErrorCode errorCode, String path, String requestId,
+			List<FieldError> fieldErrors) {
 		return new ApiErrorResponse(
 				errorCode.name(),
 				errorCode.status().value(),
 				path,
+				requestId,
 				Instant.now(),
 				fieldErrors);
 	}

@@ -1,6 +1,7 @@
 package ro.garajulmeu.exception;
 
 import static org.hamcrest.Matchers.containsString;
+import ro.garajulmeu.common.RequestIdFilter;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -20,7 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
  * verified before any production endpoint exists.
  */
 @WebMvcTest
-@Import({ GlobalExceptionHandler.class, GlobalExceptionHandlerTest.FailingController.class })
+@Import({ GlobalExceptionHandler.class, RequestIdFilter.class,
+	GlobalExceptionHandlerTest.FailingController.class })
 class GlobalExceptionHandlerTest {
 
 	@Autowired
@@ -47,6 +49,7 @@ class GlobalExceptionHandlerTest {
 				.andExpect(jsonPath("$.code").value("VEHICLE_NOT_FOUND"))
 				.andExpect(jsonPath("$.status").value(404))
 				.andExpect(jsonPath("$.path").value("/test/business-failure"))
+				.andExpect(jsonPath("$.requestId").isNotEmpty())
 				.andExpect(jsonPath("$.fieldErrors").isEmpty());
 	}
 
