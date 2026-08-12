@@ -12,9 +12,9 @@ Last updated: 2026-08-12
 
 | Item | Value |
 |---|---|
-| Phase | 2 — Backend Foundation & Neon — **complete** |
-| Last milestone | Application connects to Neon over the pooled endpoint and Flyway over the direct endpoint; `/actuator/health` reports `db: UP` |
-| Next verified step | Phase 3 — Common Backend Infrastructure: Testcontainers PostgreSQL, Mockito agent configuration, error-code catalog, request/correlation IDs |
+| Phase | 3 — Common Backend Infrastructure — **in progress** |
+| Last milestone | 3.1 test infrastructure: Testcontainers PostgreSQL wired, Mockito attached as an explicit JVM agent, both backend tests green |
+| Next verified step | 3.2 — canonical error-code catalog and global exception handler, per specification section 17 |
 
 ## Project paths
 
@@ -105,11 +105,20 @@ belong to Phase 5.
 
 ## Tests currently passing
 
-**None.** `ro.garajulmeu.BackendApplicationTests.contextLoads` is `@Disabled`:
-adding Spring Data JPA in Phase 2 made it require a database, and specification
-section 20 forbids running automated tests against the Neon development branch.
-It is re-enabled in Phase 3 once Testcontainers PostgreSQL is configured. The
-reason is written into the annotation so the disabled test cannot be forgotten.
+| Test | Scope |
+|---|---|
+| `BackendApplicationTests.contextLoads` | Spring context boots against a throwaway PostgreSQL container |
+| `BackendApplicationTests.usesThrowawayContainerAndNeverTheHostedDatabase` | Asserts the live JDBC URL contains `localhost` and not `neon.tech` |
+
+The second test guards specification section 20. Configuration changes are
+frequent and a Neon URL leaking into the test context would be invisible — tests
+would pass while writing to the real database. This makes that mistake loud.
+
+Test infrastructure: `TestcontainersConfiguration` supplies a
+`PostgreSQLContainer` annotated `@ServiceConnection`, pinned to
+`postgres:18.4-alpine` to match the Neon server version. `src/test/resources/application.yml`
+deliberately shadows the main configuration file so `application-local.yml` can
+never reach a test.
 
 No frontend tests yet. Vitest and Playwright arrive with Phases 5 and 14.
 
@@ -139,6 +148,9 @@ Sentry at Phase 15.
 | 2026-08-12 | Local secrets pattern: committed `application.yml` contains only `${PLACEHOLDER}` references; real values come from gitignored `backend/application-local.yml` locally, and from real environment variables in production. An undefined placeholder fails startup loudly rather than failing at connection time. |
 | 2026-08-12 | Spring Boot 4 uses a `spring-boot-starter-flyway` starter rather than depending on `org.flywaydb:flyway-core` directly, as Boot 3.x did. |
 | 2026-08-12 | JDBC URLs use `channelBinding` (camelCase). Neon's native connection string uses the libpq spelling `channel_binding`, which the PostgreSQL JDBC driver rejects. |
+| 2026-08-13 | Testcontainers 2.0.5: container classes are **no longer generic**. `new PostgreSQLContainer<>(...)` from every 1.x example fails to compile; the canonical class is now `org.testcontainers.postgresql.PostgreSQLContainer`, with a legacy copy left in `org.testcontainers.containers`. Artifact ids also changed to `testcontainers-junit-jupiter` and `testcontainers-postgresql`. |
+| 2026-08-13 | The Mockito agent path resolves only because `maven-dependency-plugin`'s `properties` goal runs first; it publishes each dependency's jar path as a property named `groupId:artifactId:type`. Without that plugin, `${org.mockito:mockito-core:jar}` reaches the JVM as literal text and the forked test VM fails to start. |
+| 2026-08-13 | Test isolation is enforced by a real assertion, not only by configuration: `usesThrowawayContainerAndNeverTheHostedDatabase` fails if the live JDBC URL ever points at Neon. |
 
 ## Known issues and open decisions
 
@@ -146,9 +158,7 @@ Sentry at Phase 15.
 
 | Item | Phase |
 |---|---|
-| `BackendApplicationTests.contextLoads` is `@Disabled` and must be re-enabled once Testcontainers PostgreSQL exists. Until then the backend has **zero** passing automated tests. | 3 |
-| Mockito self-attaches a JVM agent, which future JDKs will disallow (`Dynamic loading of agents will be disallowed by default`). Fix by declaring the agent explicitly in the Surefire plugin configuration. | 3 |
-| `application-local.yml` is loaded from the working directory, so it would also be picked up by tests. Once Testcontainers is in place, confirm that tests bind to the container and never to Neon. | 3 |
+| Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
 | `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |
 

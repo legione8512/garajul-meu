@@ -1,0 +1,18 @@
+# Test-only configuration.
+#
+# This file deliberately shadows src/main/resources/application.yml, because
+# target/test-classes precedes target/classes on the test classpath. The effect
+# is that no test can ever read the Neon URLs from backend/application-local.yml.
+# Specification section 20 forbids running automated tests against the Neon
+# development branch.
+#
+# The datasource comes from the Testcontainers @ServiceConnection bean, and
+# Flyway reuses it because no spring.flyway.url is set here.
+
+spring:
+  application:
+    name: backend
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate

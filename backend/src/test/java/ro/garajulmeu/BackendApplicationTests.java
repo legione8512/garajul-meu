@@ -1,19 +1,39 @@
 package ro.garajulmeu;
 
-import org.junit.jupiter.api.Disabled;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 
 @SpringBootTest
-@Disabled("""
-		Requires a database since Phase 2 added Spring Data JPA. \
-		Re-enabled in Phase 3 with Testcontainers PostgreSQL. \
-		Specification section 20 forbids running automated tests \
-		against the Neon development branch.""")
+@Import(TestcontainersConfiguration.class)
 class BackendApplicationTests {
+
+	@Autowired
+	private DataSource dataSource;
 
 	@Test
 	void contextLoads() {
 	}
 
+	/**
+	 * Guards specification section 20: automated tests must never touch the
+	 * hosted Neon database. If a future configuration change lets the Neon URL
+	 * leak into the test context, this fails immediately and unambiguously.
+	 */
+	@Test
+	void usesThrowawayContainerAndNeverTheHostedDatabase() throws SQLException {
+		try (Connection connection = dataSource.getConnection()) {
+			assertThat(connection.getMetaData().getURL())
+					.contains("localhost")
+					.doesNotContain("neon.tech");
+		}
+	}
 }
