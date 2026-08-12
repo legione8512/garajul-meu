@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.2 Argon2 encoder and the Spring Security 7 baseline filter chain |
-| Next verified step | 4.3 — registration endpoint, email normalisation, six-digit verification code, fake email provider |
+| Last milestone | 4.3.1 `verification_tokens` table, entity and repository |
+| Next verified step | 4.3.2 — `POST /api/v1/auth/register`: email normalisation, Argon2 password hash, six-digit code, `EmailProvider` abstraction with a fake implementation |
 
 ## Project paths
 
@@ -72,10 +72,23 @@ Flyway runs at startup over the direct (non-pooled) endpoint. Migrations live in
 | Version | File | Applied to |
 |---|---|---|
 | 1 | `V1__create_users_table.sql` | Neon `development`, and every Testcontainers run |
+| 2 | `V2__create_verification_tokens_table.sql` | Neon `development`, and every Testcontainers run |
 
 `V1` creates `users` per specification section 10.1, with `pk_users`, a
 `ck_users_preferred_language` CHECK limiting the column to `ro`/`en`, and the
 unique index `ux_users_email`.
+
+`V2` creates `verification_tokens` per section 10.10, with a
+`ON DELETE CASCADE` foreign key to `users` — which is how section 24 account
+deletion reaches this table — a CHECK on the three token types, and the index
+`ix_verification_tokens_user_type`.
+
+**Migrations live only in `src/main/resources/db/migration`.** A copy under
+`src/test/resources` makes tests pass while the application fails to start:
+tests see both `target/test-classes` and `target/classes` on the classpath, but
+a running application sees only the latter. This happened once, on 2026-08-13,
+and was caught by `ddl-auto: validate` refusing to boot against Neon with a
+missing table.
 
 **An applied migration is never edited.** Flyway stores its checksum; changing
 the file afterwards fails the next startup with a checksum mismatch. Every
@@ -123,6 +136,20 @@ raise alerts for ordinary business failures.
 Email normalisation — trim and lower-case — is the service layer's
 responsibility. The entity stores what it is given, and the unique index
 enforces one account per address.
+
+#### Package `ro.garajulmeu.auth`
+
+| Class | Role |
+|---|---|
+| `VerificationTokenType` | `EMAIL_VERIFICATION`, `PASSWORD_RESET`, `EMAIL_CHANGE`. Codes are never interchangeable between purposes, so the type is part of every lookup |
+| `VerificationToken` | `@Entity` on `verification_tokens`. Holds the owner as a plain `userId`, not a `@ManyToOne` — the auth module never needs the `User` object from a token, and the foreign key still enforces integrity. `isUsable(now)` requires unused **and** not superseded **and** unexpired |
+| `VerificationTokenRepository` | `findFirstByUserIdAndTypeOrderByCreatedAtDesc` for the newest code, and `invalidateOutstandingCodes` — a `@Modifying` bulk update so a double "resend" cannot leave two codes both valid |
+
+Only the Argon2 hash of the six-digit code is stored. Argon2 rather than a fast
+hash because a six-digit code has only a million possibilities and would be
+trivially reversible from a leaked database. The cost is roughly 50 ms and 16 MB
+per verification, which makes rate limiting on the auth endpoints a requirement
+rather than a nicety.
 
 #### Package `ro.garajulmeu.security`
 
@@ -183,6 +210,7 @@ belong to Phase 5.
 | `RequestIdFilterTest.clearsTheMdcOnceTheRequestIsFinished` | No identifier leaks to the next request served by the same pooled thread |
 | `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
+| `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
 
 The second test guards specification section 20. Configuration changes are
 frequent and a Neon URL leaking into the test context would be invisible — tests
