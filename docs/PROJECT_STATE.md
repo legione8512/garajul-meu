@@ -12,9 +12,9 @@ Last updated: 2026-08-12
 
 | Item | Value |
 |---|---|
-| Phase | 3 — Common Backend Infrastructure — **complete** |
-| Last milestone | 3.3 correlation identifier in every log line, response header and error body |
-| Next verified step | Phase 4 — Authentication & Users: `users` table as the first Flyway migration, Argon2 password hashing, JWT access token, rotating refresh token |
+| Phase | 4 — Authentication & Users — **in progress** |
+| Last milestone | 4.2 Argon2 encoder and the Spring Security 7 baseline filter chain |
+| Next verified step | 4.3 — registration endpoint, email normalisation, six-digit verification code, fake email provider |
 
 ## Project paths
 
@@ -66,13 +66,20 @@ PostgreSQL Testcontainers, never the Neon development branch.
 
 ## Flyway migrations
 
-Flyway is wired and runs at startup over the direct (non-pooled) endpoint. It has
-created `public.flyway_schema_history` on the `development` branch.
+Flyway runs at startup over the direct (non-pooled) endpoint. Migrations live in
+`backend/src/main/resources/db/migration`.
 
-**No migration files exist yet** — `spring.flyway.locations` resolves to the
-default `classpath:db/migration`, which does not exist, so startup logs
-`No migrations found`. This is expected. The first migration is the `users`
-table in Phase 4.
+| Version | File | Applied to |
+|---|---|---|
+| 1 | `V1__create_users_table.sql` | Neon `development`, and every Testcontainers run |
+
+`V1` creates `users` per specification section 10.1, with `pk_users`, a
+`ck_users_preferred_language` CHECK limiting the column to `ro`/`en`, and the
+unique index `ux_users_email`.
+
+**An applied migration is never edited.** Flyway stores its checksum; changing
+the file afterwards fails the next startup with a checksum mismatch. Every
+schema change from here is a new `V2__`, `V3__` file.
 
 ## Implemented modules and endpoints
 
@@ -103,6 +110,29 @@ No `/api/v1` endpoints and no JPA entities or repositories exist yet.
 Log levels follow specification section 27: expected 4xx outcomes log at INFO,
 only unhandled exceptions log at ERROR — so Sentry, from Phase 15, will not
 raise alerts for ordinary business failures.
+
+#### Package `ro.garajulmeu.user`
+
+| Class | Role |
+|---|---|
+| `User` | `@Entity` on `users`. Id is `@GeneratedValue` UUID; timestamps come from Hibernate `@CreationTimestamp` / `@UpdateTimestamp`. `equals` uses the id alone and `hashCode` is constant, so an entity stays findable in a `HashSet` after Hibernate assigns its id |
+| `Language` | `RO("ro")`, `EN("en")` — the code is the same IETF tag i18next and the email templates use |
+| `LanguageConverter` | `@Converter(autoApply = true)`. `@Enumerated(STRING)` would write `RO`/`EN` and break the CHECK constraint |
+| `UserRepository` | `JpaRepository<User, UUID>` with `findByEmail` and `existsByEmail`; both expect an already-normalised address |
+
+Email normalisation — trim and lower-case — is the service layer's
+responsibility. The entity stores what it is given, and the unique index
+enforces one account per address.
+
+#### Package `ro.garajulmeu.security`
+
+`SecurityConfig` provides two beans:
+
+- `PasswordEncoder` — `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`: 16 MB memory, two iterations, parallelism one, sixteen byte salt. Chosen over `Argon2Password4jPasswordEncoder` (new in Security 7) because the documentation recommends neither, and the built-in one avoids a further third-party library. **Requires BouncyCastle**, which Spring Boot's BOM does not manage, so `org.bouncycastle:bcprov-jdk18on` is pinned explicitly in `pom.xml`.
+- `SecurityFilterChain` — stateless, no session; form login, HTTP Basic and Spring's logout endpoint disabled; `/actuator/health` public, everything else `authenticated()`; an explicit `HttpStatusEntryPoint(UNAUTHORIZED)` so a credential-less request answers 401 rather than the default 403.
+
+There is no authentication mechanism yet, so every path except health answers
+401. That is the intended state: start from deny-all and open paths explicitly.
 
 #### Package `ro.garajulmeu.common`
 
@@ -151,6 +181,8 @@ belong to Phase 5.
 | `RequestIdFilterTest.reusesAnIdentifierTheClientSuppliedSoOneRequestCanBeTracedEndToEnd` | A safe caller-supplied identifier is preserved |
 | `RequestIdFilterTest.replacesAnUnsafeClientIdentifier...` | A header containing a newline is discarded rather than written to the log |
 | `RequestIdFilterTest.clearsTheMdcOnceTheRequestIsFinished` | No identifier leaks to the next request served by the same pooled thread |
+| `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
+| `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
 
 The second test guards specification section 20. Configuration changes are
 frequent and a Neon URL leaking into the test context would be invisible — tests
@@ -206,6 +238,9 @@ Sentry at Phase 15.
 
 | Item | Phase |
 |---|---|
+| CSRF is disabled outright. It must be switched back on for the cookie-authenticated `/auth/refresh` and `/auth/logout` paths, per specification section 14. | 4.5 |
+| `HttpStatusEntryPoint` returns a bare 401 with no body, so authentication failures do not use the `ApiErrorResponse` shape every other error uses. Replace it once a suitable error code exists. | 4.4 |
+| Spring Boot auto-configures an in-memory user and prints `Using generated security password: …` at every startup, because no `UserDetailsService` bean exists yet. Harmless now — form login and HTTP Basic are disabled, so nothing can use it — but it must be gone before deployment. Providing our own `UserDetailsService` removes it. | 4.4 |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
 | `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |

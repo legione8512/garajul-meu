@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import org.springframework.security.test.context.support.WithMockUser;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -22,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @WebMvcTest
 @Import({ GlobalExceptionHandler.class, RequestIdFilter.class,
-	GlobalExceptionHandlerTest.FailingController.class })
+		GlobalExceptionHandlerTest.FailingController.class })
+@WithMockUser
 class GlobalExceptionHandlerTest {
 
 	@Autowired
