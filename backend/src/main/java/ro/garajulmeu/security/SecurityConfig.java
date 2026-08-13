@@ -9,7 +9,6 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -23,7 +22,6 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
  * Baseline security for the API. Specification section 14.
@@ -69,7 +67,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http,
+			ApiErrorAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
 		return http
 				.csrf(AbstractHttpConfigurer::disable)
 				.formLogin(AbstractHttpConfigurer::disable)
@@ -79,13 +78,29 @@ public class SecurityConfig {
 				.sessionManagement(session -> session
 						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
+				// Without an explicit entry point a credential-less request answers
+				// 403 rather than 401. Ours also gives it the ApiErrorResponse body,
+				// so the frontend has a code to translate like everywhere else.
 				.exceptionHandling(exceptions -> exceptions
-						.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+						.authenticationEntryPoint(authenticationEntryPoint))
 
 				// Reads the Authorization: Bearer header, verifies the signature and
 				// the expiry, and populates the security context. Spring provides the
 				// whole filter; we only supply the decoder above.
-				.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+				//
+				// The entry point has to be set here as well as in exceptionHandling
+				// above, because these are two different paths to a 401. A missing
+				// token is refused later by AuthorizationFilter and handled by
+				// ExceptionTranslationFilter, which uses the global entry point. A
+				// token that fails to decode is refused by this filter, which calls
+				// its own entry point directly and never reaches the other one.
+				// Spring's default here also answers with a WWW-Authenticate header
+				// carrying an English error_description and the server host - English
+				// prose the frontend must own, per section 6, and internal detail
+				// section 30 keeps out of responses.
+				.oauth2ResourceServer(oauth2 -> oauth2
+						.authenticationEntryPoint(authenticationEntryPoint)
+						.jwt(Customizer.withDefaults()))
 
 				.authorizeHttpRequests(requests -> requests
 						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

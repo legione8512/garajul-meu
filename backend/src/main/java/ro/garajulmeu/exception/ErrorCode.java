@@ -18,6 +18,12 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
 	// Authentication
+	/**
+	 * No bearer token, or one that failed verification. Deliberately one code for
+	 * both: the client's next move - refresh, then log in - is the same either
+	 * way, so a second code would be a distinction nobody consumes.
+	 */
+	AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED),
 	EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN),
 	REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED),

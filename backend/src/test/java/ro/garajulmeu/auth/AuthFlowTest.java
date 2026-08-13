@@ -1,6 +1,7 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import ro.garajulmeu.common.RequestIdFilter;
 import jakarta.servlet.http.Cookie;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
@@ -82,13 +83,32 @@ class AuthFlowTest {
 	@Test
 	void theProtectedRouteRefusesARequestWithNoToken() throws Exception {
 		mockMvc.perform(get("/api/v1/users/me"))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 	}
 
 	@Test
 	void theProtectedRouteRefusesAForgedToken() throws Exception {
 		mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer not-a-real-token"))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+	}
+	
+	/**
+	 * The actual defect being fixed: an authentication failure used to answer with
+	 * an empty body, outside the correlation mechanism every other error uses. If
+	 * someone later rebuilds this response without the MDC lookup, this fails.
+	 */
+	@Test
+	void theUnauthenticatedErrorJoinsTheCorrelationMechanism() throws Exception {
+		var result = mockMvc.perform(get("/api/v1/users/me"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.path").value("/api/v1/users/me"))
+				.andExpect(jsonPath("$.requestId").isNotEmpty())
+				.andReturn();
+
+		assertThat(JsonPath.<String>read(result.getResponse().getContentAsString(), "$.requestId"))
+				.isEqualTo(result.getResponse().getHeader(RequestIdFilter.HEADER));
 	}
 
 	/** The profile must never carry the password hash, whatever else changes. */

@@ -4,7 +4,7 @@ Portable state of the guided build. Updated at every meaningful milestone so the
 project can be continued in a new conversation, or by a different AI assistant,
 without relying on model memory.
 
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 ---
 
@@ -13,11 +13,11 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last **committed** milestone | 4.5a refresh-token domain — commit `7f55c8d` |
-| Working tree | **4.5b is written but unverified and uncommitted.** New: `RefreshCookies`, `dto/RefreshRequest`, `dto/RefreshResponse`. Modified: `AuthController`, `AuthService`, `RefreshTokenService`, `dto/LoginRequest`, `dto/LoginResponse`, `AuthFlowTest` |
-| Next verified step | Run `.\mvnw.cmd clean verify` in `backend/`. Expect **`Tests run: 59, Failures: 0`** — 51 from 4.5a plus 8 new HTTP tests. Fix whatever fails, then commit as "Phase 4.5b". After that, Phase 4.6 |
+| Last **committed** milestone | **4.5b refresh transport and logout — verified green on 2026-08-14.** Feature code is commit `ca3c670`; the Jackson 3 login fix and the authentication-entry-point work are the two commits that follow it |
+| Verified build | `.\mvnw.cmd clean verify` → **`Tests run: 60, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS` |
+| Next verified step | Phase 4.6 — rate limiting on the authentication endpoints |
 
-### What 4.5b adds, once it is verified
+### What 4.5b delivers
 
 `POST /api/v1/auth/refresh` and `/logout` accept the refresh token **either** from
 the `garajul_meu_refresh` cookie **or** from a `{"refreshToken": "..."}` body, and
@@ -28,10 +28,15 @@ works.
 Login always sets the `HttpOnly` `Secure` `SameSite=Strict` cookie scoped to
 `/api/v1/auth`, and additionally returns the token in the body only when the
 caller sends `"refreshTokenInBody": true` — so a browser's JavaScript never sees
-it, while a native client, which has no cookie jar, can ask for it.
+it, while a native client, which has no cookie jar, can ask for it. Only `/login`
+needs that flag: at login the client has presented nothing yet, so the backend
+cannot infer the channel. On `/refresh` and `/logout` it can, and does.
 
 `AuthService.login` is no longer `@Transactional(readOnly = true)`: issuing a
 refresh token writes a row.
+
+Logout is idempotent — logging out twice, or with no token at all, answers 204
+and clears the cookie regardless.
 
 ## How this project is built — working agreement
 
@@ -73,7 +78,7 @@ before going further.
 | Git | 2.50.0.windows.1, `init.defaultBranch=main` |
 | Eclipse | Platform 4.40.0 (2026-06 R), m2e 2.7.800, Spring Tools boot-ls 2.1.1 |
 | VS Code | `D:\Microsoft VS Code` |
-| Docker Desktop | 29.3.1 installed; daemon not started yet |
+| Docker Desktop | 29.3.1, daemon verified working — Testcontainers 2.0.5 connects over the local npipe, API 1.54 |
 
 A JDK 17.0.18.8 is also present but unused. Eclipse's default project JRE is
 explicitly Adoptium 21.
@@ -144,13 +149,14 @@ schema change from here is a new `V2__`, `V3__` file.
 | Local secrets | `backend/application-local.yml`, gitignored, loaded via `spring.config.import: optional:file:./application-local.yml` |
 | Artifact | `target/backend-0.0.1-SNAPSHOT.jar`, repackaged as an executable jar |
 
-No `/api/v1` endpoints and no JPA entities or repositories exist yet.
+The `/api/v1` surface implemented so far is the authentication block plus
+`GET /api/v1/users/me`; see the package tables below.
 
 #### Package `ro.garajulmeu.exception`
 
 | Class | Role |
 |---|---|
-| `ErrorCode` | The canonical catalogue from specification section 17, each code carrying its HTTP status so the same failure cannot answer differently in two endpoints |
+| `ErrorCode` | The canonical catalogue from specification section 17, each code carrying its HTTP status so the same failure cannot answer differently in two endpoints. `AUTHENTICATION_REQUIRED` covers both a missing bearer token and one that fails verification — one code, because the client's next move is the same either way |
 | `ApiException` | Thrown for expected business failures; carries an `ErrorCode`, never user-facing text |
 | `ApiErrorResponse` | The single JSON shape for every failure: `code`, `status`, `path`, `timestamp`, `fieldErrors`. Deliberately has **no message field**, so the frontend cannot display untranslated server English |
 | `GlobalExceptionHandler` | `@RestControllerAdvice` mapping every exception to that shape |
@@ -187,10 +193,13 @@ enforces one account per address.
 | `RefreshToken` | `@Entity` on `refresh_tokens`. Rows are **never deleted on rotation** — a spent token must stay findable, because that is exactly how a replay is detected |
 | `RefreshTokenRepository` | `findByTokenHash` on the unique index, and `revokeFamily` as a `@Modifying(flushAutomatically, clearAutomatically)` bulk update |
 | `RefreshTokenService` | `startFamily`, `rotate`, `revokeSessionOf`. 32 random bytes, base64url; only the SHA-256 hex is stored |
-| `AuthService` | `register`, `verifyEmail`, `resendVerificationCode`, `login` |
-| `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204; `/login` → 200 with the access token |
+| `RefreshCookies` | Builds the `garajul_meu_refresh` cookie: `HttpOnly`, `Secure`, `SameSite=Strict`, path `/api/v1/auth`, lifetime from `AuthProperties`. `clear()` returns the same cookie empty with a zero max-age, which is how a cookie is deleted |
+| `AuthService` | `register`, `verifyEmail`, `resendVerificationCode`, `login`, `refresh`, `logout`. Returns `LoginResult` — the controller decides how the token travels |
+| `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204; `/login` → 200 with the access token and the refresh cookie; `/refresh` → 200 on the channel the caller used; `/logout` → 204, idempotent |
 | `dto.VerifyEmailRequest` | `@Pattern("\\d{6}")` on the code, so malformed input is rejected before it costs an Argon2 comparison |
 | `dto.RegisterRequest` | Bean Validation constraints; password 12–128 characters; language is a `@Pattern("ro\|en")` **string**, not the enum, because JSON carries the lower-case tag while Jackson would expect the constant name |
+| `dto.LoginRequest` | `refreshTokenInBody` is a boxed `Boolean`, not a primitive — see the Jackson 3 decision below. `wantsRefreshTokenInBody()` is the single place that decides absent means false |
+| `dto.RefreshRequest` / `dto.RefreshResponse` | The explicit-token channel used by native clients. `RefreshResponse.refreshToken` is null when the caller arrived by cookie |
 
 #### Package `ro.garajulmeu.email`
 
@@ -213,7 +222,15 @@ rather than a nicety.
 `SecurityConfig` provides two beans:
 
 - `PasswordEncoder` — `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`: 16 MB memory, two iterations, parallelism one, sixteen byte salt. Chosen over `Argon2Password4jPasswordEncoder` (new in Security 7) because the documentation recommends neither, and the built-in one avoids a further third-party library. **Requires BouncyCastle**, which Spring Boot's BOM does not manage, so `org.bouncycastle:bcprov-jdk18on` is pinned explicitly in `pom.xml`.
-- `SecurityFilterChain` — stateless, no session; form login, HTTP Basic and Spring's logout endpoint disabled; `/actuator/health` public, everything else `authenticated()`; an explicit `HttpStatusEntryPoint(UNAUTHORIZED)` so a credential-less request answers 401 rather than the default 403.
+- `SecurityFilterChain` — stateless, no session; form login, HTTP Basic and Spring's logout endpoint disabled; `/actuator/health` public, everything else `authenticated()`; `ApiErrorAuthenticationEntryPoint` wired in **two** places, so a credential-less request answers 401 rather than the default 403, and every 401 carries a body.
+
+`ApiErrorAuthenticationEntryPoint` answers an unauthenticated request with the
+same `ApiErrorResponse` shape as everything else. It has to exist because
+authentication fails inside the filter chain, before any controller, where
+`@RestControllerAdvice` cannot reach. It serialises with the injected
+`tools.jackson.databind.ObjectMapper` — the bean Spring MVC itself uses, not a
+fresh instance — so the JSON matches every other error byte for byte, and it
+reads the correlation id from the MDC exactly as `GlobalExceptionHandler` does.
 
 JWT is handled entirely by Spring Security — no third-party library, no custom
 filter:
@@ -226,8 +243,10 @@ filter:
 | `AccessTokenService` | Issues the token. Claims are exactly `iss`, `iat`, `exp`, `sub` — the account id and nothing personal, since a JWT is only base64 and lives on the client |
 | `oauth2ResourceServer(jwt())` | Spring's own `BearerTokenAuthenticationFilter` reads `Authorization: Bearer`, verifies signature and expiry, and populates the security context |
 
-There is still no login endpoint, so no token can be obtained yet; every path
-except health and `/api/v1/auth/**` answers 401.
+Every path except `/actuator/health**` and `/api/v1/auth/**` answers 401 without a
+valid bearer token. All six endpoints under `/api/v1/auth/**` are legitimately
+pre-authentication, so the wholesale `permitAll` is correct **today** — see the
+standing rule in the deferred-work table before adding anything else there.
 
 #### Package `ro.garajulmeu.common`
 
@@ -279,7 +298,7 @@ belong to Phase 5.
 | `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
 | `RefreshTokenServiceTest` (7 tests) | Only the digest is stored; rotation stays in the family and links the chain; replaying a spent token revokes the whole family and takes the honest holder's current token with it; unknown and expired tokens are refused; logout ends every token in the family; two logins get independent families, so signing out on the phone leaves the laptop alone |
-| `AuthFlowTest` (7 tests) | Full HTTP surface: a token from login opens `/users/me`; no token and a forged token both answer 401; the profile body contains neither `argon2` nor `passwordHash`; a wrong password and an unknown address answer the identical `INVALID_CREDENTIALS`; an unverified account answers `EMAIL_NOT_VERIFIED` |
+| `AuthFlowTest` (16 tests) | Full HTTP surface. Session: a token from login opens `/users/me`; no token and a forged token both answer 401 with `AUTHENTICATION_REQUIRED`, and the unauthenticated error's `requestId` matches the `X-Request-Id` header; the profile body contains neither `argon2` nor `passwordHash`; a wrong password and an unknown address answer the identical `INVALID_CREDENTIALS`; an unverified account answers `EMAIL_NOT_VERIFIED`. Transport: login always sets the `HttpOnly` `Secure` cookie and omits the token from the body; a caller asking for it in the body receives it; refresh on the cookie channel answers on the cookie channel and on the body channel answers in the body; a replayed token answers `REFRESH_TOKEN_REUSED`; refresh with no token at all answers `REFRESH_TOKEN_INVALID`; logout clears the cookie and kills the session; logout with no token is not an error |
 | `AccessTokenServiceTest` (4 tests) | Our own decoder accepts the issued token and reads the account id back; expiry lands inside the configured window; the token carries **only** `iss`, `iat`, `exp`, `sub`; a token signed with a different key is rejected. Builds the beans directly rather than starting Spring, so it runs in about a tenth of a second while still exercising the real configuration |
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
 | `VerificationCodeGeneratorTest` (2 tests) | Always exactly six digits over a thousand draws, which also proves the zero padding; two hundred draws are almost all distinct |
@@ -358,6 +377,12 @@ Sentry at Phase 15.
 | 2026-08-13 | Because verification always reads the **newest** token for the account, `invalidateOutstandingCodes` is defence in depth rather than the active mechanism — an older token is never consulted. Its test asserts the `invalidatedAt` column directly, so it cannot pass merely because a newer code shadows the old one. |
 | 2026-08-13 | `invalidateOutstandingCodes` is annotated `@Modifying(flushAutomatically = true, clearAutomatically = true)`. A bulk JPQL update bypasses the persistence context entirely: without `flushAutomatically` a freshly persisted but unflushed token escapes the UPDATE unnoticed, and without `clearAutomatically` every already-loaded entity keeps its stale values. **After any bulk update, previously loaded entities must not be trusted.** The defect was invisible until a test asserted the column instead of the outcome. |
 | 2026-08-13 | Slice tests must name what they load. `GlobalExceptionHandlerTest` uses `@WebMvcTest(controllers = …)`: the slice instantiates every `@RestController` but excludes every `@Service`, so the first real controller broke an unrelated test. Scoping the slice is the fix, not mocking each new controller's dependencies. |
+| 2026-08-14 | **No primitive component in any request DTO.** Spring Boot 4 ships **Jackson 3** (3.1.4), which enables `DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES` by default — the opposite of Jackson 2. An absent JSON property reaches a record's canonical constructor as null, and `null → boolean` now throws before the constructor runs, so the *whole request* becomes unreadable rather than defaulting to false. `LoginRequest.refreshTokenInBody` was a primitive `boolean`, so any login that omitted the flag — every browser login — answered `400 MALFORMED_REQUEST`. Six `AuthFlowTest` failures caught it. Fix: box the component and let `wantsRefreshTokenInBody()` own the meaning of absent. A compact constructor cannot rescue this; the failure is earlier. |
+| 2026-08-14 | The global escape hatch `spring.jackson.deserialization.fail-on-null-for-primitives: false` was **rejected**. It would weaken deserialization for every DTO in the project permanently. For a missing boolean, false is plausible; for a missing `int`, 0 is a meaningful and usually wrong value — an absent `offset_days` or `engine_capacity_cc` would become a silent zero instead of a rejected request. Jackson 3 turned this on deliberately. Corrections are paid at the defect, not by disabling a protection project-wide. |
+| 2026-08-14 | Only `/login` carries a channel flag. At login the client has presented nothing, so the backend cannot infer whether it has a cookie jar; `refreshTokenInBody` is an explicit opt-in whose default is the safe one. On `/refresh` and `/logout` no flag exists or is needed — the presence of a cookie or a body token *is* the answer. Section 14's ban on an `X-Client-Type` header is therefore satisfied in substance, not just in spelling. |
+| 2026-08-14 | **There are two paths to a 401, and `exceptionHandling()` governs only one.** A request with *no* token is refused later by `AuthorizationFilter` and handled by `ExceptionTranslationFilter`, which uses the global entry point. A request whose bearer token *fails to decode* is refused by `BearerTokenAuthenticationFilter`, which calls **its own** entry point on the spot and never reaches `ExceptionTranslationFilter`. The custom entry point must therefore be set on `oauth2ResourceServer(...)` as well as on `exceptionHandling(...)`; neither replaces the other. Wiring only the first left forged tokens on Spring's default, and `AuthFlowTest` caught it. |
+| 2026-08-14 | Replacing the resource server's default entry point also removes its `WWW-Authenticate` header, which is a gain rather than a loss. That header carried `error_description="An error occurred while attempting to decode the Jwt: ..."` — English prose the frontend must own per section 6 — and `resource_metadata` naming the server host, which section 30 keeps out of responses. RFC 6750 recommends the header; our only client reads the JSON code, so the recommendation buys nothing and costs a leak. |
+| 2026-08-14 | **CSRF stays disabled through Phase 15; the token mechanism arrives at Phase 16.** The refresh cookie is `SameSite=Strict`, `HttpOnly`, `Secure` and path-scoped to `/api/v1/auth`, so a browser attaches it to no cross-site request at all — that is the primary defence against exactly the attack CSRF tokens prevent, not a secondary one. A CSRF token on top is genuine defence in depth, but it needs a frontend that reads and replays it, and that frontend does not exist yet; nor can it be tested convincingly on localhost, where there are no two real origins. It lands with `app.<domain>` and `api.<domain>`. Residual risk accepted until then: an XSS or subdomain takeover on any same-site host could issue same-site requests, which a token would still block. |
 
 ## Known issues and open decisions
 
@@ -365,12 +390,13 @@ Sentry at Phase 15.
 
 | Item | Phase |
 |---|---|
-| CSRF is disabled outright. It must be switched back on for the cookie-authenticated `/auth/refresh` and `/auth/logout` paths, per specification section 14. | 4.5 |
-| `/api/v1/auth/**` is permitted wholesale. Endpoints added under that prefix that should require authentication must be matched individually. | 4.5 |
+| CSRF token protection for the cookie-authenticated `/auth/refresh` and `/auth/logout` paths, per specification section 14. Deferred deliberately on 2026-08-14, with reasoning in the decisions table: `SameSite=Strict` is the working defence today, and a token needs a real frontend and two real origins to be implemented or tested honestly. | 16 |
+| **Standing rule, not a dated task:** `/api/v1/auth/**` is permitted wholesale, which is correct only while every endpoint under it is pre-authentication. All six are, today. Any endpoint added under that prefix which should require a token must be matched individually — check this at the moment of adding, not later. | standing |
 | Registration sends the email inside the transaction, so a provider outage rolls the account back. Simple and safe today; revisit if Resend proves flaky. | 4.7 |
 | Auth endpoints are not rate limited. This matters more than usual here because verifying a code costs an Argon2 hash — roughly 50 ms and 16 MB — so an unthrottled endpoint is a cheap denial-of-service. | 4.6 |
 | `spring-boot-configuration-processor` only runs because `maven.compiler.proc=full` is set in `pom.xml`. **JDK 21 requires the option to be set explicitly**; without it the processor is silently skipped and no metadata is generated. | done |
-| `HttpStatusEntryPoint` returns a bare 401 with no body, so authentication failures do not use the `ApiErrorResponse` shape every other error uses. Replace it once a suitable error code exists. | 4.4 |
+| ~~`HttpStatusEntryPoint` returns a bare 401 with no body~~ — **closed 2026-08-14** by `ApiErrorAuthenticationEntryPoint`. Was scheduled for 4.4, slipped, and was caught by re-reading `SecurityConfig` rather than by any test. | done |
+| No `AccessDeniedHandler`, so a 403 from Spring Security itself would still answer with a bare body. Not built yet because nothing can trigger it: every rule is `anyRequest().authenticated()` with no roles, and `VEHICLE_ACCESS_DENIED` and its relatives are `ApiException`s from services that already take the `GlobalExceptionHandler` path. Building it now would mean inventing an authorization rule to test it against. **Trigger: the first real authorization rule on the chain**, realistically Phase 7 with vehicle ownership. Both places that take an entry point take a handler too. | 7 |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
 | `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |
@@ -379,7 +405,7 @@ Sentry at Phase 15.
 
 - Mac availability for Phase 18 (iOS) not yet confirmed. Blocks nothing before Phase 17.
 - Google Document AI processor version must be verified as currently supported at Phase 9; deliberately not frozen in advance.
-- Spring Security Argon2 encoder implementation to be verified against current documentation at Phase 4. Argon2 itself is the frozen algorithm. Spring Boot 4 implies Spring Security 7, whose API differs from the 6.x examples found in most tutorials.
+- ~~Spring Security Argon2 encoder implementation~~ — **resolved 2026-08-13.** `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`, with the reasoning in the `ro.garajulmeu.security` section. Argon2 itself was always the frozen algorithm.
 
 ### Carried over from specification section 35
 

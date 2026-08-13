@@ -67,7 +67,7 @@ public class AuthController {
 		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookies.issue(result.refreshToken()).toString());
 
 		return new LoginResponse(result.accessToken(), result.expiresInSeconds(),
-				request.refreshTokenInBody() ? result.refreshToken() : null);
+				request.wantsRefreshTokenInBody() ? result.refreshToken() : null);
 	}
 
 	/**
