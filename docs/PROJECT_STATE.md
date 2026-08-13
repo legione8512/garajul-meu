@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.4b-2 login and the first protected route; register → verify → login → authenticated request works end to end against Neon |
-| Next verified step | 4.5 — rotating opaque refresh token: `refresh_tokens` migration, `/auth/refresh` and `/auth/logout`, family reuse detection, and CSRF re-enabled for the cookie paths |
+| Last milestone | 4.5a refresh-token domain: issue, rotate, detect replay, revoke a family |
+| Next verified step | 4.5b — wire it to HTTP: login also returns a refresh token, `POST /auth/refresh` with cookie **and** explicit transport, `POST /auth/logout`, and CSRF re-enabled for the cookie paths |
 
 ## Project paths
 
@@ -73,6 +73,7 @@ Flyway runs at startup over the direct (non-pooled) endpoint. Migrations live in
 |---|---|---|
 | 1 | `V1__create_users_table.sql` | Neon `development`, and every Testcontainers run |
 | 2 | `V2__create_verification_tokens_table.sql` | Neon `development`, and every Testcontainers run |
+| 3 | `V3__create_refresh_tokens_table.sql` | Neon `development`, and every Testcontainers run |
 
 `V1` creates `users` per specification section 10.1, with `pk_users`, a
 `ck_users_preferred_language` CHECK limiting the column to `ro`/`en`, and the
@@ -148,7 +149,10 @@ enforces one account per address.
 | `VerificationToken` | `@Entity` on `verification_tokens`. Holds the owner as a plain `userId`, not a `@ManyToOne` — the auth module never needs the `User` object from a token, and the foreign key still enforces integrity. `isUsable(now)` requires unused **and** not superseded **and** unexpired |
 | `VerificationTokenRepository` | `findFirstByUserIdAndTypeOrderByCreatedAtDesc` for the newest code, and `invalidateOutstandingCodes` — a `@Modifying` bulk update so a double "resend" cannot leave two codes both valid |
 | `VerificationCodeGenerator` | `SecureRandom` plus `%06d` padding. Padding matters: returning "42" instead of "000042" would shrink the effective code space |
-| `AuthProperties` | `@ConfigurationProperties("garajul-meu.auth")`, defaults 15 minutes validity and 5 attempts |
+| `AuthProperties` | `@ConfigurationProperties("garajul-meu.auth")`: 15 minutes code validity, 5 attempts, 30 days refresh-token validity |
+| `RefreshToken` | `@Entity` on `refresh_tokens`. Rows are **never deleted on rotation** — a spent token must stay findable, because that is exactly how a replay is detected |
+| `RefreshTokenRepository` | `findByTokenHash` on the unique index, and `revokeFamily` as a `@Modifying(flushAutomatically, clearAutomatically)` bulk update |
+| `RefreshTokenService` | `startFamily`, `rotate`, `revokeSessionOf`. 32 random bytes, base64url; only the SHA-256 hex is stored |
 | `AuthService` | `register`, `verifyEmail`, `resendVerificationCode`, `login` |
 | `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204; `/login` → 200 with the access token |
 | `dto.VerifyEmailRequest` | `@Pattern("\\d{6}")` on the code, so malformed input is rejected before it costs an Argon2 comparison |
@@ -240,6 +244,7 @@ belong to Phase 5.
 | `RequestIdFilterTest.clearsTheMdcOnceTheRequestIsFinished` | No identifier leaks to the next request served by the same pooled thread |
 | `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
+| `RefreshTokenServiceTest` (7 tests) | Only the digest is stored; rotation stays in the family and links the chain; replaying a spent token revokes the whole family and takes the honest holder's current token with it; unknown and expired tokens are refused; logout ends every token in the family; two logins get independent families, so signing out on the phone leaves the laptop alone |
 | `AuthFlowTest` (7 tests) | Full HTTP surface: a token from login opens `/users/me`; no token and a forged token both answer 401; the profile body contains neither `argon2` nor `passwordHash`; a wrong password and an unknown address answer the identical `INVALID_CREDENTIALS`; an unverified account answers `EMAIL_NOT_VERIFIED` |
 | `AccessTokenServiceTest` (4 tests) | Our own decoder accepts the issued token and reads the account id back; expiry lands inside the configured window; the token carries **only** `iss`, `iat`, `exp`, `sub`; a token signed with a different key is rejected. Builds the beans directly rather than starting Spring, so it runs in about a tenth of a second while still exercising the real configuration |
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
@@ -302,6 +307,10 @@ Sentry at Phase 15.
 | 2026-08-13 | `existsByEmail` is backed up by catching `DataIntegrityViolationException` and re-throwing the same code. Two simultaneous registrations can both pass the check and collide only at the unique index; without the catch the caller would get `INTERNAL_ERROR` for an ordinary conflict. |
 | 2026-08-13 | Password policy: 12–128 characters, no composition rules. Current guidance favours length over forced symbols, which mostly produce predictable substitutions. The maximum bounds the Argon2 work per request. |
 | 2026-08-13 | `ExceptionHandlerExceptionResolver` is pinned to ERROR level. At its default WARN it logs every resolved exception including rejected field values, which put an attempted password into the log during a manual registration test — forbidden by specification section 30. Our own handler logs field names only. Found by reading the log during manual verification; no automated test asserts on framework logging, so this class of leak needs a human eye. |
+| 2026-08-13 | Refresh tokens are hashed with **SHA-256, not Argon2** — the opposite of passwords and verification codes, for two reasons. The token holds 256 bits of entropy, so brute force from a leaked database is irrelevant. And Argon2's per-hash salt makes lookup by value impossible: every refresh would have to load every token and compare each at ~50 ms. **The hash choice follows the entropy of the secret, not habit.** |
+| 2026-08-13 | A `familyId` is one login on one device. Rotation keeps the family; reuse revokes it entirely; logout revokes it. Signing out on one device therefore leaves other devices signed in. |
+| 2026-08-13 | Detected reuse revokes the family, which also invalidates the honest holder's current token. That is deliberate: the alternative is letting a thief refresh indefinitely. A stolen token buys at most one refresh before it becomes an alarm. |
+| 2026-08-13 | A token revoked by logout is indistinguishable from one revoked by rotation, so logging out and then replaying answers `REFRESH_TOKEN_REUSED` rather than something more precise. Distinguishing them would need another column; noted as an observation, not a defect. |
 | 2026-08-13 | Login hashes a throwaway value when the address is unknown, so a missing account costs the same as a wrong password. The database lookup is microseconds and an Argon2 comparison is tens of milliseconds; without the dummy hash, response time alone reveals which addresses hold accounts. |
 | 2026-08-13 | Login checks the password **before** `isEmailVerified`. The other order would tell anyone who guesses an address that it exists and is unverified, without knowing the password. As written, `EMAIL_NOT_VERIFIED` only reaches someone who has already proved they know it. |
 | 2026-08-13 | `LoginResponse` returns `expiresInSeconds`, not an absolute timestamp. A phone with a wrong clock would misjudge an absolute expiry; a duration is immune to clock skew. This is also the OAuth2 convention. |

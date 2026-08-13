@@ -42,6 +42,7 @@ garajul-meu:
   auth:
     verification-code-validity: 15m
     max-verification-attempts: 5
+    refresh-token-validity: 30d
   jwt:
     secret: ${JWT_SECRET}
     access-token-validity: 10m
