@@ -13,8 +13,42 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.5a refresh-token domain: issue, rotate, detect replay, revoke a family |
-| Next verified step | 4.5b — wire it to HTTP: login also returns a refresh token, `POST /auth/refresh` with cookie **and** explicit transport, `POST /auth/logout`, and CSRF re-enabled for the cookie paths |
+| Last **committed** milestone | 4.5a refresh-token domain — commit `7f55c8d` |
+| Working tree | **4.5b is written but unverified and uncommitted.** New: `RefreshCookies`, `dto/RefreshRequest`, `dto/RefreshResponse`. Modified: `AuthController`, `AuthService`, `RefreshTokenService`, `dto/LoginRequest`, `dto/LoginResponse`, `AuthFlowTest` |
+| Next verified step | Run `.\mvnw.cmd clean verify` in `backend/`. Expect **`Tests run: 59, Failures: 0`** — 51 from 4.5a plus 8 new HTTP tests. Fix whatever fails, then commit as "Phase 4.5b". After that, Phase 4.6 |
+
+### What 4.5b adds, once it is verified
+
+`POST /api/v1/auth/refresh` and `/logout` accept the refresh token **either** from
+the `garajul_meu_refresh` cookie **or** from a `{"refreshToken": "..."}` body, and
+answer on whichever channel the request used. No client-type header is needed,
+as specification section 14 requires: the request itself reveals how the client
+works.
+
+Login always sets the `HttpOnly` `Secure` `SameSite=Strict` cookie scoped to
+`/api/v1/auth`, and additionally returns the token in the body only when the
+caller sends `"refreshTokenInBody": true` — so a browser's JavaScript never sees
+it, while a native client, which has no cookie jar, can ask for it.
+
+`AuthService.login` is no longer `@Transactional(readOnly = true)`: issuing a
+refresh token writes a row.
+
+## How this project is built — working agreement
+
+This is a **guided build**, not code generation. The cycle is: explain → give the
+exact command or file → the developer applies it → run → verify → fix → continue.
+Stop at each meaningful milestone and wait for the developer's actual output
+before going further.
+
+| Rule | Detail |
+|---|---|
+| Who writes files | **The developer.** Provide the exact path, whether it is new or modified, the full content, and the reasoning. Do not write source files unless explicitly asked. |
+| This document | Maintained by the assistant, not the developer. Update it at every milestone. |
+| Language | Explanations in Romanian; technical terms, code, comments and identifiers in English. |
+| Verification | Read the log, not just `BUILD SUCCESS`. **Always check the total test count** — a test lost to a bad edit leaves the build green and the number smaller. This has happened. |
+| Versions | Verify current documentation before giving version-specific instructions. Spring Boot 4 renamed many artifacts and packages, and most material online targets 3.x. |
+| Paste fragility | Long files and nested XML have repeatedly lost lines in transit. After pasting, check the file size or line count. If a paste fails twice on the same content, ask before switching approach. |
+| Scope | Implement only V1 features from the specification. Surface any deviation and wait for approval rather than deciding alone. |
 
 ## Project paths
 

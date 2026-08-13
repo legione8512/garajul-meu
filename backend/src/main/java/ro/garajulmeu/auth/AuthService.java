@@ -1,10 +1,11 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import ro.garajulmeu.security.AccessTokenService.IssuedAccessToken;
+
 import java.time.Duration;
 
 import ro.garajulmeu.auth.dto.LoginRequest;
-import ro.garajulmeu.auth.dto.LoginResponse;
 import ro.garajulmeu.security.AccessTokenService;
 import java.util.Optional;
 
@@ -45,11 +46,13 @@ public class AuthService {
 	private final AuthProperties authProperties;
 	
 	private final AccessTokenService accessTokenService;
+	
+	private final RefreshTokenService refreshTokenService;
 
 	AuthService(UserRepository userRepository, VerificationTokenRepository tokenRepository,
 			PasswordEncoder passwordEncoder, EmailProvider emailProvider,
 			VerificationCodeGenerator codeGenerator, AuthProperties authProperties,
-			AccessTokenService accessTokenService) {
+			AccessTokenService accessTokenService, RefreshTokenService refreshTokenService) {
 		this.userRepository = userRepository;
 		this.tokenRepository = tokenRepository;
 		this.passwordEncoder = passwordEncoder;
@@ -57,6 +60,7 @@ public class AuthService {
 		this.codeGenerator = codeGenerator;
 		this.authProperties = authProperties;
 		this.accessTokenService = accessTokenService;
+		this.refreshTokenService = refreshTokenService;
 	}
 
 	@Transactional
@@ -145,15 +149,18 @@ public class AuthService {
 		issueEmailVerificationCode(account.get());
 		log.info("Reissued verification code for account {}", account.get().getId());
 	}
-	@Transactional(readOnly = true)
-	public LoginResponse login(LoginRequest request) {
+	/**
+	 * No longer {@code readOnly}: issuing a refresh token writes a row. A
+	 * read-only transaction would have refused the insert.
+	 */
+	@Transactional
+	public LoginResult login(LoginRequest request) {
 		Optional<User> account = userRepository.findByEmail(normalise(request.email()));
 
 		if (account.isEmpty()) {
 			// Hash a throwaway value so a missing account costs the same as a wrong
 			// password. Without this, response time alone tells an attacker which
-			// addresses hold accounts - the database check is microseconds, an
-			// Argon2 comparison is tens of milliseconds.
+			// addresses hold accounts.
 			passwordEncoder.encode(request.password());
 			throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
 		}
@@ -164,18 +171,39 @@ public class AuthService {
 			throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
 		}
 
-		// Deliberately after the password check. The other order would tell anyone
-		// who guesses an address that it exists and is unverified, without ever
-		// knowing the password.
+		// Deliberately after the password check, so an unverified account is only
+		// revealed to someone who already proved they know the password.
 		if (!user.isEmailVerified()) {
 			throw new ApiException(ErrorCode.EMAIL_NOT_VERIFIED);
 		}
 
-		AccessTokenService.IssuedAccessToken token = accessTokenService.issueFor(user.getId());
-		log.info("Issued access token for account {}", user.getId());
+		IssuedAccessToken access = accessTokenService.issueFor(user.getId());
+		RefreshTokenService.IssuedRefreshToken refresh = refreshTokenService.startFamily(user.getId());
 
-		return new LoginResponse(token.value(),
-				Duration.between(Instant.now(), token.expiresAt()).toSeconds());
+		log.info("Started session for account {} in family {}", user.getId(), refresh.familyId());
+
+		return new LoginResult(access.value(), secondsUntil(access.expiresAt()), refresh.value());
+	}
+
+	@Transactional
+	public LoginResult refresh(String presentedToken) {
+		RefreshTokenService.IssuedRefreshToken rotated = refreshTokenService.rotate(presentedToken);
+		IssuedAccessToken access = accessTokenService.issueFor(rotated.userId());
+
+		return new LoginResult(access.value(), secondsUntil(access.expiresAt()), rotated.value());
+	}
+
+	@Transactional
+	public void logout(String presentedToken) {
+		refreshTokenService.revokeSessionOf(presentedToken);
+	}
+
+	private static long secondsUntil(Instant moment) {
+		return Duration.between(Instant.now(), moment).toSeconds();
+	}
+
+	/** What the service produces; the controller decides how it travels. */
+	public record LoginResult(String accessToken, long expiresInSeconds, String refreshToken) {
 	}
 	private void issueEmailVerificationCode(User user) {
 		Instant now = Instant.now();

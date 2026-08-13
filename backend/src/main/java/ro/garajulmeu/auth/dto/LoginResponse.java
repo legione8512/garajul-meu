@@ -1,10 +1,10 @@
 package ro.garajulmeu.auth.dto;
 
 /**
- * @param expiresInSeconds relative rather than an absolute timestamp. A phone
- *                         with a wrong clock would misjudge an absolute expiry
- *                         and either refresh constantly or too late; a duration
- *                         is immune to clock skew. This is also what OAuth2 uses.
+ * @param expiresInSeconds relative rather than an absolute timestamp, so a
+ *                         device with a wrong clock still refreshes on time
+ * @param refreshToken     null unless the caller asked for it. The web client
+ *                         receives it as an HttpOnly cookie instead.
  */
-public record LoginResponse(String accessToken, long expiresInSeconds) {
+public record LoginResponse(String accessToken, long expiresInSeconds, String refreshToken) {
 }

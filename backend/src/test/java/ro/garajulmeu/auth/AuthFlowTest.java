@@ -1,6 +1,9 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import jakarta.servlet.http.Cookie;
+
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import ro.garajulmeu.TestcontainersConfiguration;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -129,5 +133,107 @@ class AuthFlowTest {
 						.content("{\"email\":\"unverified@example.com\",\"password\":\"%s\"}".formatted(PASSWORD)))
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
+	}
+	private MvcResultHolder loginRaw(boolean tokenInBody) throws Exception {
+		var result = mockMvc.perform(post("/api/v1/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"password\":\"%s\",\"refreshTokenInBody\":%s}"
+								.formatted(EMAIL, PASSWORD, tokenInBody)))
+				.andExpect(status().isOk())
+				.andReturn();
+
+		Cookie refreshCookie = result.getResponse().getCookie(RefreshCookies.NAME);
+		return new MvcResultHolder(result.getResponse().getContentAsString(),
+				refreshCookie == null ? null : refreshCookie.getValue());
+	}
+
+	private record MvcResultHolder(String body, String cookieValue) {
+	}
+
+	@Test
+	void loginAlwaysSetsAnHttpOnlyRefreshCookie() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(EMAIL, PASSWORD)))
+				.andExpect(status().isOk())
+				.andExpect(cookie().exists(RefreshCookies.NAME))
+				.andExpect(cookie().httpOnly(RefreshCookies.NAME, true))
+				.andExpect(cookie().secure(RefreshCookies.NAME, true))
+				.andExpect(jsonPath("$.refreshToken").doesNotExist());
+	}
+
+	@Test
+	void aNativeClientReceivesTheRefreshTokenInTheBody() throws Exception {
+		MvcResultHolder login = loginRaw(true);
+
+		assertThat(JsonPath.<String>read(login.body(), "$.refreshToken")).isNotBlank();
+	}
+
+	@Test
+	void refreshOnTheCookieChannelAnswersOnTheCookieChannel() throws Exception {
+		MvcResultHolder login = loginRaw(false);
+
+		mockMvc.perform(post("/api/v1/auth/refresh").cookie(new Cookie(RefreshCookies.NAME, login.cookieValue())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isNotEmpty())
+				.andExpect(jsonPath("$.refreshToken").doesNotExist())
+				.andExpect(cookie().exists(RefreshCookies.NAME));
+	}
+
+	@Test
+	void refreshOnTheBodyChannelAnswersOnTheBodyChannel() throws Exception {
+		String first = JsonPath.read(loginRaw(true).body(), "$.refreshToken");
+
+		String body = mockMvc.perform(post("/api/v1/auth/refresh")
+						.contentType("application/json")
+						.content("{\"refreshToken\":\"%s\"}".formatted(first)))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+
+		assertThat(JsonPath.<String>read(body, "$.refreshToken"))
+				.isNotBlank()
+				.isNotEqualTo(first);
+	}
+
+	/** The mechanism that turns a stolen token into an alarm. */
+	@Test
+	void replayingASpentRefreshTokenIsRejected() throws Exception {
+		String first = JsonPath.read(loginRaw(true).body(), "$.refreshToken");
+
+		mockMvc.perform(post("/api/v1/auth/refresh")
+						.contentType("application/json")
+						.content("{\"refreshToken\":\"%s\"}".formatted(first)))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/v1/auth/refresh")
+						.contentType("application/json")
+						.content("{\"refreshToken\":\"%s\"}".formatted(first)))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("REFRESH_TOKEN_REUSED"));
+	}
+
+	@Test
+	void refreshWithNoTokenAtAllIsRejected() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/refresh"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.code").value("REFRESH_TOKEN_INVALID"));
+	}
+
+	@Test
+	void logoutClearsTheCookieAndEndsTheSession() throws Exception {
+		MvcResultHolder login = loginRaw(false);
+
+		mockMvc.perform(post("/api/v1/auth/logout").cookie(new Cookie(RefreshCookies.NAME, login.cookieValue())))
+				.andExpect(status().isNoContent())
+				.andExpect(cookie().maxAge(RefreshCookies.NAME, 0));
+
+		mockMvc.perform(post("/api/v1/auth/refresh").cookie(new Cookie(RefreshCookies.NAME, login.cookieValue())))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void loggingOutWithoutATokenIsNotAnError() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/logout"))
+				.andExpect(status().isNoContent());
 	}
 }

@@ -94,7 +94,8 @@ public class RefreshTokenService {
 		RefreshToken saved = repository.saveAndFlush(
 				new RefreshToken(userId, sha256(value), familyId, expiresAt));
 
-		return new IssuedRefreshToken(saved.getId(), value, expiresAt, familyId);
+		return new IssuedRefreshToken(saved.getId(), userId, value, expiresAt, familyId);
+
 	}
 
 	/**
@@ -113,6 +114,6 @@ public class RefreshTokenService {
 	}
 
 	/** {@code value} is the only moment the raw token exists outside the client. */
-	public record IssuedRefreshToken(UUID id, String value, Instant expiresAt, UUID familyId) {
+	public record IssuedRefreshToken(UUID id, UUID userId, String value, Instant expiresAt, UUID familyId) {
 	}
 }

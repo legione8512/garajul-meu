@@ -1,6 +1,15 @@
 package ro.garajulmeu.auth;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.CookieValue;
+
+import ro.garajulmeu.auth.dto.RefreshRequest;
+import ro.garajulmeu.auth.dto.RefreshResponse;
+import ro.garajulmeu.exception.ApiException;
+import ro.garajulmeu.exception.ErrorCode;
 import ro.garajulmeu.auth.dto.LoginRequest;
 import ro.garajulmeu.auth.dto.LoginResponse;
 import ro.garajulmeu.auth.dto.ResendVerificationRequest;
@@ -21,8 +30,11 @@ public class AuthController {
 
 	private final AuthService authService;
 
-	AuthController(AuthService authService) {
+	private final RefreshCookies refreshCookies;
+
+	AuthController(AuthService authService, RefreshCookies refreshCookies) {
 		this.authService = authService;
+		this.refreshCookies = refreshCookies;
 	}
 
 	/**
@@ -47,7 +59,62 @@ public class AuthController {
 		authService.resendVerificationCode(request);
 	}
 	@PostMapping("/login")
-	public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-		return authService.login(request);
+	public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+		AuthService.LoginResult result = authService.login(request);
+
+		// The cookie is always set. A native client simply ignores it; a browser
+		// relies on it and never sees the token in the body.
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookies.issue(result.refreshToken()).toString());
+
+		return new LoginResponse(result.accessToken(), result.expiresInSeconds(),
+				request.refreshTokenInBody() ? result.refreshToken() : null);
+	}
+
+	/**
+	 * Accepts the refresh token from the body or from the cookie, and answers on
+	 * whichever channel it arrived. Specification section 14 forbids requiring a
+	 * client-type header, and none is needed: the request itself says how this
+	 * client works.
+	 */
+	@PostMapping("/refresh")
+	public RefreshResponse refresh(
+			@RequestBody(required = false) RefreshRequest request,
+			@CookieValue(name = RefreshCookies.NAME, required = false) String cookieToken,
+			HttpServletResponse response) {
+
+		boolean explicit = request != null && request.refreshToken() != null && !request.refreshToken().isBlank();
+		String presented = explicit ? request.refreshToken() : cookieToken;
+
+		if (presented == null || presented.isBlank()) {
+			throw new ApiException(ErrorCode.REFRESH_TOKEN_INVALID);
+		}
+
+		AuthService.LoginResult result = authService.refresh(presented);
+
+		if (explicit) {
+			return new RefreshResponse(result.accessToken(), result.expiresInSeconds(), result.refreshToken());
+		}
+
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookies.issue(result.refreshToken()).toString());
+		return new RefreshResponse(result.accessToken(), result.expiresInSeconds(), null);
+	}
+
+	/** Idempotent: logging out twice, or with no token at all, is not an error. */
+	@PostMapping("/logout")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void logout(
+			@RequestBody(required = false) RefreshRequest request,
+			@CookieValue(name = RefreshCookies.NAME, required = false) String cookieToken,
+			HttpServletResponse response) {
+
+		String presented = (request != null && request.refreshToken() != null && !request.refreshToken().isBlank())
+				? request.refreshToken()
+				: cookieToken;
+
+		if (presented != null && !presented.isBlank()) {
+			authService.logout(presented);
+		}
+
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookies.clear().toString());
 	}
 }
