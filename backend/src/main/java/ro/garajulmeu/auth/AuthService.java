@@ -223,7 +223,7 @@ public class AuthService {
 	 * Trimmed and lower-cased, so the same person cannot hold two accounts that
 	 * differ only in capitalisation, and so the unique index sees one form.
 	 */
-	private static String normalise(String email) {
+	static String normalise(String email) {
 		return email.trim().toLowerCase(Locale.ROOT);
 	}
 

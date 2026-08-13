@@ -25,3 +25,21 @@ garajul-meu:
     provider: logging
   jwt:
     secret: "test-only-signing-key-never-used-outside-tests"
+
+  # Deliberately far above anything a test does. The limiter is a singleton and
+  # its counters are not transactional, so they survive between test methods: a
+  # realistic limit here would make unrelated tests fail depending on the order
+  # they happen to run in. AuthFlowTest alone logs in eleven times, which is
+  # exactly how this was discovered. AuthRateLimitTest overrides these with
+  # real-looking numbers inside its own Spring context, which is the only place
+  # the limits are the thing under test.
+  rate-limit:
+    credential-check:
+      limit: 10000
+      window: 15m
+    email-dispatch:
+      limit: 10000
+      window: 1h
+    token-refresh:
+      limit: 10000
+      window: 1h

@@ -1,6 +1,7 @@
 package ro.garajulmeu.auth;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpHeaders;
@@ -32,9 +33,12 @@ public class AuthController {
 
 	private final RefreshCookies refreshCookies;
 
-	AuthController(AuthService authService, RefreshCookies refreshCookies) {
+	private final AuthRateLimit rateLimit;
+
+	AuthController(AuthService authService, RefreshCookies refreshCookies, AuthRateLimit rateLimit) {
 		this.authService = authService;
 		this.refreshCookies = refreshCookies;
+		this.rateLimit = rateLimit;
 	}
 
 	/**
@@ -44,22 +48,31 @@ public class AuthController {
 	 */
 	@PostMapping("/register")
 	@ResponseStatus(HttpStatus.CREATED)
-	public void register(@Valid @RequestBody RegisterRequest request) {
+	public void register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+		rateLimit.emailDispatch(httpRequest, request.email());
 		authService.register(request);
 	}
+
 	@PostMapping("/verify-email")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+	public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request, HttpServletRequest httpRequest) {
+		rateLimit.credentialCheck(httpRequest, request.email());
 		authService.verifyEmail(request);
 	}
 
 	@PostMapping("/resend-verification")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+	public void resendVerification(@Valid @RequestBody ResendVerificationRequest request,
+			HttpServletRequest httpRequest) {
+		rateLimit.emailDispatch(httpRequest, request.email());
 		authService.resendVerificationCode(request);
 	}
+
 	@PostMapping("/login")
-	public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+	public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest,
+			HttpServletResponse response) {
+		rateLimit.credentialCheck(httpRequest, request.email());
+
 		AuthService.LoginResult result = authService.login(request);
 
 		// The cookie is always set. A native client simply ignores it; a browser
@@ -80,7 +93,10 @@ public class AuthController {
 	public RefreshResponse refresh(
 			@RequestBody(required = false) RefreshRequest request,
 			@CookieValue(name = RefreshCookies.NAME, required = false) String cookieToken,
+			HttpServletRequest httpRequest,
 			HttpServletResponse response) {
+
+		rateLimit.tokenRefresh(httpRequest);
 
 		boolean explicit = request != null && request.refreshToken() != null && !request.refreshToken().isBlank();
 		String presented = explicit ? request.refreshToken() : cookieToken;
@@ -99,7 +115,14 @@ public class AuthController {
 		return new RefreshResponse(result.accessToken(), result.expiresInSeconds(), null);
 	}
 
-	/** Idempotent: logging out twice, or with no token at all, is not an error. */
+	/**
+	 * Idempotent: logging out twice, or with no token at all, is not an error.
+	 *
+	 * <p>Deliberately not rate limited. Refusing a logout is worse than allowing
+	 * one: it would leave a user who asked to end their session with a live one.
+	 * The endpoint is cheap - a SHA-256 lookup and an update - and revoking
+	 * anything requires already holding a valid 256-bit token.
+	 */
 	@PostMapping("/logout")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void logout(

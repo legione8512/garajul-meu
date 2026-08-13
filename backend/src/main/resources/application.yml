@@ -50,3 +50,14 @@ garajul-meu:
   email:
     # Production must override this with "resend".
     provider: logging
+rate-limit:
+     # Grouped by what a request costs, not by endpoint.
+  credential-check:
+    limit: 10
+    window: 15m
+  email-dispatch:
+    limit: 5
+    window: 1h
+  token-refresh:
+    limit: 60
+    window: 1h
