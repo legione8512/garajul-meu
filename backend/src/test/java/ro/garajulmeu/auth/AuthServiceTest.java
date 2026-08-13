@@ -1,7 +1,11 @@
 package ro.garajulmeu.auth;
 
 import java.util.UUID;
+import java.time.Instant;
 
+import ro.garajulmeu.auth.dto.ResendVerificationRequest;
+import ro.garajulmeu.auth.dto.VerifyEmailRequest;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,5 +97,86 @@ class AuthServiceTest {
 
 		assertThat(userRepository.findByEmail("nolang@example.com").orElseThrow().getPreferredLanguage())
 				.isEqualTo(Language.RO);
+	}
+	private String registerAndCaptureCode(String email) {
+		authService.register(new RegisterRequest("Marius Robert", email, PASSWORD, "ro"));
+
+		ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+		verify(emailProvider).sendVerificationCode(eq(email), code.capture(), eq(Language.RO));
+		return code.getValue();
+	}
+
+	@Test
+	void marksTheAccountVerifiedWhenTheCodeIsCorrect() {
+		String code = registerAndCaptureCode("verify@example.com");
+
+		authService.verifyEmail(new VerifyEmailRequest("verify@example.com", code));
+
+		assertThat(userRepository.findByEmail("verify@example.com").orElseThrow().isEmailVerified()).isTrue();
+	}
+
+	@Test
+	void countsAWrongAttemptInsteadOfSilentlyDiscardingIt() {
+		registerAndCaptureCode("wrong@example.com");
+
+		assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("wrong@example.com", "000000")))
+				.isInstanceOf(ApiException.class)
+				.extracting(thrown -> ((ApiException) thrown).errorCode())
+				.isEqualTo(ErrorCode.VERIFICATION_CODE_INVALID);
+
+		UUID userId = userRepository.findByEmail("wrong@example.com").orElseThrow().getId();
+		assertThat(tokenRepository
+				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(userId, VerificationTokenType.EMAIL_VERIFICATION)
+				.orElseThrow()
+				.getAttemptCount()).isEqualTo(1);
+	}
+
+	@Test
+	void cannotSpendTheSameCodeTwice() {
+		String code = registerAndCaptureCode("once@example.com");
+		authService.verifyEmail(new VerifyEmailRequest("once@example.com", code));
+
+		assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("once@example.com", code)))
+				.isInstanceOf(ApiException.class)
+				.extracting(thrown -> ((ApiException) thrown).errorCode())
+				.isEqualTo(ErrorCode.VERIFICATION_CODE_INVALID);
+	}
+
+	/** Distinct from INVALID so the client can offer "resend" rather than "retry". */
+	@Test
+	void reportsAnExpiredCodeDistinctly() {
+		User user = userRepository.saveAndFlush(
+				new User("Marius Robert", "expired@example.com", "argon2-placeholder"));
+		tokenRepository.saveAndFlush(new VerificationToken(
+				user.getId(),
+				VerificationTokenType.EMAIL_VERIFICATION,
+				passwordEncoder.encode("123456"),
+				Instant.now().minusSeconds(60)));
+
+		assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("expired@example.com", "123456")))
+				.isInstanceOf(ApiException.class)
+				.extracting(thrown -> ((ApiException) thrown).errorCode())
+				.isEqualTo(ErrorCode.VERIFICATION_CODE_EXPIRED);
+	}
+
+	@Test
+	void aResendInvalidatesTheEarlierCodeAndTheOldOneNoLongerWorks() {
+		String firstCode = registerAndCaptureCode("resend@example.com");
+		UUID userId = userRepository.findByEmail("resend@example.com").orElseThrow().getId();
+		UUID firstTokenId = tokenRepository
+				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(userId, VerificationTokenType.EMAIL_VERIFICATION)
+				.orElseThrow()
+				.getId();
+
+		authService.resendVerificationCode(new ResendVerificationRequest("resend@example.com"));
+
+		assertThat(tokenRepository.findById(firstTokenId).orElseThrow().getInvalidatedAt())
+				.as("the superseded code must be marked invalidated, not merely shadowed by a newer one")
+				.isNotNull();
+
+		assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("resend@example.com", firstCode)))
+				.isInstanceOf(ApiException.class)
+				.extracting(thrown -> ((ApiException) thrown).errorCode())
+				.isEqualTo(ErrorCode.VERIFICATION_CODE_INVALID);
 	}
 }

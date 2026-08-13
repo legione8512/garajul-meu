@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.3.2 `POST /api/v1/auth/register` working end to end against Neon |
-| Next verified step | 4.4 — `POST /api/v1/auth/verify-email` and `/resend-verification`, then login with a JWT access token |
+| Last milestone | 4.4a `verify-email` and `resend-verification`; the registration flow is complete |
+| Next verified step | 4.4b — `POST /api/v1/auth/login`: a `UserDetailsService` reading `users`, a short-lived JWT access token, and a filter that authenticates bearer tokens |
 
 ## Project paths
 
@@ -146,8 +146,9 @@ enforces one account per address.
 | `VerificationTokenRepository` | `findFirstByUserIdAndTypeOrderByCreatedAtDesc` for the newest code, and `invalidateOutstandingCodes` — a `@Modifying` bulk update so a double "resend" cannot leave two codes both valid |
 | `VerificationCodeGenerator` | `SecureRandom` plus `%06d` padding. Padding matters: returning "42" instead of "000042" would shrink the effective code space |
 | `AuthProperties` | `@ConfigurationProperties("garajul-meu.auth")`, defaults 15 minutes validity and 5 attempts |
-| `AuthService` | `register` normalises the address, rejects a duplicate, hashes the password, issues and emails a code |
-| `AuthController` | `POST /api/v1/auth/register` → 201 with an empty body |
+| `AuthService` | `register`, `verifyEmail`, `resendVerificationCode` |
+| `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204 |
+| `dto.VerifyEmailRequest` | `@Pattern("\\d{6}")` on the code, so malformed input is rejected before it costs an Argon2 comparison |
 | `dto.RegisterRequest` | Bean Validation constraints; password 12–128 characters; language is a `@Pattern("ro\|en")` **string**, not the enum, because JSON carries the lower-case tag while Jackson would expect the constant name |
 
 #### Package `ro.garajulmeu.email`
@@ -227,7 +228,7 @@ belong to Phase 5.
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
 | `VerificationCodeGeneratorTest` (2 tests) | Always exactly six digits over a thousand draws, which also proves the zero padding; two hundred draws are almost all distinct |
-| `AuthServiceTest` (4 tests) | The address is stored trimmed and lower-cased and the password as `$argon2id$`; the emailed code matches the stored hash and does not appear in it; a duplicate address is rejected even in different case; the language defaults to Romanian |
+| `AuthServiceTest` (10 tests) | Registration: address normalised, password `$argon2id$`, emailed code matches the stored hash, duplicate address rejected in any case, language defaults to Romanian. Verification: a correct code verifies the account, a wrong one is counted, a spent code cannot be reused, an expired one answers `VERIFICATION_CODE_EXPIRED`, a resend marks the earlier token invalidated and the old code stops working, and a resend for an unknown address sends nothing |
 
 `AuthServiceTest` replaces `EmailProvider` with `@MockitoBean` to capture the
 emitted code. That changes the context configuration, so this class gets its own
@@ -285,6 +286,10 @@ Sentry at Phase 15.
 | 2026-08-13 | `existsByEmail` is backed up by catching `DataIntegrityViolationException` and re-throwing the same code. Two simultaneous registrations can both pass the check and collide only at the unique index; without the catch the caller would get `INTERNAL_ERROR` for an ordinary conflict. |
 | 2026-08-13 | Password policy: 12–128 characters, no composition rules. Current guidance favours length over forced symbols, which mostly produce predictable substitutions. The maximum bounds the Argon2 work per request. |
 | 2026-08-13 | `ExceptionHandlerExceptionResolver` is pinned to ERROR level. At its default WARN it logs every resolved exception including rejected field values, which put an attempted password into the log during a manual registration test — forbidden by specification section 30. Our own handler logs field names only. Found by reading the log during manual verification; no automated test asserts on framework logging, so this class of leak needs a human eye. |
+| 2026-08-13 | `verifyEmail` is annotated `@Transactional(noRollbackFor = ApiException.class)`. A business exception normally rolls the transaction back, which would discard the failed-attempt counter recorded immediately before it — the attempt limit that makes a six-digit code safe would silently never fire. |
+| 2026-08-13 | Verification answers `VERIFICATION_CODE_INVALID` for an unknown address, so the endpoint cannot be used to discover which addresses hold accounts. An expired code answers `VERIFICATION_CODE_EXPIRED` distinctly: the caller already held a valid code for that address, so nothing is disclosed, and the client needs the distinction to offer "resend" rather than "retry". |
+| 2026-08-13 | `resend-verification` answers 204 identically for an unknown address, an already verified one and a real reissue. |
+| 2026-08-13 | Because verification always reads the **newest** token for the account, `invalidateOutstandingCodes` is defence in depth rather than the active mechanism — an older token is never consulted. Its test asserts the `invalidatedAt` column directly, so it cannot pass merely because a newer code shadows the old one. |
 | 2026-08-13 | Slice tests must name what they load. `GlobalExceptionHandlerTest` uses `@WebMvcTest(controllers = …)`: the slice instantiates every `@RestController` but excludes every `@Service`, so the first real controller broke an unrelated test. Scoping the slice is the fix, not mocking each new controller's dependencies. |
 
 ## Known issues and open decisions

@@ -1,6 +1,8 @@
 package ro.garajulmeu.auth;
 
 import jakarta.validation.Valid;
+import ro.garajulmeu.auth.dto.ResendVerificationRequest;
+import ro.garajulmeu.auth.dto.VerifyEmailRequest;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,5 +32,16 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public void register(@Valid @RequestBody RegisterRequest request) {
 		authService.register(request);
+	}
+	@PostMapping("/verify-email")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+		authService.verifyEmail(request);
+	}
+
+	@PostMapping("/resend-verification")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+		authService.resendVerificationCode(request);
 	}
 }

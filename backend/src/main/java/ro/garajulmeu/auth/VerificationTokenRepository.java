@@ -25,7 +25,7 @@ public interface VerificationTokenRepository extends JpaRepository<VerificationT
 	 * <p>A bulk update rather than load-then-save, so a user who taps "resend"
 	 * twice cannot end up with two codes both accepted.
 	 */
-	@Modifying
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("""
 			update VerificationToken token
 			   set token.invalidatedAt = :now

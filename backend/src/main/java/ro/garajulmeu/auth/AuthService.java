@@ -1,6 +1,10 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import java.util.Optional;
+
+import ro.garajulmeu.auth.dto.ResendVerificationRequest;
+import ro.garajulmeu.auth.dto.VerifyEmailRequest;
 import java.util.Locale;
 
 import org.slf4j.Logger;
@@ -73,7 +77,65 @@ public class AuthService {
 		// The identifier only. The address is personal data and adds nothing here.
 		log.info("Registered account {}", user.getId());
 	}
+	/**
+	 * {@code noRollbackFor} is essential, not cosmetic. A business exception
+	 * normally rolls the transaction back, which would discard the very thing we
+	 * just recorded - the failed attempt. The attempt counter would stay at zero
+	 * forever and the limit that makes a six-digit code safe would never trigger.
+	 */
+	@Transactional(noRollbackFor = ApiException.class)
+	public void verifyEmail(VerifyEmailRequest request) {
+		User user = userRepository.findByEmail(normalise(request.email()))
+				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
 
+		VerificationToken token = tokenRepository
+				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(user.getId(), VerificationTokenType.EMAIL_VERIFICATION)
+				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
+
+		Instant now = Instant.now();
+
+		if (token.getUsedAt() != null || token.getInvalidatedAt() != null) {
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		if (!token.getExpiresAt().isAfter(now)) {
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_EXPIRED);
+		}
+
+		if (token.getAttemptCount() >= authProperties.maxVerificationAttempts()) {
+			token.markInvalidated(now);
+			log.info("Burnt verification code for account {} after too many attempts", user.getId());
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		if (!passwordEncoder.matches(request.code(), token.getTokenHash())) {
+			token.recordFailedAttempt();
+			log.info("Wrong verification code for account {}, attempt {}", user.getId(), token.getAttemptCount());
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		token.markUsed(now);
+		user.setEmailVerifiedAt(now);
+		log.info("Verified account {}", user.getId());
+	}
+
+	/**
+	 * Answers identically for an unknown address, an already verified one and a
+	 * successful reissue. Anything else would turn this endpoint into a way of
+	 * discovering which addresses hold accounts.
+	 */
+	@Transactional
+	public void resendVerificationCode(ResendVerificationRequest request) {
+		Optional<User> account = userRepository.findByEmail(normalise(request.email()));
+
+		if (account.isEmpty() || account.get().isEmailVerified()) {
+			log.info("Verification resend requested for an unknown or already verified address");
+			return;
+		}
+
+		issueEmailVerificationCode(account.get());
+		log.info("Reissued verification code for account {}", account.get().getId());
+	}
 	private void issueEmailVerificationCode(User user) {
 		Instant now = Instant.now();
 		tokenRepository.invalidateOutstandingCodes(user.getId(), VerificationTokenType.EMAIL_VERIFICATION, now);
