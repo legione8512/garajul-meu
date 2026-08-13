@@ -30,14 +30,23 @@ public class LoggingEmailProvider implements EmailProvider {
 
 	@Override
 	public void sendVerificationCode(String recipient, String code, Language language) {
+		write("verification code", recipient, code, language);
+	}
+
+	@Override
+	public void sendPasswordResetCode(String recipient, String code, Language language) {
+		write("password reset code", recipient, code, language);
+	}
+
+	private void write(String purpose, String recipient, String code, Language language) {
 		log.info("""
 
 				=====================================================
-				 DEVELOPMENT EMAIL - verification code
+				 DEVELOPMENT EMAIL - {}
 				 to:       {}
 				 language: {}
 				 code:     {}
 				=====================================================
-				""", recipient, language.code(), code);
+				""", purpose, recipient, language.code(), code);
 	}
 }

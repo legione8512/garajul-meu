@@ -84,6 +84,13 @@ public class RefreshTokenService {
 		repository.findByTokenHash(sha256(presentedToken))
 				.ifPresent(token -> repository.revokeFamily(token.getFamilyId(), Instant.now()));
 	}
+		
+	/** Ends every session for an account, on every device. */
+	@Transactional
+	public void revokeAllSessionsOf(UUID userId) {
+		int revoked = repository.revokeAllForUser(userId, Instant.now());
+		log.info("Revoked {} refresh token(s) for account {}", revoked, userId);
+	}
 
 	private IssuedRefreshToken issue(UUID userId, UUID familyId) {
 		byte[] bytes = new byte[TOKEN_BYTES];

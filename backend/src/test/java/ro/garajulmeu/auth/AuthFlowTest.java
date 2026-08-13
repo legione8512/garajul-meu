@@ -1,6 +1,13 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import org.mockito.ArgumentCaptor;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import ro.garajulmeu.email.EmailProvider;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import ro.garajulmeu.common.RequestIdFilter;
 import jakarta.servlet.http.Cookie;
 
@@ -41,6 +48,12 @@ class AuthFlowTest {
 	private static final String EMAIL = "flow@example.com";
 
 	private static final String PASSWORD = "a-sufficiently-long-password";
+	
+	private static final String NEW_PASSWORD = "a-replacement-long-password";
+	
+	/** Replaces the logging provider so the emailed reset code can be read. */
+	@MockitoBean
+	private EmailProvider emailProvider;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -255,5 +268,87 @@ class AuthFlowTest {
 	void loggingOutWithoutATokenIsNotAnError() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/logout"))
 				.andExpect(status().isNoContent());
+	}
+	/** Specification section 14: the answer must not reveal who holds an account. */
+	@Test
+	void forgotPasswordAnswersIdenticallyWhetherOrNotTheAddressExists() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/forgot-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\"}".formatted(EMAIL)))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(post("/api/v1/auth/forgot-password")
+						.contentType("application/json")
+						.content("{\"email\":\"nobody@example.com\"}"))
+				.andExpect(status().isNoContent());
+	}
+
+	/** The flow a real person performs, end to end over HTTP. */
+	@Test
+	void theWholeResetFlowEndsWithTheNewPasswordWorking() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/forgot-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\"}".formatted(EMAIL)))
+				.andExpect(status().isNoContent());
+
+		ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+		verify(emailProvider).sendPasswordResetCode(eq(EMAIL), code.capture(), any());
+
+		mockMvc.perform(post("/api/v1/auth/reset-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"code\":\"%s\",\"newPassword\":\"%s\"}"
+								.formatted(EMAIL, code.getValue(), NEW_PASSWORD)))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(EMAIL, NEW_PASSWORD)))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/api/v1/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(EMAIL, PASSWORD)))
+				.andExpect(status().isUnauthorized());
+	}
+
+	/** Six digits or nothing, checked before the request can cost an Argon2 hash. */
+	@Test
+	void resetPasswordRejectsAMalformedCodeBeforeItCostsAHash() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/reset-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"code\":\"12\",\"newPassword\":\"%s\"}"
+								.formatted(EMAIL, NEW_PASSWORD)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.fieldErrors[0].field").value("code"));
+	}
+
+	/** Section 14 again: a reset must not leave the old sessions alive. */
+	@Test
+	void resettingEndsASessionThatWasAlreadyOpen() throws Exception {
+		String refreshToken = JsonPath.read(loginRaw(true).body(), "$.refreshToken");
+
+		mockMvc.perform(post("/api/v1/auth/forgot-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\"}".formatted(EMAIL)))
+				.andExpect(status().isNoContent());
+
+		ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+		verify(emailProvider).sendPasswordResetCode(eq(EMAIL), code.capture(), any());
+
+		mockMvc.perform(post("/api/v1/auth/reset-password")
+						.contentType("application/json")
+						.content("{\"email\":\"%s\",\"code\":\"%s\",\"newPassword\":\"%s\"}"
+								.formatted(EMAIL, code.getValue(), NEW_PASSWORD)))
+				.andExpect(status().isNoContent());
+
+		// Only the status is asserted. A token revoked by reset is indistinguishable
+		// from one revoked by rotation, so this answers REFRESH_TOKEN_REUSED rather
+		// than something more precise - an observation already recorded in
+		// PROJECT_STATE, not a defect, and not worth pinning down in a test.
+		mockMvc.perform(post("/api/v1/auth/refresh")
+						.contentType("application/json")
+						.content("{\"refreshToken\":\"%s\"}".formatted(refreshToken)))
+				.andExpect(status().isUnauthorized());
 	}
 }

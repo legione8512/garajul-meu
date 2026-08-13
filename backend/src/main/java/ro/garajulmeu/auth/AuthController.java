@@ -1,6 +1,7 @@
 package ro.garajulmeu.auth;
 
 import jakarta.validation.Valid;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -15,7 +16,8 @@ import ro.garajulmeu.auth.dto.LoginRequest;
 import ro.garajulmeu.auth.dto.LoginResponse;
 import ro.garajulmeu.auth.dto.ResendVerificationRequest;
 import ro.garajulmeu.auth.dto.VerifyEmailRequest;
-
+import ro.garajulmeu.auth.dto.ForgotPasswordRequest;
+import ro.garajulmeu.auth.dto.ResetPasswordRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -66,6 +68,28 @@ public class AuthController {
 			HttpServletRequest httpRequest) {
 		rateLimit.emailDispatch(httpRequest, request.email());
 		authService.resendVerificationCode(request);
+	}
+	
+	/**
+	 * Always 204, whether or not the address exists. Specification section 14
+	 * requires non-disclosure here specifically: this endpoint needs no
+	 * cooperation from the account holder, so a truthful answer would be a free
+	 * membership oracle for anyone holding a list of addresses.
+	 */
+	@PostMapping("/forgot-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+			HttpServletRequest httpRequest) {
+		rateLimit.emailDispatch(httpRequest, request.email());
+		authService.forgotPassword(request);
+	}
+
+	@PostMapping("/reset-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+			HttpServletRequest httpRequest) {
+		rateLimit.credentialCheck(httpRequest, request.email());
+		authService.resetPassword(request);
 	}
 
 	@PostMapping("/login")

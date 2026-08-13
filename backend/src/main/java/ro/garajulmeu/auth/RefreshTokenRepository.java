@@ -30,4 +30,24 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 			   and token.revokedAt is null
 			""")
 	int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
+	
+	/**
+	 * Ends every session the account has anywhere, in one statement.
+	 *
+	 * <p>Specification section 14 requires this after a password reset: whoever
+	 * knew the old password may be the reason the reset was needed, and leaving
+	 * their sessions alive would defeat the whole exercise.
+	 *
+	 * <p>Same {@code flushAutomatically} / {@code clearAutomatically} pairing and
+	 * the same warning as above: **any entity loaded before this call is stale
+	 * afterwards.** Callers must finish with their entities before invoking it.
+	 */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("""
+			update RefreshToken token
+			   set token.revokedAt = :now
+			 where token.userId = :userId
+			   and token.revokedAt is null
+			""")
+	int revokeAllForUser(@Param("userId") UUID userId, @Param("now") Instant now);
 }

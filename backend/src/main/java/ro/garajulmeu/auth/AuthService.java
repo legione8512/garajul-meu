@@ -4,8 +4,11 @@ import java.time.Instant;
 import ro.garajulmeu.security.AccessTokenService.IssuedAccessToken;
 
 import java.time.Duration;
+import java.util.UUID;
 
+import ro.garajulmeu.auth.dto.ForgotPasswordRequest;
 import ro.garajulmeu.auth.dto.LoginRequest;
+import ro.garajulmeu.auth.dto.ResetPasswordRequest;
 import ro.garajulmeu.security.AccessTokenService;
 import java.util.Optional;
 
@@ -85,11 +88,14 @@ public class AuthService {
 			throw new ApiException(ErrorCode.EMAIL_ALREADY_EXISTS, duplicate);
 		}
 
-		issueEmailVerificationCode(user);
+		emailProvider.sendVerificationCode(user.getEmail(),
+				issueCode(user, VerificationTokenType.EMAIL_VERIFICATION),
+				user.getPreferredLanguage());
 
 		// The identifier only. The address is personal data and adds nothing here.
 		log.info("Registered account {}", user.getId());
 	}
+
 	/**
 	 * {@code noRollbackFor} is essential, not cosmetic. A business exception
 	 * normally rolls the transaction back, which would discard the very thing we
@@ -101,33 +107,9 @@ public class AuthService {
 		User user = userRepository.findByEmail(normalise(request.email()))
 				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
 
-		VerificationToken token = tokenRepository
-				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(user.getId(), VerificationTokenType.EMAIL_VERIFICATION)
-				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
-
 		Instant now = Instant.now();
+		consumeCode(user.getId(), VerificationTokenType.EMAIL_VERIFICATION, request.code(), now);
 
-		if (token.getUsedAt() != null || token.getInvalidatedAt() != null) {
-			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
-		}
-
-		if (!token.getExpiresAt().isAfter(now)) {
-			throw new ApiException(ErrorCode.VERIFICATION_CODE_EXPIRED);
-		}
-
-		if (token.getAttemptCount() >= authProperties.maxVerificationAttempts()) {
-			token.markInvalidated(now);
-			log.info("Burnt verification code for account {} after too many attempts", user.getId());
-			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
-		}
-
-		if (!passwordEncoder.matches(request.code(), token.getTokenHash())) {
-			token.recordFailedAttempt();
-			log.info("Wrong verification code for account {}, attempt {}", user.getId(), token.getAttemptCount());
-			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
-		}
-
-		token.markUsed(now);
 		user.setEmailVerifiedAt(now);
 		log.info("Verified account {}", user.getId());
 	}
@@ -146,9 +128,64 @@ public class AuthService {
 			return;
 		}
 
-		issueEmailVerificationCode(account.get());
-		log.info("Reissued verification code for account {}", account.get().getId());
+		User user = account.get();
+		emailProvider.sendVerificationCode(user.getEmail(),
+				issueCode(user, VerificationTokenType.EMAIL_VERIFICATION),
+				user.getPreferredLanguage());
+		log.info("Reissued verification code for account {}", user.getId());
 	}
+
+	/**
+	 * Answers 204 whether or not the address exists. Specification section 14
+	 * requires non-disclosure here specifically: unlike registration, where
+	 * EMAIL_ALREADY_EXISTS is a defined outcome, this endpoint needs no account
+	 * holder's cooperation, so a truthful answer would be a free membership
+	 * oracle for anyone with a list of addresses.
+	 */
+	@Transactional
+	public void forgotPassword(ForgotPasswordRequest request) {
+		Optional<User> account = userRepository.findByEmail(normalise(request.email()));
+
+		if (account.isEmpty()) {
+			log.info("Password reset requested for an unknown address");
+			return;
+		}
+
+		User user = account.get();
+		emailProvider.sendPasswordResetCode(user.getEmail(),
+				issueCode(user, VerificationTokenType.PASSWORD_RESET),
+				user.getPreferredLanguage());
+		log.info("Issued password reset code for account {}", user.getId());
+	}
+
+	/** {@code noRollbackFor} for the same reason as {@link #verifyEmail}. */
+	@Transactional(noRollbackFor = ApiException.class)
+	public void resetPassword(ResetPasswordRequest request) {
+		User user = userRepository.findByEmail(normalise(request.email()))
+				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
+
+		Instant now = Instant.now();
+		consumeCode(user.getId(), VerificationTokenType.PASSWORD_RESET, request.code(), now);
+
+		user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+
+		// Entering a code that arrived by email proves control of the inbox, which
+		// is exactly what verification asks for. Without this, an account that was
+		// never verified could reset successfully and still be refused at login
+		// with EMAIL_NOT_VERIFIED, and nothing on screen would explain why.
+		if (!user.isEmailVerified()) {
+			user.setEmailVerifiedAt(now);
+			log.info("Password reset also verified the address of account {}", user.getId());
+		}
+
+		// Last, deliberately. revokeAllForUser is a bulk update: it flushes the
+		// changes above to the database and then detaches every loaded entity, so
+		// nothing may touch `user` or the token after this line.
+		refreshTokenService.revokeAllSessionsOf(user.getId());
+
+		log.info("Password reset for account {}", user.getId());
+	}
+
 	/**
 	 * No longer {@code readOnly}: issuing a refresh token writes a row. A
 	 * read-only transaction would have refused the insert.
@@ -205,18 +242,56 @@ public class AuthService {
 	/** What the service produces; the controller decides how it travels. */
 	public record LoginResult(String accessToken, long expiresInSeconds, String refreshToken) {
 	}
-	private void issueEmailVerificationCode(User user) {
+
+	/**
+	 * The single place a six-digit code is checked, for every purpose.
+	 *
+	 * <p>Verification and password reset need the identical sequence - spent,
+	 * expired, too many attempts, wrong - and writing it twice is precisely how
+	 * two flows end up with quietly different rules. The caller supplies the type,
+	 * because a code issued for one purpose must never open another.
+	 */
+	private void consumeCode(UUID userId, VerificationTokenType type, String presentedCode, Instant now) {
+		VerificationToken token = tokenRepository
+				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(userId, type)
+				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
+
+		if (token.getUsedAt() != null || token.getInvalidatedAt() != null) {
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		if (!token.getExpiresAt().isAfter(now)) {
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_EXPIRED);
+		}
+
+		if (token.getAttemptCount() >= authProperties.maxVerificationAttempts()) {
+			token.markInvalidated(now);
+			log.info("Burnt {} code for account {} after too many attempts", type, userId);
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		if (!passwordEncoder.matches(presentedCode, token.getTokenHash())) {
+			token.recordFailedAttempt();
+			log.info("Wrong {} code for account {}, attempt {}", type, userId, token.getAttemptCount());
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		token.markUsed(now);
+	}
+
+	/** Supersedes any outstanding code of this type and returns the new one. */
+	private String issueCode(User user, VerificationTokenType type) {
 		Instant now = Instant.now();
-		tokenRepository.invalidateOutstandingCodes(user.getId(), VerificationTokenType.EMAIL_VERIFICATION, now);
+		tokenRepository.invalidateOutstandingCodes(user.getId(), type, now);
 
 		String code = codeGenerator.generate();
 		tokenRepository.save(new VerificationToken(
 				user.getId(),
-				VerificationTokenType.EMAIL_VERIFICATION,
+				type,
 				passwordEncoder.encode(code),
 				now.plus(authProperties.verificationCodeValidity())));
 
-		emailProvider.sendVerificationCode(user.getEmail(), code, user.getPreferredLanguage());
+		return code;
 	}
 
 	/**
