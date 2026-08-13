@@ -1,6 +1,11 @@
 package ro.garajulmeu.auth;
 
 import java.time.Instant;
+import java.time.Duration;
+
+import ro.garajulmeu.auth.dto.LoginRequest;
+import ro.garajulmeu.auth.dto.LoginResponse;
+import ro.garajulmeu.security.AccessTokenService;
 import java.util.Optional;
 
 import ro.garajulmeu.auth.dto.ResendVerificationRequest;
@@ -38,16 +43,20 @@ public class AuthService {
 	private final VerificationCodeGenerator codeGenerator;
 
 	private final AuthProperties authProperties;
+	
+	private final AccessTokenService accessTokenService;
 
 	AuthService(UserRepository userRepository, VerificationTokenRepository tokenRepository,
 			PasswordEncoder passwordEncoder, EmailProvider emailProvider,
-			VerificationCodeGenerator codeGenerator, AuthProperties authProperties) {
+			VerificationCodeGenerator codeGenerator, AuthProperties authProperties,
+			AccessTokenService accessTokenService) {
 		this.userRepository = userRepository;
 		this.tokenRepository = tokenRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.emailProvider = emailProvider;
 		this.codeGenerator = codeGenerator;
 		this.authProperties = authProperties;
+		this.accessTokenService = accessTokenService;
 	}
 
 	@Transactional
@@ -135,6 +144,38 @@ public class AuthService {
 
 		issueEmailVerificationCode(account.get());
 		log.info("Reissued verification code for account {}", account.get().getId());
+	}
+	@Transactional(readOnly = true)
+	public LoginResponse login(LoginRequest request) {
+		Optional<User> account = userRepository.findByEmail(normalise(request.email()));
+
+		if (account.isEmpty()) {
+			// Hash a throwaway value so a missing account costs the same as a wrong
+			// password. Without this, response time alone tells an attacker which
+			// addresses hold accounts - the database check is microseconds, an
+			// Argon2 comparison is tens of milliseconds.
+			passwordEncoder.encode(request.password());
+			throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
+		}
+
+		User user = account.get();
+
+		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+			throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
+		}
+
+		// Deliberately after the password check. The other order would tell anyone
+		// who guesses an address that it exists and is unverified, without ever
+		// knowing the password.
+		if (!user.isEmailVerified()) {
+			throw new ApiException(ErrorCode.EMAIL_NOT_VERIFIED);
+		}
+
+		AccessTokenService.IssuedAccessToken token = accessTokenService.issueFor(user.getId());
+		log.info("Issued access token for account {}", user.getId());
+
+		return new LoginResponse(token.value(),
+				Duration.between(Instant.now(), token.expiresAt()).toSeconds());
 	}
 	private void issueEmailVerificationCode(User user) {
 		Instant now = Instant.now();

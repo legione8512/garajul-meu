@@ -42,6 +42,10 @@ garajul-meu:
   auth:
     verification-code-validity: 15m
     max-verification-attempts: 5
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-validity: 10m
+    issuer: garajul-meu
   email:
     # Production must override this with "resend".
     provider: logging

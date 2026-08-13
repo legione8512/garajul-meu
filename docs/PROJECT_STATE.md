@@ -13,8 +13,8 @@ Last updated: 2026-08-12
 | Item | Value |
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
-| Last milestone | 4.4a `verify-email` and `resend-verification`; the registration flow is complete |
-| Next verified step | 4.4b — `POST /api/v1/auth/login`: a `UserDetailsService` reading `users`, a short-lived JWT access token, and a filter that authenticates bearer tokens |
+| Last milestone | 4.4b-2 login and the first protected route; register → verify → login → authenticated request works end to end against Neon |
+| Next verified step | 4.5 — rotating opaque refresh token: `refresh_tokens` migration, `/auth/refresh` and `/auth/logout`, family reuse detection, and CSRF re-enabled for the cookie paths |
 
 ## Project paths
 
@@ -132,6 +132,9 @@ raise alerts for ordinary business failures.
 | `Language` | `RO("ro")`, `EN("en")` — the code is the same IETF tag i18next and the email templates use |
 | `LanguageConverter` | `@Converter(autoApply = true)`. `@Enumerated(STRING)` would write `RO`/`EN` and break the CHECK constraint |
 | `UserRepository` | `JpaRepository<User, UUID>` with `findByEmail` and `existsByEmail`; both expect an already-normalised address |
+| `UserService` | `profileOf(accountId)` |
+| `UserController` | `GET /api/v1/users/me` — the first protected route. The identity comes from the verified token's `sub`, never from a path or query parameter, which is what makes another account's profile unreachable by editing a URL |
+| `dto.UserProfileResponse` | Response DTO rather than the entity, so `passwordHash` is never one Jackson change away from the wire |
 
 Email normalisation — trim and lower-case — is the service layer's
 responsibility. The entity stores what it is given, and the unique index
@@ -146,8 +149,8 @@ enforces one account per address.
 | `VerificationTokenRepository` | `findFirstByUserIdAndTypeOrderByCreatedAtDesc` for the newest code, and `invalidateOutstandingCodes` — a `@Modifying` bulk update so a double "resend" cannot leave two codes both valid |
 | `VerificationCodeGenerator` | `SecureRandom` plus `%06d` padding. Padding matters: returning "42" instead of "000042" would shrink the effective code space |
 | `AuthProperties` | `@ConfigurationProperties("garajul-meu.auth")`, defaults 15 minutes validity and 5 attempts |
-| `AuthService` | `register`, `verifyEmail`, `resendVerificationCode` |
-| `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204 |
+| `AuthService` | `register`, `verifyEmail`, `resendVerificationCode`, `login` |
+| `AuthController` | `POST /api/v1/auth/register` → 201; `/verify-email` and `/resend-verification` → 204; `/login` → 200 with the access token |
 | `dto.VerifyEmailRequest` | `@Pattern("\\d{6}")` on the code, so malformed input is rejected before it costs an Argon2 comparison |
 | `dto.RegisterRequest` | Bean Validation constraints; password 12–128 characters; language is a `@Pattern("ro\|en")` **string**, not the enum, because JSON carries the lower-case tag while Jackson would expect the constant name |
 
@@ -174,8 +177,19 @@ rather than a nicety.
 - `PasswordEncoder` — `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`: 16 MB memory, two iterations, parallelism one, sixteen byte salt. Chosen over `Argon2Password4jPasswordEncoder` (new in Security 7) because the documentation recommends neither, and the built-in one avoids a further third-party library. **Requires BouncyCastle**, which Spring Boot's BOM does not manage, so `org.bouncycastle:bcprov-jdk18on` is pinned explicitly in `pom.xml`.
 - `SecurityFilterChain` — stateless, no session; form login, HTTP Basic and Spring's logout endpoint disabled; `/actuator/health` public, everything else `authenticated()`; an explicit `HttpStatusEntryPoint(UNAUTHORIZED)` so a credential-less request answers 401 rather than the default 403.
 
-There is no authentication mechanism yet, so every path except health answers
-401. That is the intended state: start from deny-all and open paths explicitly.
+JWT is handled entirely by Spring Security — no third-party library, no custom
+filter:
+
+| Bean / class | Role |
+|---|---|
+| `JwtProperties` | `garajul-meu.jwt`. `secret` has **no default** and is `@Validated @NotBlank @Size(min = 32)`, so a missing or too-short key stops startup rather than silently weakening the signature |
+| `JwtEncoder` | `NimbusJwtEncoder` over an `ImmutableSecret`. One symmetric HS256 key signs and verifies, because this application both issues and consumes its own tokens |
+| `JwtDecoder` | `NimbusJwtDecoder.withSecretKey(...)`. **Declaring it also removed Spring Boot's development user** — `UserDetailsServiceAutoConfiguration` lists `JwtDecoder` among the beans it backs off for, so `Using generated security password` no longer appears |
+| `AccessTokenService` | Issues the token. Claims are exactly `iss`, `iat`, `exp`, `sub` — the account id and nothing personal, since a JWT is only base64 and lives on the client |
+| `oauth2ResourceServer(jwt())` | Spring's own `BearerTokenAuthenticationFilter` reads `Authorization: Bearer`, verifies signature and expiry, and populates the security context |
+
+There is still no login endpoint, so no token can be obtained yet; every path
+except health and `/api/v1/auth/**` answers 401.
 
 #### Package `ro.garajulmeu.common`
 
@@ -226,6 +240,8 @@ belong to Phase 5.
 | `RequestIdFilterTest.clearsTheMdcOnceTheRequestIsFinished` | No identifier leaks to the next request served by the same pooled thread |
 | `UserRepositoryTest` (5 tests) | Migration defaults are applied, a new account is unverified, lookup by email works, a duplicate email is rejected by `ux_users_email`, and the language round-trips as its lower-case code |
 | `PasswordEncoderTest` (3 tests) | The configured encoder produces `$argon2id$` output, never the plain password; the same password hashes differently each time thanks to a per-password salt; only the exact original password matches. Tests the bean `SecurityConfig` actually provides, so hashing cannot be weakened unnoticed |
+| `AuthFlowTest` (7 tests) | Full HTTP surface: a token from login opens `/users/me`; no token and a forged token both answer 401; the profile body contains neither `argon2` nor `passwordHash`; a wrong password and an unknown address answer the identical `INVALID_CREDENTIALS`; an unverified account answers `EMAIL_NOT_VERIFIED` |
+| `AccessTokenServiceTest` (4 tests) | Our own decoder accepts the issued token and reads the account id back; expiry lands inside the configured window; the token carries **only** `iss`, `iat`, `exp`, `sub`; a token signed with a different key is rejected. Builds the beans directly rather than starting Spring, so it runs in about a tenth of a second while still exercising the real configuration |
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
 | `VerificationCodeGeneratorTest` (2 tests) | Always exactly six digits over a thousand draws, which also proves the zero padding; two hundred draws are almost all distinct |
 | `AuthServiceTest` (10 tests) | Registration: address normalised, password `$argon2id$`, emailed code matches the stored hash, duplicate address rejected in any case, language defaults to Romanian. Verification: a correct code verifies the account, a wrong one is counted, a spent code cannot be reused, an expired one answers `VERIFICATION_CODE_EXPIRED`, a resend marks the earlier token invalidated and the old code stops working, and a resend for an unknown address sends nothing |
@@ -286,6 +302,13 @@ Sentry at Phase 15.
 | 2026-08-13 | `existsByEmail` is backed up by catching `DataIntegrityViolationException` and re-throwing the same code. Two simultaneous registrations can both pass the check and collide only at the unique index; without the catch the caller would get `INTERNAL_ERROR` for an ordinary conflict. |
 | 2026-08-13 | Password policy: 12–128 characters, no composition rules. Current guidance favours length over forced symbols, which mostly produce predictable substitutions. The maximum bounds the Argon2 work per request. |
 | 2026-08-13 | `ExceptionHandlerExceptionResolver` is pinned to ERROR level. At its default WARN it logs every resolved exception including rejected field values, which put an attempted password into the log during a manual registration test — forbidden by specification section 30. Our own handler logs field names only. Found by reading the log during manual verification; no automated test asserts on framework logging, so this class of leak needs a human eye. |
+| 2026-08-13 | Login hashes a throwaway value when the address is unknown, so a missing account costs the same as a wrong password. The database lookup is microseconds and an Argon2 comparison is tens of milliseconds; without the dummy hash, response time alone reveals which addresses hold accounts. |
+| 2026-08-13 | Login checks the password **before** `isEmailVerified`. The other order would tell anyone who guesses an address that it exists and is unverified, without knowing the password. As written, `EMAIL_NOT_VERIFIED` only reaches someone who has already proved they know it. |
+| 2026-08-13 | `LoginResponse` returns `expiresInSeconds`, not an absolute timestamp. A phone with a wrong clock would misjudge an absolute expiry; a duration is immune to clock skew. This is also the OAuth2 convention. |
+| 2026-08-13 | `LoginRequest` does **not** carry the 12-character minimum that `RegisterRequest` does. A length policy applies to new passwords; enforcing it at login would lock existing users out of their own accounts the day the policy tightens. |
+| 2026-08-13 | JWT uses Spring Security's own Nimbus-backed `JwtEncoder`/`JwtDecoder` rather than `jjwt`. It adds no third-party library, and `oauth2ResourceServer(jwt())` supplies the bearer-token filter, so no authentication filter is written by hand. |
+| 2026-08-13 | Symmetric HS256 with a shared secret, not an RSA key pair. An asymmetric key only earns its complexity when a separate service must verify without being able to sign; here one application does both. |
+| 2026-08-13 | The issuer claim is the plain string `garajul-meu`, not a URL. RFC 7519 defines `iss` as StringOrURI, so this is valid — but `Jwt.getIssuer()` insists on a URL because it comes from OAuth2, so read `getClaimAsString("iss")` instead. A URL issuer would also bake the still-undecided production domain into every token. |
 | 2026-08-13 | `verifyEmail` is annotated `@Transactional(noRollbackFor = ApiException.class)`. A business exception normally rolls the transaction back, which would discard the failed-attempt counter recorded immediately before it — the attempt limit that makes a six-digit code safe would silently never fire. |
 | 2026-08-13 | Verification answers `VERIFICATION_CODE_INVALID` for an unknown address, so the endpoint cannot be used to discover which addresses hold accounts. An expired code answers `VERIFICATION_CODE_EXPIRED` distinctly: the caller already held a valid code for that address, so nothing is disclosed, and the client needs the distinction to offer "resend" rather than "retry". |
 | 2026-08-13 | `resend-verification` answers 204 identically for an unknown address, an already verified one and a real reissue. |
@@ -305,7 +328,6 @@ Sentry at Phase 15.
 | Auth endpoints are not rate limited. This matters more than usual here because verifying a code costs an Argon2 hash — roughly 50 ms and 16 MB — so an unthrottled endpoint is a cheap denial-of-service. | 4.6 |
 | `spring-boot-configuration-processor` only runs because `maven.compiler.proc=full` is set in `pom.xml`. **JDK 21 requires the option to be set explicitly**; without it the processor is silently skipped and no metadata is generated. | done |
 | `HttpStatusEntryPoint` returns a bare 401 with no body, so authentication failures do not use the `ApiErrorResponse` shape every other error uses. Replace it once a suitable error code exists. | 4.4 |
-| Spring Boot auto-configures an in-memory user and prints `Using generated security password: …` at every startup, because no `UserDetailsService` bean exists yet. Harmless now — form login and HTTP Basic are disabled, so nothing can use it — but it must be gone before deployment. Providing our own `UserDetailsService` removes it. | 4.4 |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
 | `eslint-plugin-jsx-a11y` not installed; required for the accessibility rules in specification section 36. | 5 |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |

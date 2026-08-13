@@ -23,3 +23,5 @@ spring:
 garajul-meu:
   email:
     provider: logging
+  jwt:
+    secret: "test-only-signing-key-never-used-outside-tests"

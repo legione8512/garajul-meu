@@ -1,6 +1,8 @@
 package ro.garajulmeu.auth;
 
 import jakarta.validation.Valid;
+import ro.garajulmeu.auth.dto.LoginRequest;
+import ro.garajulmeu.auth.dto.LoginResponse;
 import ro.garajulmeu.auth.dto.ResendVerificationRequest;
 import ro.garajulmeu.auth.dto.VerifyEmailRequest;
 
@@ -43,5 +45,9 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
 		authService.resendVerificationCode(request);
+	}
+	@PostMapping("/login")
+	public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+		return authService.login(request);
 	}
 }
