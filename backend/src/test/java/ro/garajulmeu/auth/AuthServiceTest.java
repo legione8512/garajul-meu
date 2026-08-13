@@ -179,4 +179,11 @@ class AuthServiceTest {
 				.extracting(thrown -> ((ApiException) thrown).errorCode())
 				.isEqualTo(ErrorCode.VERIFICATION_CODE_INVALID);
 	}
+	/** Answering differently would turn resend into an account-enumeration tool. */
+	@Test
+	void staysSilentWhenAResendIsRequestedForAnUnknownAddress() {
+		authService.resendVerificationCode(new ResendVerificationRequest("nobody@example.com"));
+
+		verifyNoInteractions(emailProvider);
+	}
 }
