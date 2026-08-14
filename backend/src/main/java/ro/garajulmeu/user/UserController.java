@@ -2,11 +2,14 @@ package ro.garajulmeu.user;
 
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,9 +19,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import ro.garajulmeu.auth.AuthService;
+import ro.garajulmeu.auth.RefreshCookies;
 import ro.garajulmeu.user.dto.ChangeEmailRequest;
 import ro.garajulmeu.user.dto.ChangePasswordRequest;
 import ro.garajulmeu.user.dto.ConfirmEmailChangeRequest;
+import ro.garajulmeu.user.dto.DeleteAccountRequest;
 import ro.garajulmeu.user.dto.UpdateProfileRequest;
 import ro.garajulmeu.user.dto.UserProfileResponse;
 
@@ -36,9 +41,13 @@ public class UserController {
 	 */
 	private final AuthService authService;
 
-	UserController(UserService userService, AuthService authService) {
+	/** Only to clear the cookie on deletion; the path attribute is ours to write. */
+	private final RefreshCookies refreshCookies;
+
+	UserController(UserService userService, AuthService authService, RefreshCookies refreshCookies) {
 		this.userService = userService;
 		this.authService = authService;
+		this.refreshCookies = refreshCookies;
 	}
 
 	/**
@@ -91,5 +100,23 @@ public class UserController {
 		UUID accountId = UUID.fromString(token.getSubject());
 		authService.confirmEmailChange(accountId, request.code());
 		return userService.profileOf(accountId);
+	}
+
+	/**
+	 * Carries a body, which DELETE is permitted but not required to do. The
+	 * password has to travel somewhere, and a query parameter would put it in
+	 * access logs and browser history - the two places a password must never be.
+	 *
+	 * <p>The refresh cookie is cleared on the way out. Its row has just been
+	 * deleted, so it is already inert, but leaving a dead credential in the
+	 * browser of somebody who has just erased their account is untidy at best.
+	 */
+	@DeleteMapping("/me")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteMe(@AuthenticationPrincipal Jwt token,
+			@Valid @RequestBody DeleteAccountRequest request,
+			HttpServletResponse response) {
+		userService.deleteAccount(UUID.fromString(token.getSubject()), request);
+		response.addHeader(HttpHeaders.SET_COOKIE, refreshCookies.clear().toString());
 	}
 }
