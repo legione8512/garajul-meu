@@ -16,6 +16,21 @@ export const ro = {
   language: {
     label: 'Limbă',
   },
+    fields: {
+    email: 'Adresă de email',
+    password: 'Parolă',
+  },
+  login: {
+    submit: 'Autentifică-te',
+    forgotPassword: 'Ai uitat parola?',
+    noAccount: 'Nu ai cont? Creează unul.',
+  },
+  welcome: {
+    signIn: 'Autentifică-te',
+    createAccount: 'Creează un cont',
+    signedInAs: 'Ești autentificat ca {{name}}.',
+    signOut: 'Ieși din cont',
+  },
   screens: {
     welcome: 'Bun venit',
     register: 'Cont nou',

@@ -1,34 +1,25 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
 import { languageStorageKey } from '../i18n/language.ts'
 import { en } from '../i18n/locales/en.ts'
 import { ro } from '../i18n/locales/ro.ts'
-import { AppRoutes } from '../routes/AppRoutes.tsx'
 import { paths } from '../routes/paths.ts'
-
-function renderApp() {
-  render(
-    <MemoryRouter initialEntries={[paths.login]}>
-      <AppRoutes />
-    </MemoryRouter>,
-  )
-}
+import { renderApp } from '../test/renderApp.tsx'
 
 describe('language switcher', () => {
-  it('names each language in itself rather than in the current one', () => {
-    renderApp()
+  it('names each language in itself rather than in the current one', async () => {
+    renderApp(paths.login)
 
-    expect(screen.getByRole('option', { name: 'Română' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'Română' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'English' })).toBeInTheDocument()
   })
 
   it('re-renders the page in the chosen language', async () => {
-    renderApp()
+    renderApp(paths.login)
 
-    expect(screen.getByRole('heading', { level: 1, name: ro.screens.login })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.login })).toBeInTheDocument()
 
     await userEvent.selectOptions(screen.getByLabelText(ro.language.label), 'en')
 
@@ -36,7 +27,8 @@ describe('language switcher', () => {
   })
 
   it('remembers the choice for the next visit', async () => {
-    renderApp()
+    renderApp(paths.login)
+    await screen.findByRole('heading', { level: 1, name: ro.screens.login })
 
     await userEvent.selectOptions(screen.getByLabelText(ro.language.label), 'en')
 

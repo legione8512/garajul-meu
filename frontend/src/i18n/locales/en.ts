@@ -14,6 +14,21 @@ export const en: typeof ro = {
   language: {
     label: 'Language',
   },
+    fields: {
+    email: 'Email address',
+    password: 'Password',
+  },
+  login: {
+    submit: 'Sign in',
+    forgotPassword: 'Forgotten your password?',
+    noAccount: 'No account yet? Create one.',
+  },
+  welcome: {
+    signIn: 'Sign in',
+    createAccount: 'Create an account',
+    signedInAs: 'You are signed in as {{name}}.',
+    signOut: 'Sign out',
+  },
   screens: {
     welcome: 'Welcome',
     register: 'Create account',
