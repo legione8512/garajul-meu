@@ -45,6 +45,18 @@ describe('sign in', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+    /**
+   * Verification and password reset both send the person here with the address
+   * they just proved. Making them type it again is the friction the handover
+   * exists to remove - and no test caught this, because none of them walked two
+   * screens in a row.
+   */
+  it('starts with the address a previous screen handed over', async () => {
+    renderApp(paths.login, { email: 'marius@example.com' })
+
+    expect(await screen.findByLabelText(ro.fields.email)).toHaveValue('marius@example.com')
+  })
+
   it('signs in and lands on the welcome page', async () => {
     renderApp(paths.login)
     await screen.findByRole('heading', { level: 1, name: ro.screens.login })
