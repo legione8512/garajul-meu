@@ -1,10 +1,10 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 
 import { useAuth } from '../auth/useAuth.ts'
-import { FieldMessage } from '../components/FieldMessage.tsx'
 import { FormError } from '../components/FormError.tsx'
+import { TextField } from '../components/TextField.tsx'
 import { emailShape, maxLength, required } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { fieldMessagesFrom, validate, type FieldMessages } from '../forms/validate.ts'
@@ -32,9 +32,6 @@ export function LoginPage() {
 
   const [values, setValues] = useState<Record<Field, string>>({ email: '', password: '' })
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
-
-  const emailId = useId()
-  const passwordId = useId()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -72,39 +69,23 @@ export function LoginPage() {
       <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
-        {/*
-          div rather than p for the field group: FieldMessage renders a
-          paragraph, and a paragraph cannot contain another. The browser closes
-          the outer one on the spot, so the rendered structure stops matching
-          the source - which jsdom tolerates and a real browser does not.
-        */}
-        <div>
-          <label htmlFor={emailId}>{t('fields.email')}</label>
-          <input
-            id={emailId}
-            type="email"
-            autoComplete="email"
-            value={values.email}
-            onChange={(event) => { setValues({ ...values, email: event.target.value }) }}
-            aria-invalid={messages.email !== undefined}
-            aria-describedby={messages.email === undefined ? undefined : `${emailId}-message`}
-          />
-          <FieldMessage id={`${emailId}-message`} message={messages.email} />
-        </div>
+        <TextField
+          label={t('fields.email')}
+          type="email"
+          autoComplete="email"
+          value={values.email}
+          onChange={(email) => { setValues({ ...values, email }) }}
+          message={messages.email}
+        />
 
-        <div>
-          <label htmlFor={passwordId}>{t('fields.password')}</label>
-          <input
-            id={passwordId}
-            type="password"
-            autoComplete="current-password"
-            value={values.password}
-            onChange={(event) => { setValues({ ...values, password: event.target.value }) }}
-            aria-invalid={messages.password !== undefined}
-            aria-describedby={messages.password === undefined ? undefined : `${passwordId}-message`}
-          />
-          <FieldMessage id={`${passwordId}-message`} message={messages.password} />
-        </div>
+        <TextField
+          label={t('fields.password')}
+          type="password"
+          autoComplete="current-password"
+          value={values.password}
+          onChange={(password) => { setValues({ ...values, password }) }}
+          message={messages.password}
+        />
 
         <button type="submit" disabled={pending}>{t('login.submit')}</button>
       </form>

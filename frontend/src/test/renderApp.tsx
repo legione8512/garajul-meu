@@ -10,10 +10,13 @@ import { AppRoutes } from '../routes/AppRoutes.tsx'
  * <p>Deliberately not a shallow render of one page: the pages read the
  * authentication context and navigate between themselves, and testing either of
  * those through a mock would only prove the mock works.
+ *
+ * @param state what a previous screen would have handed over, for the screens
+ *              that are normally reached from another one
  */
-export function renderApp(path: string) {
+export function renderApp(path: string, state?: unknown) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[{ pathname: path, state }]}>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

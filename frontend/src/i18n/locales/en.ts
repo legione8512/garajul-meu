@@ -14,9 +14,31 @@ export const en: typeof ro = {
   language: {
     label: 'Language',
   },
-    fields: {
+  fields: {
     email: 'Email address',
     password: 'Password',
+    newPassword: 'New password',
+    fullName: 'Full name',
+    code: 'Verification code',
+  },
+    register: {
+    submit: 'Create account',
+    haveAccount: 'Already have an account? Sign in.',
+  },
+  verifyEmail: {
+    instructions: 'We have sent you a six-digit code. Enter it below.',
+    submit: 'Confirm address',
+    resend: 'Send another code',
+    resent: 'A new code is on its way.',
+  },
+    forgotPassword: {
+    instructions: 'Enter the account address. If an account exists for it, we will send a code.',
+    submit: 'Send the code',
+    remembered: 'Remembered your password? Sign in.',
+  },
+  resetPassword: {
+    instructions: 'Enter the code from the email and your new password.',
+    submit: 'Change password',
   },
   login: {
     submit: 'Sign in',

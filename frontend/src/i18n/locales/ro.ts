@@ -16,9 +16,31 @@ export const ro = {
   language: {
     label: 'Limbă',
   },
-    fields: {
+  fields: {
     email: 'Adresă de email',
     password: 'Parolă',
+    newPassword: 'Parolă nouă',
+    fullName: 'Nume complet',
+    code: 'Cod de verificare',
+  },
+    register: {
+    submit: 'Creează contul',
+    haveAccount: 'Ai deja cont? Autentifică-te.',
+  },
+  verifyEmail: {
+    instructions: 'Ți-am trimis un cod din șase cifre. Introdu-l mai jos.',
+    submit: 'Confirmă adresa',
+    resend: 'Trimite alt cod',
+    resent: 'Am trimis un cod nou.',
+  },
+    forgotPassword: {
+    instructions: 'Scrie adresa contului. Dacă există un cont cu ea, îți trimitem un cod.',
+    submit: 'Trimite codul',
+    remembered: 'Ți-ai amintit parola? Autentifică-te.',
+  },
+  resetPassword: {
+    instructions: 'Introdu codul primit prin email și parola nouă.',
+    submit: 'Schimbă parola',
   },
   login: {
     submit: 'Autentifică-te',
