@@ -34,7 +34,7 @@ spring:
 
 logging:
   level:
-        "[org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver]": error
+    "[org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver]": error
   pattern:
     correlation: "[%X{requestId:-system}] "
 
@@ -50,14 +50,20 @@ garajul-meu:
   email:
     # Production must override this with "resend".
     provider: logging
-rate-limit:
-     # Grouped by what a request costs, not by endpoint.
-  credential-check:
-    limit: 10
-    window: 15m
-  email-dispatch:
-    limit: 5
-    window: 1h
-  token-refresh:
-    limit: 60
-    window: 1h
+  cors:
+    # Exact origins, never a wildcard: a wildcard cannot be combined with
+    # credentials, and every request this API answers carries them.
+    # Production overrides this with the real application origin.
+    allowed-origins:
+      - http://localhost:5173
+  rate-limit:
+    # Grouped by what a request costs, not by endpoint.
+    credential-check:
+      limit: 10
+      window: 15m
+    email-dispatch:
+      limit: 5
+      window: 1h
+    token-refresh:
+      limit: 60
+      window: 1h

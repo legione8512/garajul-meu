@@ -26,6 +26,13 @@ garajul-meu:
   jwt:
     secret: "test-only-signing-key-never-used-outside-tests"
 
+    # Needed because CorsTest asserts on a configured origin. Kept here rather
+    # than in a @TestPropertySource on that class: per-test properties change the
+    # Spring context cache key, which would start a fifth PostgreSQL container.
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+
   # Deliberately far above anything a test does. The limiter is a singleton and
   # its counters are not transactional, so they survive between test methods: a
   # realistic limit here would make unrelated tests fail depending on the order

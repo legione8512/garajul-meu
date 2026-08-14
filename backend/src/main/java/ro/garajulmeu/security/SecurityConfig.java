@@ -1,6 +1,8 @@
 package ro.garajulmeu.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -22,6 +24,11 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import ro.garajulmeu.common.RequestIdFilter;
 
 /**
  * Baseline security for the API. Specification section 14.
@@ -66,10 +73,46 @@ public class SecurityConfig {
 		return new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
+	/**
+	 * Section 21: an explicit allowlist, with credentials enabled because the
+	 * refresh cookie and the bearer token both have to travel.
+	 *
+	 * <p>Exposing {@link RequestIdFilter#HEADER} is not a nicety. A browser hides
+	 * every cross-origin response header from JavaScript except a short standard
+	 * set, so without this the correlation identifier never reaches the frontend
+	 * and the request id on an error screen would always be blank - which would
+	 * quietly waste the whole correlation mechanism.
+	 *
+	 * <p>Scoped to {@code /api/**}. The health endpoint is not called from a
+	 * browser and has no reason to answer preflights.
+	 */
+	@Bean
+	CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(properties.allowedOrigins());
+		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
+		configuration.setAllowCredentials(true);
+		// An hour of preflight caching. Every cross-origin call that carries an
+		// Authorization header needs one, so without this each request costs two.
+		configuration.setMaxAge(Duration.ofHours(1));
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/api/**", configuration);
+		return source;
+	}
+
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http,
 			ApiErrorAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
 		return http
+				// Picks up the CorsConfigurationSource bean above, and places the
+				// CORS filter ahead of authorisation - so a preflight, which carries
+				// no Authorization header by definition, is answered rather than
+				// refused with a 401 the browser would report as a CORS failure.
+				.cors(Customizer.withDefaults())
+
 				.csrf(AbstractHttpConfigurer::disable)
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
