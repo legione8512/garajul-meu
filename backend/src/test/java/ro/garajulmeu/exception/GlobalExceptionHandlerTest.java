@@ -55,8 +55,9 @@ class GlobalExceptionHandlerTest {
 	}
 
 	/**
-	 * Guards specification section 30. The thrown message deliberately contains
-	 * an internal host and a database user; neither may appear in the response.
+	 * Guards the discipline in section 17. The thrown message deliberately
+	 * contains an internal host and a database user; neither may appear in the
+	 * response, which carries a code and nothing else.
 	 */
 	@Test
 	void unexpectedFailureNeverLeaksInternalDetail() throws Exception {

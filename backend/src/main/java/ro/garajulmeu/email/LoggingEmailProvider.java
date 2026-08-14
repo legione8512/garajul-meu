@@ -11,7 +11,7 @@ import ro.garajulmeu.user.Language;
  * Writes the message to the log instead of sending it, so the whole registration
  * flow can be exercised without a Resend account or a verified domain.
  *
- * <p><strong>Development only.</strong> Specification section 30 forbids logging
+ * <p><strong>Development only.</strong> Specification section 27 forbids logging
  * verification codes; this class exists precisely because in development the log
  * <em>is</em> the inbox. It is selected by an explicit property, so production
  * cannot fall back to it silently - if the property is absent there is no

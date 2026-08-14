@@ -96,8 +96,8 @@ public class SecurityConfig {
 				// its own entry point directly and never reaches the other one.
 				// Spring's default here also answers with a WWW-Authenticate header
 				// carrying an English error_description and the server host - English
-				// prose the frontend must own, per section 6, and internal detail
-				// section 30 keeps out of responses.
+				// prose the frontend must own, per section 6, and internal detail a
+				// response has no place for: section 17 gives a failure one code.
 				.oauth2ResourceServer(oauth2 -> oauth2
 						.authenticationEntryPoint(authenticationEntryPoint)
 						.jwt(Customizer.withDefaults()))

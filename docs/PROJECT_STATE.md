@@ -4,7 +4,7 @@ Portable state of the guided build. Updated at every meaningful milestone so the
 project can be continued in a new conversation, or by a different AI assistant,
 without relying on model memory.
 
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 ---
 
@@ -12,12 +12,13 @@ Last updated: 2026-08-14
 
 | Item | Value |
 |---|---|
-| Phase | 4 — Authentication & Users — **complete** once 4.9 is committed. Phase 5, the frontend foundation, has not started |
-| Last **committed** milestone | **4.8b email change — `98c6365`, verified green on 2026-08-14.** Every authentication flow section 14 requires existed at 4.7 (`44a29fa`); account management arrived across 4.8a (`04eed18`) and 4.8b |
-| Applied, verified green, **not yet committed** | **4.9 account deletion** — `DELETE /users/me`, permanent per specification section 24. Four files: `dto.DeleteAccountRequest` (new), `UserService` and `UserController` (modified), `AccountDeletionTest` (new, 9 tests). **No migration** — `verification_tokens` and `refresh_tokens` have cascaded from `users` since `V2` and `V3` |
+| Phase | **4 — Authentication & Users: complete.** 5 — Frontend Foundation & i18n: **in progress**, 5.1 and 5.2 done |
+| Last **committed** milestone | **4.9 permanent account deletion — `8c8517a`, verified green on 2026-08-14**, which closed Phase 4. The backend has not been touched since |
+| Applied, verified green, **not yet committed** | **Phase 5.1 and 5.2** — the whole frontend foundation: routing and the test harness (5.1), then i18n (5.2). Frontend suite at **19 tests in 4 files** |
 | Commit history note | `ca3c670` is 4.5b. `6736ef8` is labelled as the Jackson 3 login fix but **also carries the whole authentication-entry-point change** — `ErrorCode`, `ApiErrorAuthenticationEntryPoint`, `SecurityConfig`, `AuthFlowTest`. Two commits were intended and collapsed into one. Left as it is: it is already on the public remote, and rewriting published history for an imprecise message is not worth it. Recorded here so the entry point can still be found |
-| Verified build | `.\mvnw.cmd clean verify` → **`Tests run: 108, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS`, **four** PostgreSQL containers |
-| Next verified step | **Phase 5 — Frontend Foundation & i18n**, the name it carries in specification section 30. Nothing of it exists: `frontend/` is still the default Vite starter page. Section 6 sets the i18n contract — `ro` and `en`, no user-facing string hardcoded in a component, the pre-authentication language kept in a local non-sensitive preference and the authenticated one in `users.preferred_language`, and **the frontend translating the backend's stable error codes**. Section 5 lists twenty-two screens, of which Phase 5 plausibly owns only the shell and the pre-authentication ones (Welcome, Create Account, Email Verification, Login, Forgot/Reset). **Scope has not been agreed yet** — settle what Phase 5 includes before writing any of it, because "the frontend" is not a milestone |
+| Verified build — backend | `.\mvnw.cmd clean verify` → **`Tests run: 108, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS`, **four** PostgreSQL containers |
+| Verified build — frontend | from `frontend/`: `npm run test:run` → **19 passed in 4 test files**; `npm run build`; `npm run lint`. **Count the files as well as the tests** — on 2026-08-14 a test file never reached disk, the suite stayed green, and only the total gave it away |
+| Next verified step | **5.3 — the API client**: a `fetch` wrapper, the access token held in memory, refresh over the cookie, and the 401 → refresh → retry loop. It is the first frontend code that talks to the backend, and the first place the two halves of section 17 meet — the backend sends a code, `errorMessageKey` already turns it into a translation key. Section 6 sets the i18n contract — `ro` and `en`, no user-facing string hardcoded in a component, the pre-authentication language kept in a local non-sensitive preference and the authenticated one in `users.preferred_language`, and **the frontend translating the backend's stable error codes**. Section 5 lists twenty-two screens; **screens 1–5 — Welcome, Create Account, Email Verification, Login, Forgot/Reset Password — belong to Phase 5, agreed 2026-08-14.** The specification does not say so outright, but Phase 6 is the dashboard and garage skeleton, which presupposes an authenticated user. Agreed breakdown: **5.1 done** — routing, app shell, test harness; **5.2 done** — i18next; **5.3 next** — the API client, token handling and the 401 → refresh → retry loop; **5.4** — the five screens, which is where the pages stop being a single `<h1>` |
 
 ### What 4.5b delivers
 
@@ -52,7 +53,7 @@ before going further.
 | Who writes files | **The developer.** Provide the exact path, whether it is new or modified, the full content, and the reasoning. Do not write source files unless explicitly asked. |
 | This document | Maintained by the assistant, not the developer. Update it at every milestone. |
 | Language | Explanations in Romanian; technical terms, code, comments and identifiers in English. |
-| Verification | Read the log, not just `BUILD SUCCESS`. **Always check the total test count** — a test lost to a bad edit leaves the build green and the number smaller. This has happened. |
+| Verification | Read the log, not just `BUILD SUCCESS`. **Always check the total test count, and on the frontend the test-file count too** — a test lost to a bad edit leaves the build green and the number smaller, and a whole file that never reached disk removes its entire block at once. Both have now happened, on 2026-08-13 and 2026-08-14. A milestone is not done until the predicted number is the observed number. |
 | Versions | Verify current documentation before giving version-specific instructions. Spring Boot 4 renamed many artifacts and packages, and most material online targets 3.x. |
 | Paste fragility | Long files and nested XML have repeatedly lost lines in transit. After pasting, check the file size or line count. If a paste fails twice on the same content, ask before switching approach. |
 | Scope | Implement only V1 features from the specification. Surface any deviation and wait for approval rather than deciding alone. |
@@ -315,9 +316,27 @@ explicitly allows extending the canonical catalogue.
 | Linter | ESLint 10.8.0 with `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` |
 | `npm run dev` | serves on port 5173 |
 | `npm run build` | `tsc -b && vite build`, output in `frontend/dist/` |
+| `npm run test:run` | Vitest 4.1.10 over jsdom 30.0.1, with Testing Library 16.3.2 |
+| Routing | react-router **8.3.0**, declarative API |
+| i18n | i18next **26.3.6** with react-i18next **17.0.11** |
 
-Default Vite starter page only. No routing, i18n or design system yet — those
-belong to Phase 5.
+The Vite starter page is gone. Structure:
+
+| Path | Role |
+|---|---|
+| `src/routes/paths.ts` | Every URL named once, so a route and the links pointing at it cannot drift apart by a typo |
+| `src/routes/AppRoutes.tsx` | The route table, **deliberately separate from the Router**. `App.tsx` wraps it in a `BrowserRouter` that reads the real address bar; tests wrap the same table in a `MemoryRouter` and hand it a path, so every route is reachable without navigating through the UI |
+| `src/layouts/RootLayout.tsx` | One `<header>`, one `<main>`, and it is a **layout route with no path**, so it wraps the not-found page too — which is exactly where somebody lost needs a way home |
+| `src/pages/` | Seven pages, each currently a single translated `<h1>`. Screens 1–5 of section 5 plus not-found; the content arrives in 5.4 |
+| `src/i18n/language.ts` | Pure functions: what was remembered, what the browser asks for, what wins. No detector plugin — see the decisions table |
+| `src/i18n/locales/ro.ts` | The reference locale. `en.ts` is typed as `typeof ro`, so a forgotten key is a compile error rather than a string that renders in the wrong language |
+| `src/i18n/i18next.d.ts` | Augments `CustomTypeOptions`, so a mistyped translation key stops the build instead of rendering itself to the reader |
+| `src/i18n/errorKey.ts` | Backend error code → translation key, with an explicit unknown branch. The frontend half of section 17 |
+| `src/components/LanguageSwitcher.tsx` | Label translated, option names **not** — each language named in itself |
+
+No design system, no CSS beyond the untouched `index.css`. Nothing in section 30
+places one in Phase 5, and inventing tokens before the first real screen exists
+would be guessing at what they have to support.
 
 ## Tests currently passing
 
@@ -382,7 +401,21 @@ Test infrastructure: `TestcontainersConfiguration` supplies a
 deliberately shadows the main configuration file so `application-local.yml` can
 never reach a test.
 
-No frontend tests yet. Vitest and Playwright arrive with Phases 5 and 14.
+### Frontend tests — 19 in 4 files
+
+| File | Scope |
+|---|---|
+| `App.test.tsx` (8) | Each of the six routes renders its own page, an unregistered address falls back to not-found, and the shell with its way home survives even there. Asserted against the Romanian resource rather than literals, so rewording a title stays a one-file change |
+| `i18n/language.test.ts` (5) | A remembered language is read back; a stored value that is not a supported language is ignored; the remembered choice outranks the browser; the browser's first supported language wins otherwise; Romanian is the fallback. All pure — the candidate list is a parameter, so nothing rewrites a global the whole environment shares |
+| `i18n/errorKey.test.ts` (3) | A known code maps to its key, an unknown one to the generic message, and **every code the authentication surface can send has wording** — if one of those ever resolved to UNKNOWN, a real failure would be shown as "something went wrong" while the backend had said exactly what happened |
+| `components/LanguageSwitcher.test.tsx` (3) | Both languages named in themselves; switching re-renders the page in the chosen language; the choice is written to storage |
+
+`src/test/setup.ts` pins the language to Romanian before every test and clears
+storage afterwards. jsdom reports `en-US`, so without that pin every component
+test would run in English and a Romanian assertion would fail for a reason that
+has nothing to do with the component under test.
+
+Playwright and end-to-end coverage arrive with Phase 14.
 
 ## External integrations configured
 
@@ -471,6 +504,12 @@ Sentry at Phase 15.
 | 2026-08-14 | **A deleted account's access token stays cryptographically valid until it expires**, because a stateless JWT cannot be recalled. It opens nothing: every route resolves the account first and finds none, so the answer is `USER_NOT_FOUND`. Recorded and tested rather than left to be discovered, since the alternative — a revocation list checked on every request — would trade the entire benefit of stateless verification for at most fifteen minutes of exposure on an account that no longer holds any data. |
 | 2026-08-14 | `DELETE /users/me` carries a request body, which HTTP permits but does not require. The password has to travel somewhere, and a query parameter would put it in access logs and browser history — the two places a password must never be. See the deferred-work table for the proxy risk this creates. |
 | 2026-08-14 | The two email-change endpoints live on `UserController` but call `AuthService`, so the controller injects two services. The URL belongs to the account; the flow is a verification-code flow and belongs to `auth`, where the single implementation of the check is private. A controller coordinating two services is a smaller price than either a second copy of that check or a pass-through method on `UserService` that would add a layer without adding meaning. |
+| 2026-08-15 | **The route table is separate from the Router that drives it.** `BrowserRouter` reads the real address bar and cannot be told to start anywhere else, so `App.tsx` holds only the Router and `AppRoutes.tsx` holds everything testable. Tests wrap the same table in a `MemoryRouter` with an initial path, which makes every route reachable directly instead of by navigating the UI to get there. `RootLayout` is a pathless layout route so it wraps the not-found page too. |
+| 2026-08-15 | **`i18next-browser-languagedetector` was rejected.** The policy needed is three rules — the remembered choice, then the browser, then Romanian — and hand-written they are about twenty **pure** functions' worth of code, with the candidate list passed as a parameter that defaults to `navigator`. The plugin would have made detection a one-time event at initialisation, testable only by rewriting a global the whole environment shares. Same reasoning as the hand-written rate limiter: one narrow policy, fully testable, no dependency. |
+| 2026-08-15 | **Two compile-time guards replace a class of silent translation bugs.** `en.ts` is typed `typeof ro`, so a key added to Romanian and forgotten in English fails the build rather than rendering in the wrong language; and `i18next.d.ts` augments `CustomTypeOptions`, so a mistyped key in `t()` fails the build rather than rendering itself to the reader. Romanian is the reference locale because it is the fallback and the backend's default. |
+| 2026-08-15 | **Language names are never translated.** `languageNames` lives in `language.ts`, not in the resource files, because somebody who has landed in a language they cannot read must still recognise their own in the list — which they cannot do if "Romanian" is rendered as a Romanian word. The switcher's label is translated; its options are not. |
+| 2026-08-15 | **`errorMessageKey` returns a key, not a sentence.** The mapping from a backend code to a translation key is the logic worth testing; translating is i18next's job. Keeping it a plain function rather than a hook keeps it free of React and trivially testable. The unknown branch is the point of the whole module: the backend's catalogue grows every phase, and a code this frontend has never seen must never reach a reader as the literal text `errors.SOMETHING_NEW`. Wording exists only for codes the authentication and account surface can actually raise; inventing Romanian copy for OCR failures that no screen can yet produce would be wording nobody has checked. |
+| 2026-08-15 | **A delivered test file silently failed to reach disk.** `i18n/language.test.ts` was never created; the suite reported 11 passed and green, and five assertions simply did not exist. Caught only by comparing the total against the predicted 16. This is the second time paste loss has cost this project real coverage, and it is why the verification rule now says **count the test files as well as the tests** — a missing file removes its whole block at once, which no per-test number reveals. |
 
 ## Known issues and open decisions
 
@@ -489,8 +528,8 @@ Sentry at Phase 15.
 | ~~`HttpStatusEntryPoint` returns a bare 401 with no body~~ — **closed 2026-08-14** by `ApiErrorAuthenticationEntryPoint`. Was scheduled for 4.4, slipped, and was caught by re-reading `SecurityConfig` rather than by any test. | done |
 | No `AccessDeniedHandler`, so a 403 from Spring Security itself would still answer with a bare body. Not built yet because nothing can trigger it: every rule is `anyRequest().authenticated()` with no roles, and `VEHICLE_ACCESS_DENIED` and its relatives are `ApiException`s from services that already take the `GlobalExceptionHandler` path. Building it now would mean inventing an authorization rule to test it against. **Trigger: the first real authorization rule on the chain**, realistically Phase 7 with vehicle ownership. Both places that take an entry point take a handler too. | 7 |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
-| `eslint-plugin-jsx-a11y` not installed. Not mandated by the specification — see the corrected 2026-08-12 decision — but the reason ESLint was chosen over Oxlint, so install it when the frontend gains its first real component or the choice was pointless. | 5 |
-| **Five specification citations in the Java source are wrong** and were corrected in this document on 2026-08-14 but **not yet in the code**: `EmailProvider` says section 22 for the RO/EN email templates (it is 6), `LoggingEmailProvider` says section 30 for the ban on logging codes (it is 27), and `GlobalExceptionHandler`, `SecurityConfig` and `GlobalExceptionHandlerTest` all cite section 30 for "internal detail must not reach the client" — a rule that section does not contain, section 30 being the development phase order. Comments only, no behaviour. | next commit |
+| `eslint-plugin-jsx-a11y` **cannot be installed yet.** Verified against the registry on 2026-08-14: the latest release is 6.10.2 and its peer range is `eslint ^3 \|\| … \|\| ^9`, while this project runs **ESLint 10.8.0**. There is no newer version and no prerelease tag — only a `v5-backport` line. Forcing it past the peer check was rejected: a lint plugin running outside its supported range is the kind of thing that appears to work and silently stops reporting. **Trigger: a jsx-a11y release whose peer range includes ESLint 10.** If that does not arrive by the time the frontend has real forms, revisit the 2026-08-12 choice of ESLint over Oxlint, because the plugin was its entire justification. | 5 |
+| ~~Five specification citations in the Java source cite the wrong sections~~ — **closed 2026-08-15.** `EmailProvider` said 22 for the RO/EN email templates (it is 6), `LoggingEmailProvider` said 30 for the ban on logging codes (it is 27), and `GlobalExceptionHandler`, `SecurityConfig` and `GlobalExceptionHandlerTest` all cited 30 for "internal detail must not reach the client" — a rule section 30 does not contain, being the development phase order. Corrected in comments only; no behaviour changed. Found by reading the specification directly rather than trusting the notes, which is the only way this class of error surfaces. | done |
 | Node version not yet pinned in the repository. Add `.nvmrc` and `engines` so GitHub Actions and Cloudflare Pages resolve the same version. | 14 |
 
 ### Open decisions

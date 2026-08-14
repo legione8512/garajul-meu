@@ -19,9 +19,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 /**
  * Turns every exception into the one {@link ApiErrorResponse} shape.
  *
- * <p>Specification section 30: stack traces, exception messages and class names
- * must never reach the client. Only handled, expected failures name a specific
- * error code; everything else collapses to INTERNAL_ERROR.
+ * * <p>Stack traces, exception messages and class names must never reach the
+ * client. Section 17 leaves nowhere to put them: a failure answers with one
+ * stable code that the frontend translates, and nothing else. Only handled,
+ * expected failures name a specific code; everything else collapses to
+ * INTERNAL_ERROR.
  *
  * <p>Log levels follow specification section 27. Expected 4xx outcomes are
  * business events, logged at INFO. Only genuinely unhandled exceptions are
