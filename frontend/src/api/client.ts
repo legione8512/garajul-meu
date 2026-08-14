@@ -52,12 +52,20 @@ async function toApiError(response: Response): Promise<ApiError> {
 }
 
 async function parse<T>(response: Response): Promise<T> {
-  if (response.status === 204) {
-    // Callers of a 204 endpoint declare T as void and ignore this.
+  if (response.status === 204 || response.status === 205) {
     return undefined as T
   }
 
-  return (await response.json()) as T
+  const text = await response.text()
+
+  // 201 Created answers with an empty body - the account exists and there is
+  // nothing useful to say about it until it is verified. Checking the status
+  // alone missed that and tried to parse nothing as JSON.
+  if (text.length === 0) {
+    return undefined as T
+  }
+
+  return JSON.parse(text) as T
 }
 
 /**

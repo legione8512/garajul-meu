@@ -10,6 +10,9 @@ export const ro = {
   app: {
     name: 'Garajul Meu',
   },
+  common: {
+    reference: 'Referință: {{requestId}}',
+  },
   language: {
     label: 'Limbă',
   },
@@ -23,14 +26,28 @@ export const ro = {
     notFound: 'Pagina nu există',
   },
   /**
+   * Phrased as labels rather than sentences on purpose. Romanian requires "de"
+   * before a noun after numbers of twenty and above - "12 caractere" but "120
+   * de caractere" - and interpolation cannot choose between them. i18next can,
+   * through plural forms, and that is worth doing when real copy is written;
+   * until then this phrasing is correct for every number.
+   */
+  validation: {
+    required: 'Completează acest câmp.',
+    email: 'Adresa de email nu pare validă.',
+    minLength: 'Lungime minimă: {{min}} caractere.',
+    maxLength: 'Lungime maximă: {{max}} caractere.',
+    sixDigits: 'Codul are exact șase cifre.',
+    invalid: 'Valoarea nu este acceptată.',
+  },
+  /**
    * Keyed by the backend's error codes, letter for letter. That is the whole
    * point of section 17: the backend sends a stable code and no prose, and this
    * is the one place the code becomes something a person can read.
    *
    * Only the codes the authentication and account surface can produce are here.
    * The vehicle, certificate, document, OCR and storage codes arrive with the
-   * phases that can actually raise them; inventing wording now for features
-   * that do not exist would be wording nobody has checked against a real screen.
+   * phases that can actually raise them.
    */
   errors: {
     AUTHENTICATION_REQUIRED: 'Sesiunea a expirat. Autentifică-te din nou.',

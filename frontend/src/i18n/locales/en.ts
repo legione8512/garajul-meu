@@ -8,6 +8,9 @@ export const en: typeof ro = {
   app: {
     name: 'Garajul Meu',
   },
+  common: {
+    reference: 'Reference: {{requestId}}',
+  },
   language: {
     label: 'Language',
   },
@@ -19,6 +22,14 @@ export const en: typeof ro = {
     forgotPassword: 'Forgot your password',
     resetPassword: 'New password',
     notFound: 'Page not found',
+  },
+  validation: {
+    required: 'Please fill in this field.',
+    email: 'That does not look like an email address.',
+    minLength: 'Minimum length: {{min}} characters.',
+    maxLength: 'Maximum length: {{max}} characters.',
+    sixDigits: 'The code is exactly six digits.',
+    invalid: 'That value is not accepted.',
   },
   errors: {
     AUTHENTICATION_REQUIRED: 'Your session has expired. Please sign in again.',
