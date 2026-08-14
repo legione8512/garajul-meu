@@ -187,6 +187,93 @@ public class AuthService {
 	}
 
 	/**
+	 * Sends the code to the address <strong>already on the account</strong>, never
+	 * to the requested one. That single choice is what makes a stolen access token
+	 * insufficient to hijack an account: the thief can ask, but the answer arrives
+	 * in an inbox they do not hold.
+	 *
+	 * <p>The requested address is carried on the token itself, in
+	 * {@code target_value}, rather than being sent again at confirmation time.
+	 * Asking the client to repeat it would let the confirmation name a different
+	 * address from the one the owner was shown and approved.
+	 */
+	@Transactional
+	public void requestEmailChange(UUID accountId, String newEmail, String currentPassword) {
+		User user = userRepository.findById(accountId)
+				.orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+		if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+			throw new ApiException(ErrorCode.INVALID_CURRENT_PASSWORD);
+		}
+
+		String requested = normalise(newEmail);
+
+		// Answering truthfully here discloses that an address is taken, exactly as
+		// registration already does by design. The caller is authenticated and has
+		// just proved they know the password, so this is not a free oracle.
+		if (requested.equals(user.getEmail()) || userRepository.existsByEmail(requested)) {
+			throw new ApiException(ErrorCode.EMAIL_ALREADY_EXISTS);
+		}
+
+		emailProvider.sendEmailChangeCode(user.getEmail(), requested,
+				issueCode(user, VerificationTokenType.EMAIL_CHANGE, requested),
+				user.getPreferredLanguage());
+
+		log.info("Issued email change code for account {}", user.getId());
+	}
+
+	/**
+	 * {@code noRollbackFor} for the same reason as {@link #verifyEmail}: a wrong
+	 * code must leave its failed attempt recorded.
+	 *
+	 * <p>Sessions are deliberately <strong>not</strong> revoked. No credential
+	 * changed, so nothing needs to be outrun - and the live session is the only
+	 * route back if the new address was mistyped, because login refuses an
+	 * unverified account and forgot-password writes to the account address.
+	 */
+	@Transactional(noRollbackFor = ApiException.class)
+	public void confirmEmailChange(UUID accountId, String code) {
+		User user = userRepository.findById(accountId)
+				.orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+		Instant now = Instant.now();
+		VerificationToken token = consumeCode(user.getId(), VerificationTokenType.EMAIL_CHANGE, code, now);
+
+		String requested = token.getTargetValue();
+
+		if (requested == null) {
+			// Unreachable through requestEmailChange, which always sets it. Refusing
+			// rather than trusting the null keeps a malformed row from clearing an
+			// address that a NOT NULL column would then reject far from the cause.
+			throw new ApiException(ErrorCode.VERIFICATION_CODE_INVALID);
+		}
+
+		user.setEmail(requested);
+
+		// The code proved control of the OLD address, which is what authorises the
+		// move, and nothing whatever about the new one. Marking it verified here
+		// would record a claim nobody checked, and a mistyped address would sit
+		// permanently "verified" while silently receiving nothing - including the
+		// Phase 11 reminders this whole application exists to send.
+		user.setEmailVerifiedAt(null);
+
+		try {
+			userRepository.flush();
+		}
+		catch (DataIntegrityViolationException taken) {
+			// Free when the code was issued, claimed before it was spent. The unique
+			// index is the arbiter, exactly as in register.
+			throw new ApiException(ErrorCode.EMAIL_ALREADY_EXISTS, taken);
+		}
+
+		emailProvider.sendVerificationCode(user.getEmail(),
+				issueCode(user, VerificationTokenType.EMAIL_VERIFICATION),
+				user.getPreferredLanguage());
+
+		log.info("Email changed for account {}; the new address is unverified", user.getId());
+	}
+
+	/**
 	 * No longer {@code readOnly}: issuing a refresh token writes a row. A
 	 * read-only transaction would have refused the insert.
 	 */
@@ -246,12 +333,18 @@ public class AuthService {
 	/**
 	 * The single place a six-digit code is checked, for every purpose.
 	 *
-	 * <p>Verification and password reset need the identical sequence - spent,
-	 * expired, too many attempts, wrong - and writing it twice is precisely how
-	 * two flows end up with quietly different rules. The caller supplies the type,
-	 * because a code issued for one purpose must never open another.
+	 * <p>Verification, password reset and email change need the identical sequence
+	 * - spent, expired, too many attempts, wrong - and writing it three times is
+	 * precisely how three flows end up with quietly different rules. The caller
+	 * supplies the type, because a code issued for one purpose must never open
+	 * another.
+	 *
+	 * <p>Returns the spent token so a caller can read what was attached to it;
+	 * email change is the only flow that needs this today, through
+	 * {@code target_value}.
 	 */
-	private void consumeCode(UUID userId, VerificationTokenType type, String presentedCode, Instant now) {
+	private VerificationToken consumeCode(UUID userId, VerificationTokenType type,
+			String presentedCode, Instant now) {
 		VerificationToken token = tokenRepository
 				.findFirstByUserIdAndTypeOrderByCreatedAtDesc(userId, type)
 				.orElseThrow(() -> new ApiException(ErrorCode.VERIFICATION_CODE_INVALID));
@@ -277,19 +370,31 @@ public class AuthService {
 		}
 
 		token.markUsed(now);
+		return token;
 	}
 
 	/** Supersedes any outstanding code of this type and returns the new one. */
 	private String issueCode(User user, VerificationTokenType type) {
+		return issueCode(user, type, null);
+	}
+
+	/**
+	 * @param targetValue what the code authorises, for types that need one. Only
+	 *                    EMAIL_CHANGE does: the requested address rides on the
+	 *                    token so that confirmation cannot name a different one
+	 */
+	private String issueCode(User user, VerificationTokenType type, String targetValue) {
 		Instant now = Instant.now();
 		tokenRepository.invalidateOutstandingCodes(user.getId(), type, now);
 
 		String code = codeGenerator.generate();
-		tokenRepository.save(new VerificationToken(
+		VerificationToken token = new VerificationToken(
 				user.getId(),
 				type,
 				passwordEncoder.encode(code),
-				now.plus(authProperties.verificationCodeValidity())));
+				now.plus(authProperties.verificationCodeValidity()));
+		token.setTargetValue(targetValue);
+		tokenRepository.save(token);
 
 		return code;
 	}

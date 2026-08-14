@@ -19,4 +19,20 @@ public interface EmailProvider {
 	 * receives the wrong wording learns something false about their account.
 	 */
 	void sendPasswordResetCode(String recipient, String code, Language language);
+
+	/**
+	 * Sent to the address currently on the account, never to the requested one.
+	 *
+	 * <p>Four arguments rather than three, because here the recipient and the
+	 * address being asked about are two different things - and that difference is
+	 * the whole value of the message. Someone who did not request this change sees
+	 * exactly which address another party is trying to move their account to, and
+	 * knows to refuse. A template that only said "confirm the change" would tell
+	 * the one person who most needs the detail the least.
+	 *
+	 * @param recipient the account's current address, which receives the code
+	 * @param newEmail  the requested address, named in the body so an unexpected
+	 *                  change is recognisable
+	 */
+	void sendEmailChangeCode(String recipient, String newEmail, String code, Language language);
 }

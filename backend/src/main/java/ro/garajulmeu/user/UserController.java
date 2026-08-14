@@ -15,7 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import ro.garajulmeu.auth.AuthService;
+import ro.garajulmeu.user.dto.ChangeEmailRequest;
 import ro.garajulmeu.user.dto.ChangePasswordRequest;
+import ro.garajulmeu.user.dto.ConfirmEmailChangeRequest;
 import ro.garajulmeu.user.dto.UpdateProfileRequest;
 import ro.garajulmeu.user.dto.UserProfileResponse;
 
@@ -25,8 +28,17 @@ public class UserController {
 
 	private final UserService userService;
 
-	UserController(UserService userService) {
+	/**
+	 * The email change lives in AuthService because it is a verification-code
+	 * flow, and the single implementation of that check is private there. The URL
+	 * belongs here because the resource is the account. A controller coordinating
+	 * two services is a smaller price than a second copy of the code check.
+	 */
+	private final AuthService authService;
+
+	UserController(UserService userService, AuthService authService) {
 		this.userService = userService;
+		this.authService = authService;
 	}
 
 	/**
@@ -56,5 +68,28 @@ public class UserController {
 	public void changePassword(@AuthenticationPrincipal Jwt token,
 			@Valid @RequestBody ChangePasswordRequest request) {
 		userService.changePassword(UUID.fromString(token.getSubject()), request);
+	}
+
+	/** 204: the code has been sent to the address on file, and nothing has changed yet. */
+	@PostMapping("/me/change-email")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void changeEmail(@AuthenticationPrincipal Jwt token,
+			@Valid @RequestBody ChangeEmailRequest request) {
+		authService.requestEmailChange(UUID.fromString(token.getSubject()),
+				request.newEmail(), request.currentPassword());
+	}
+
+	/**
+	 * Returns the profile rather than 204, because the account has just changed in
+	 * two ways at once - a new address, and {@code emailVerified} back to false.
+	 * Sending it saves a round trip and makes the state the client must react to
+	 * impossible to miss.
+	 */
+	@PostMapping("/me/confirm-email-change")
+	public UserProfileResponse confirmEmailChange(@AuthenticationPrincipal Jwt token,
+			@Valid @RequestBody ConfirmEmailChangeRequest request) {
+		UUID accountId = UUID.fromString(token.getSubject());
+		authService.confirmEmailChange(accountId, request.code());
+		return userService.profileOf(accountId);
 	}
 }
