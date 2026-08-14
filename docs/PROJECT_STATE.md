@@ -14,9 +14,10 @@ Last updated: 2026-08-14
 |---|---|
 | Phase | 4 — Authentication & Users — **in progress** |
 | Last **committed** milestone | **4.7 password reset — verified green on 2026-08-14.** Every authentication flow specification section 14 requires now exists |
+| Applied, verified green, **not yet committed** | **4.8a account management** — `PATCH /api/v1/users/me` and `POST /api/v1/users/me/change-password`. Five files: `dto.UpdateProfileRequest` and `dto.ChangePasswordRequest` (new), `UserService` and `UserController` (modified), `UserProfileFlowTest` (new, 8 tests) |
 | Commit history note | `ca3c670` is 4.5b. `6736ef8` is labelled as the Jackson 3 login fix but **also carries the whole authentication-entry-point change** — `ErrorCode`, `ApiErrorAuthenticationEntryPoint`, `SecurityConfig`, `AuthFlowTest`. Two commits were intended and collapsed into one. Left as it is: it is already on the public remote, and rewriting published history for an imprecise message is not worth it. Recorded here so the entry point can still be found |
-| Verified build | `.\mvnw.cmd clean verify` → **`Tests run: 82, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS` |
-| Next verified step | The account-management endpoints that close Phase 4: `PATCH /users/me` (name, language, timezone), `POST /users/me/change-password`, `POST /users/me/change-email` and `/confirm-email-change`, and `DELETE /users/me`. The last one is the largest — specification section 24 makes deletion permanent across every table the account touches |
+| Verified build | `.\mvnw.cmd clean verify` → **`Tests run: 90, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS`, still **four** PostgreSQL containers |
+| Next verified step | 4.8b — `POST /users/me/change-email` and `/confirm-email-change`, over the `EMAIL_CHANGE` token type and the `target_value` column that already exist, so **no new migration**. Two decisions taken 2026-08-14 and not yet implemented: (1) the confirmation code goes **only to the old address**, which proves control of the account; (2) because that proves nothing about the *new* address, confirming sets `email` to the new value, resets `email_verified_at` to null and issues a fresh `EMAIL_VERIFICATION` code to the new address through the existing 4.2 flow. Sessions are **not** revoked — the password did not change, and a live session is the only way to correct a mistyped address. **Residual risk, accepted knowingly:** login refuses unverified accounts and `forgot-password` writes to the account address, so a user who mistypes the new address and then loses their session has an unrecoverable account. Then 4.9 — `DELETE /users/me`, the largest of the three: specification section 24 makes deletion permanent across every table the account touches |
 
 ### What 4.5b delivers
 
@@ -150,8 +151,9 @@ schema change from here is a new `V2__`, `V3__` file.
 | Local secrets | `backend/application-local.yml`, gitignored, loaded via `spring.config.import: optional:file:./application-local.yml` |
 | Artifact | `target/backend-0.0.1-SNAPSHOT.jar`, repackaged as an executable jar |
 
-The `/api/v1` surface implemented so far is the authentication block plus
-`GET /api/v1/users/me`; see the package tables below.
+The `/api/v1` surface implemented so far is the authentication block plus the
+account-management endpoints `GET`, `PATCH /api/v1/users/me` and
+`POST /api/v1/users/me/change-password`; see the package tables below.
 
 #### Package `ro.garajulmeu.exception`
 
@@ -174,9 +176,11 @@ raise alerts for ordinary business failures.
 | `Language` | `RO("ro")`, `EN("en")` — the code is the same IETF tag i18next and the email templates use |
 | `LanguageConverter` | `@Converter(autoApply = true)`. `@Enumerated(STRING)` would write `RO`/`EN` and break the CHECK constraint |
 | `UserRepository` | `JpaRepository<User, UUID>` with `findByEmail` and `existsByEmail`; both expect an already-normalised address |
-| `UserService` | `profileOf(accountId)` |
-| `UserController` | `GET /api/v1/users/me` — the first protected route. The identity comes from the verified token's `sub`, never from a path or query parameter, which is what makes another account's profile unreachable by editing a URL |
+| `UserService` | `profileOf`, `updateProfile`, `changePassword`. Injects `PasswordEncoder` and `RefreshTokenService` — the deliberate `user` → `auth` edge recorded in the decisions table. `validZone` checks the timezone against `ZoneId.getAvailableZoneIds()`, because membership of a set resolved at runtime cannot be expressed as a Bean Validation annotation without a custom constraint |
+| `UserController` | `GET /api/v1/users/me` — the first protected route; `PATCH /me` → 200 with the updated profile; `POST /me/change-password` → **204**. For all three the identity comes from the verified token's `sub`, never from a path or query parameter, which is what makes another account unreachable by editing a URL |
 | `dto.UserProfileResponse` | Response DTO rather than the entity, so `passwordHash` is never one Jackson change away from the wire |
+| `dto.UpdateProfileRequest` | Partial update: every component optional, absent means unchanged. Deliberately carries **no** `@NotBlank` — that would forbid absence, which is the whole point of PATCH |
+| `dto.ChangePasswordRequest` | `currentPassword` `@NotBlank` with no length bound; `newPassword` 12–128, the same bound as registration and reset |
 
 Email normalisation — trim and lower-case — is the service layer's
 responsibility. The entity stores what it is given, and the unique index
@@ -319,6 +323,7 @@ belong to Phase 5.
 | `VerificationTokenRepositoryTest` (5 tests) | A fresh code is usable; an expired one is not; a spent one cannot be reused; a resend supersedes every outstanding code; codes of another purpose are untouched |
 | `VerificationCodeGeneratorTest` (2 tests) | Always exactly six digits over a thousand draws, which also proves the zero padding; two hundred draws are almost all distinct |
 | `AuthServiceTest` (10 tests) | Registration: address normalised, password `$argon2id$`, emailed code matches the stored hash, duplicate address rejected in any case, language defaults to Romanian. Verification: a correct code verifies the account, a wrong one is counted, a spent code cannot be reused, an expired one answers `VERIFICATION_CODE_EXPIRED`, a resend marks the earlier token invalidated and the old code stops working, and a resend for an unknown address sends nothing |
+| `UserProfileFlowTest` (8 tests) | The two account-management endpoints over HTTP. PATCH leaves every field the body does not mention and trims the name it is given; it accepts a language and a real timezone; it rejects a whitespace-only name as `VALIDATION_ERROR` on `fullName`, and `Europe/Bucuresti` — plausible, but not a zone — as `VALIDATION_ERROR`. **It changes only the account the token belongs to**: a second account exists, the first account's token renames itself, and the second row is read back untouched. That is the ownership property in the only shape this endpoint can have, since there is no path parameter to tamper with. Change-password refuses a wrong `currentPassword` with `INVALID_CURRENT_PASSWORD` and the old password still logs in afterwards; a correct one answers 204, **kills a refresh token issued before the change**, and the new password logs in. Both endpoints, and `GET /me`, answer 401 `AUTHENTICATION_REQUIRED` with no token |
 
 `AuthServiceTest`, `PasswordResetServiceTest` and `AuthFlowTest` all replace
 `EmailProvider` with `@MockitoBean` — it is the only way to read a code that is
@@ -326,11 +331,16 @@ stored as an Argon2 hash and therefore irreversible by design. Each *distinct*
 context configuration buys a separate Spring context and PostgreSQL container,
 so the build starts **four**: `AuthFlowTest`, `AuthRateLimitTest` (which
 overrides the rate limit properties), `AuthServiceTest`, and
-`RefreshTokenServiceTest`. `PasswordResetServiceTest` carries annotations
-identical to `AuthServiceTest` and therefore reuses its context — it runs in
-about two seconds with no container of its own. **Matching an existing class's
-annotations exactly is what keeps the container count from growing with every
-new test class.**
+`RefreshTokenServiceTest`. Two classes reuse an existing context instead of
+adding a fifth container: `PasswordResetServiceTest` matches `AuthServiceTest`,
+and `UserProfileFlowTest` matches `AuthFlowTest` — **including an
+`EmailProvider` mock it never uses**, because `@MockitoBean` joins the cache key
+through `BeanOverrideContextCustomizer`. Both run in about a second with no
+container of their own, and the build log proves it: neither prints a Spring
+banner. **Matching an existing class's annotations exactly is what keeps the
+container count from growing with every new test class**, and an unused
+`@MockitoBean` is a legitimate way to match — documented in the test as
+intentional, or the next reader deletes it as debris.
 
 **The rate limiter is a singleton and its counters are not transactional**, so
 they survive between test methods and between test classes sharing a context.
@@ -421,6 +431,13 @@ Sentry at Phase 15.
 | 2026-08-14 | **There are two paths to a 401, and `exceptionHandling()` governs only one.** A request with *no* token is refused later by `AuthorizationFilter` and handled by `ExceptionTranslationFilter`, which uses the global entry point. A request whose bearer token *fails to decode* is refused by `BearerTokenAuthenticationFilter`, which calls **its own** entry point on the spot and never reaches `ExceptionTranslationFilter`. The custom entry point must therefore be set on `oauth2ResourceServer(...)` as well as on `exceptionHandling(...)`; neither replaces the other. Wiring only the first left forged tokens on Spring's default, and `AuthFlowTest` caught it. |
 | 2026-08-14 | Replacing the resource server's default entry point also removes its `WWW-Authenticate` header, which is a gain rather than a loss. That header carried `error_description="An error occurred while attempting to decode the Jwt: ..."` — English prose the frontend must own per section 6 — and `resource_metadata` naming the server host, which section 30 keeps out of responses. RFC 6750 recommends the header; our only client reads the JSON code, so the recommendation buys nothing and costs a leak. |
 | 2026-08-14 | **CSRF stays disabled through Phase 15; the token mechanism arrives at Phase 16.** The refresh cookie is `SameSite=Strict`, `HttpOnly`, `Secure` and path-scoped to `/api/v1/auth`, so a browser attaches it to no cross-site request at all — that is the primary defence against exactly the attack CSRF tokens prevent, not a secondary one. A CSRF token on top is genuine defence in depth, but it needs a frontend that reads and replays it, and that frontend does not exist yet; nor can it be tested convincingly on localhost, where there are no two real origins. It lands with `app.<domain>` and `api.<domain>`. Residual risk accepted until then: an XSS or subdomain takeover on any same-site host could issue same-site requests, which a token would still block. |
+| 2026-08-14 | **PATCH means absent-is-unchanged, and that decides the validation.** `UpdateProfileRequest` carries no `@NotBlank`: it rejects an absent value, which would turn PATCH into PUT. `@Pattern(".*\\S.*")` does the work `@NotBlank` would have done without forbidding absence — Bean Validation skips a null, so only a value that is actually present has to contain a non-whitespace character. |
+| 2026-08-14 | The timezone is checked in the service rather than declaratively. Membership of `ZoneId.getAvailableZoneIds()` cannot be expressed as an annotation without a custom constraint, and the price of not writing one is that the response carries no field name — acceptable while this endpoint has exactly one field that can produce a `VALIDATION_ERROR` without one. **Revisit the moment a second appears.** The check itself is not pedantry: Phase 11 computes reminder day boundaries from this column, and `Europe/Bucuresti` looks entirely plausible until something tries to resolve it. |
+| 2026-08-14 | `ChangePasswordRequest.currentPassword` carries no length bound, for the same reason `LoginRequest` does not: a length policy applies to **new** passwords. Enforcing today's twelve-character minimum on the existing one would refuse exactly the people whose password is too short and who are trying to fix it. |
+| 2026-08-14 | **Changing the password ends every session, including the caller's own, and the endpoint answers 204 rather than a fresh token pair.** Section 14 requires this after a reset and the reasoning applies at least as strongly here: if the password is being changed because somebody else learned it, their sessions must not outlive it. Sparing the caller's own session would require the access token to carry its refresh-token family, which it deliberately does not — the token holds `iss`, `iat`, `exp`, `sub` and nothing more. 204 is the honest answer: log in again with the password you just chose. |
+| 2026-08-14 | **`revokeAllSessionsOf` is the last statement in `changePassword`, and the ordering is load-bearing.** It is a `@Modifying(flushAutomatically = true, clearAutomatically = true)` bulk update: it flushes the new hash and then detaches every loaded entity, so anything touching `user` after that line would read or write a stale copy. This is the same trap as `invalidateOutstandingCodes` on 2026-08-13, met a second time in a different flow — which is why the constraint is written as a comment at the call site and not only here. |
+| 2026-08-14 | **The `user` → `auth` package edge is accepted deliberately.** `UserService` injects `RefreshTokenService` while `auth` already depends on `user`, so in the modular monolith of section 4 this is a cycle between packages. The alternatives — an application event, or a third "session" package — buy indirection without buying independence, since the two modules are one deployable and one transaction. Recorded so that it is a decision rather than an accident. **Trigger to extract the seam: a third module needing to end sessions.** |
+| 2026-08-14 | **An unused `@MockitoBean` can be a legitimate context-cache tool.** `UserProfileFlowTest` declares an `EmailProvider` mock it never touches, purely so its annotation stack matches `AuthFlowTest` exactly; `@MockitoBean` joins the Spring context cache key, so omitting it would have started a fifth context and a fifth PostgreSQL container for eight tests that need neither. Verified in the build log — the class prints no banner and creates no container. The field carries a comment saying why, because an unused mock otherwise reads as leftover debris and gets deleted by the next reader, silently costing several seconds on every build from then on. |
 
 ## Known issues and open decisions
 
@@ -433,6 +450,7 @@ Sentry at Phase 15.
 | Registration sends the email inside the transaction, so a provider outage rolls the account back. Simple and safe today; revisit if Resend proves flaky. | 4.7 |
 | ~~Auth endpoints are not rate limited~~ — **closed 2026-08-14** by `AuthRateLimit` over `InMemoryRateLimiter`. | done |
 | **Release-blocking, not a refinement:** `AuthRateLimit` reads the caller's address from `request.getRemoteAddr()`. Correct locally; behind Railway's proxy it returns the *proxy's* address for everyone, which turns every per-address limit into a global one — `/refresh` at 60/hour would stop the application for all users within minutes. The fix is `server.forward-headers-strategy` in configuration, **never** hand-parsing `X-Forwarded-For`, which a client can forge and which would make per-address limiting bypassable in one line. Must be configured and verified against Railway's actual header behaviour before production. If that behaviour cannot be established with confidence, the safe fallback is to drop the per-address limit on `/refresh` alone: it costs one SHA-256 lookup, and reuse detection already punishes abuse by revoking the family. | 15 |
+| `POST /users/me/change-password` is **not** rate limited, and it is the first endpoint that costs two Argon2 operations — one comparison and one encode. Deferred on the reasoning that a valid bearer token is itself a guard: the caller must already hold an unexpired access token for that exact account, and a wrong `currentPassword` changes nothing. That is weaker than it sounds if a token is ever stolen, which is precisely why it is written down rather than assumed. The policy to reuse already exists — `credentialCheck`. **Trigger: the first authenticated endpoint that costs a hash and is exposed without another guard**, or any evidence of grinding. | standing |
 | `spring-boot-configuration-processor` only runs because `maven.compiler.proc=full` is set in `pom.xml`. **JDK 21 requires the option to be set explicitly**; without it the processor is silently skipped and no metadata is generated. | done |
 | ~~`HttpStatusEntryPoint` returns a bare 401 with no body~~ — **closed 2026-08-14** by `ApiErrorAuthenticationEntryPoint`. Was scheduled for 4.4, slipped, and was caught by re-reading `SecurityConfig` rather than by any test. | done |
 | No `AccessDeniedHandler`, so a 403 from Spring Security itself would still answer with a bare body. Not built yet because nothing can trigger it: every rule is `anyRequest().authenticated()` with no roles, and `VEHICLE_ACCESS_DENIED` and its relatives are `ApiException`s from services that already take the `GlobalExceptionHandler` path. Building it now would mean inventing an authorization rule to test it against. **Trigger: the first real authorization rule on the chain**, realistically Phase 7 with vehicle ownership. Both places that take an entry point take a handler too. | 7 |
