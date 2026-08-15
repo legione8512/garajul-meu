@@ -12,11 +12,12 @@ import ro.garajulmeu.vehicle.dto.VehicleDetails;
 import ro.garajulmeu.vehicle.dto.VehicleSummary;
 
 /**
- * <p><strong>Ownership is part of every query, not a check that follows one.</strong>
- * Section 15 says knowing a UUID must never be enough to reach another account's
- * data, and the surest way to honour that is to make an unfiltered read
- * impossible to write by accident: there is no {@code findById} here that a
- * future endpoint could reach for.
+ * <p><strong>Every finder declared here takes the account id and matches it in
+ * SQL.</strong> Section 15 says knowing a UUID must never be enough to reach
+ * another account's data, and a service that has no unscoped finder to call
+ * cannot forget to scope one. Note the limit of that claim: {@code JpaRepository}
+ * still inherits {@code findById}, so this is a convention rather than something
+ * the compiler enforces.
  *
  * <p>The joins are explicit rather than an entity association. The two tables
  * are one-to-one and the projections need a handful of columns, so selecting
@@ -24,6 +25,8 @@ import ro.garajulmeu.vehicle.dto.VehicleSummary;
  * and a second query per row.
  */
 public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
+
+	Optional<Vehicle> findByIdAndUserId(UUID id, UUID userId);
 
 	@Query("""
 			select new ro.garajulmeu.vehicle.dto.VehicleSummary(
