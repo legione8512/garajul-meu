@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 
 import { useResource } from '../api/useResource.ts'
 import { vehicleLabel, vehiclesPath, type VehicleSummary } from '../api/endpoints/vehicles.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
+import { paths } from '../routes/paths.ts'
 
 /**
  * Screen 7 in specification section 5.
@@ -18,6 +20,8 @@ export function GaragePage() {
   return (
     <>
       <h1>{t('screens.garage')}</h1>
+
+      <p><Link to={paths.addVehicle}>{t('garage.add')}</Link></p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 

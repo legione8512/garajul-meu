@@ -28,6 +28,11 @@ export const en: typeof ro = {
     newPassword: 'New password',
     fullName: 'Full name',
     code: 'Verification code',
+    registrationNumber: 'Registration number',
+    make: 'Make',
+    commercialDescription: 'Model',
+    vin: 'VIN (chassis number)',
+    displayName: 'Nickname (optional)',
   },
   register: {
     submit: 'Create account',
@@ -44,6 +49,11 @@ export const en: typeof ro = {
   },
   garage: {
     empty: 'Your garage is empty. Vehicles you add will appear here.',
+    add: 'Add a vehicle',
+  },
+  addVehicle: {
+    instructions: 'These are the details printed on the registration certificate.',
+    submit: 'Add the vehicle',
   },
   profile: {
     signOut: 'Sign out',
@@ -77,6 +87,7 @@ export const en: typeof ro = {
     dashboard: 'Home',
     garage: 'My garage',
     profile: 'Profile',
+    addVehicle: 'New vehicle',
   },
   validation: {
     required: 'Please fill in this field.',

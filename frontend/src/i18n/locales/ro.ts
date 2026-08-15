@@ -30,6 +30,11 @@ export const ro = {
     newPassword: 'Parolă nouă',
     fullName: 'Nume complet',
     code: 'Cod de verificare',
+    registrationNumber: 'Număr de înmatriculare',
+    make: 'Marcă',
+    commercialDescription: 'Model',
+    vin: 'VIN (serie de șasiu)',
+    displayName: 'Poreclă (opțional)',
   },
   register: {
     submit: 'Creează contul',
@@ -46,6 +51,11 @@ export const ro = {
   },
   garage: {
     empty: 'Garajul tău e gol. Vehiculele pe care le adaugi vor apărea aici.',
+    add: 'Adaugă un vehicul',
+  },
+  addVehicle: {
+    instructions: 'Datele sunt cele de pe certificatul de înmatriculare.',
+    submit: 'Adaugă vehiculul',
   },
   profile: {
     signOut: 'Ieși din cont',
@@ -79,6 +89,7 @@ export const ro = {
     dashboard: 'Acasă',
     garage: 'Garajul meu',
     profile: 'Profil',
+    addVehicle: 'Vehicul nou',
   },
   /**
    * Phrased as labels rather than sentences on purpose. Romanian requires "de"

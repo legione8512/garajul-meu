@@ -59,12 +59,13 @@ describe('garage', () => {
     expect(screen.getByText('Volkswagen Golf')).toBeInTheDocument()
   })
 
-  it('says the garage is empty', async () => {
+    it('says the garage is empty', async () => {
     stubGarage(() => jsonResponse(200, []))
 
     renderApp(paths.garage)
 
     expect(await screen.findByText(ro.garage.empty)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: ro.garage.add })).toBeInTheDocument()
   })
 
   it('translates a refused request instead of showing nothing', async () => {

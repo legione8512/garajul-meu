@@ -1,11 +1,14 @@
+import { apiFetch } from '../client.ts'
+
 /**
  * The vehicle surface of the API.
  *
- * <p>This module exports a path rather than a fetching function, unlike its
- * neighbours. That is deliberate: useResource keys its effect on the path
- * string, and a string is stable between renders where a function is not. A
- * fetcher would have to be memoised at every call site or the screen would
- * reload itself forever.
+ * <p>Reads are exposed as a path and writes as functions, which looks
+ * inconsistent and is not. useResource keys its effect on the path string, and a
+ * string is stable between renders where a function is not - a fetcher would
+ * have to be memoised at every call site or the screen would reload itself
+ * forever. A write is called once, from an event handler, and has no such
+ * problem.
  */
 export const vehiclesPath = '/api/v1/vehicles'
 
@@ -20,6 +23,30 @@ export interface VehicleSummary {
   readonly registrationNumber: string
   readonly make: string
   readonly commercialDescription: string
+}
+
+export interface VehicleDetails extends VehicleSummary {
+  readonly vin: string
+  readonly createdAt: string
+}
+
+/**
+ * The four fields section 8 names as the minimum to save a vehicle, plus the
+ * optional nickname. The rest of the certificate arrives in Phase 8.
+ */
+export interface NewVehicle {
+  readonly registrationNumber: string
+  readonly make: string
+  readonly commercialDescription: string
+  readonly vin: string
+  readonly displayName?: string
+}
+
+export function createVehicle(vehicle: NewVehicle): Promise<VehicleDetails> {
+  return apiFetch<VehicleDetails>(vehiclesPath, {
+    method: 'POST',
+    body: JSON.stringify(vehicle),
+  })
 }
 
 /**
