@@ -17,10 +17,13 @@ export const paths = {
   /**
    * Nested under the garage rather than living at the root, because that is
    * where it is reached from and section 5 fixes the primary navigation at three
-   * destinations. Static, so it keeps winning over the /garage/:vehicleId
-   * pattern that arrives in 7.3c - React Router ranks a literal segment above a
-   * dynamic one regardless of declaration order.
+   * destinations. Static, so it keeps winning over the pattern below - React
+   * Router ranks a literal segment above a dynamic one regardless of the order
+   * they are declared in.
    */
   addVehicle: '/garage/new',
+  /** The route definition takes the pattern; every link takes the builder. */
+  vehiclePattern: '/garage/:vehicleId',
+  vehicle: (vehicleId: string) => `/garage/${vehicleId}`,
   profile: '/profile',
 } as const

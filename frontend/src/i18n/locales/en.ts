@@ -55,6 +55,14 @@ export const en: typeof ro = {
     instructions: 'These are the details printed on the registration certificate.',
     submit: 'Add the vehicle',
   },
+  vehicle: {
+    backToGarage: 'Back to the garage',
+    rename: 'Save nickname',
+    delete: 'Delete this vehicle',
+    confirmDelete: 'Delete this vehicle? Its data is lost for good.',
+    confirmDeleteYes: 'Yes, delete it',
+    cancel: 'Cancel',
+  },
   profile: {
     signOut: 'Sign out',
   },
@@ -88,6 +96,7 @@ export const en: typeof ro = {
     garage: 'My garage',
     profile: 'Profile',
     addVehicle: 'New vehicle',
+    vehicleDetails: 'Vehicle details',
   },
   validation: {
     required: 'Please fill in this field.',

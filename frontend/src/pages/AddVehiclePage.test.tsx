@@ -33,6 +33,13 @@ function jsonResponse(status: number, body: unknown): Response {
  * Answers by path and method, with no catch-all standing in for a request
  * nobody thought about - the pattern that let a change to the garage break a
  * test in the sign-in file.
+ *
+ * <p>Reads answer with a canonical vehicle rather than echoing what was just
+ * posted. This screen is responsible for the request it sends and for where it
+ * goes next; what the vehicle's own screen renders is that screen's test. So
+ * every successful submission here lands on a heading reading "Dacia Logan",
+ * whatever nickname was typed, and the nickname is asserted on the request body
+ * where this screen actually decides it.
  */
 function stubVehicles(onCreate: () => Response): Sent {
   const sent: Sent = { posts: 0, body: null }
@@ -49,8 +56,8 @@ function stubVehicles(onCreate: () => Response): Sent {
         sent.body = JSON.parse(init.body as string) as Record<string, unknown>
         return Promise.resolve(onCreate())
       }
-      // The garage, which is where a successful submission lands.
-      return Promise.resolve(jsonResponse(200, []))
+      // The garage list, or the new vehicle's own screen.
+      return Promise.resolve(jsonResponse(200, input.endsWith('/vehicles') ? [] : CREATED))
     }
     return Promise.resolve(jsonResponse(200, PROFILE))
   }))
@@ -81,7 +88,7 @@ describe('add vehicle', () => {
     expect(sent.posts).toBe(0)
   })
 
-  it('creates the vehicle and returns to the garage', async () => {
+  it('creates the vehicle and opens it', async () => {
     const sent = stubVehicles(() => jsonResponse(201, CREATED))
 
     renderApp(paths.addVehicle)
@@ -91,7 +98,7 @@ describe('add vehicle', () => {
     await userEvent.type(screen.getByLabelText(ro.fields.displayName), 'Mașina de teren')
     await userEvent.click(screen.getByRole('button', { name: ro.addVehicle.submit }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.garage })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dacia Logan' })).toBeInTheDocument()
     expect(sent.posts).toBe(1)
     expect(sent.body).toMatchObject({
       registrationNumber: 'B 100 ABC',
@@ -114,7 +121,7 @@ describe('add vehicle', () => {
     await fillInRequired()
     await userEvent.click(screen.getByRole('button', { name: ro.addVehicle.submit }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.garage })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dacia Logan' })).toBeInTheDocument()
     expect(sent.body?.displayName).toBe('')
   })
 

@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
-import { useResource } from '../api/useResource.ts'
 import { vehicleLabel, vehiclesPath, type VehicleSummary } from '../api/endpoints/vehicles.ts'
+import { useResource } from '../api/useResource.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
 
@@ -38,7 +38,7 @@ export function GaragePage() {
         <ul>
           {data.map(vehicle => (
             <li key={vehicle.id}>
-              <span>{vehicleLabel(vehicle)}</span>
+              <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
               <span>{vehicle.registrationNumber}</span>
             </li>
           ))}

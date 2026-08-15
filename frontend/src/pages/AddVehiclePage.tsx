@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 
@@ -51,6 +51,16 @@ export function AddVehiclePage() {
   const [values, setValues] = useState<Record<Field, string>>(EMPTY)
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
 
+  /**
+   * Where the new vehicle's identifier is caught. useSubmission returns the
+   * failure, not the value, so the identifier has to come out of the callback -
+   * and a plain local cannot carry it: TypeScript does not follow assignments
+   * made inside a closure, so it would narrow the variable to null and refuse
+   * the navigation. A ref is the one thing control-flow analysis leaves alone
+   * across a call.
+   */
+  const createdId = useRef<string | null>(null)
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
 
@@ -65,17 +75,15 @@ export function AddVehiclePage() {
       // The nickname goes as typed, blank included. The backend already turns a
       // blank one into nothing stored, and duplicating that decision here would
       // put the definition of "no nickname" in two places.
-      await createVehicle(values)
+      createdId.current = (await createVehicle(values)).id
     })
 
-    if (failure === null) {
-      // The garage, not the vehicle's own screen: that route arrives in 7.3c,
-      // and navigating to one that does not exist yet lands on not-found.
-      void navigate(paths.garage)
+    if (failure === null && createdId.current !== null) {
+      void navigate(paths.vehicle(createdId.current))
       return
     }
 
-    if (failure.fieldErrors.length > 0) {
+    if (failure !== null && failure.fieldErrors.length > 0) {
       setMessages(fieldMessagesFrom(failure, values, rules))
     }
   }

@@ -3,7 +3,7 @@ import { apiFetch } from '../client.ts'
 /**
  * The vehicle surface of the API.
  *
- * <p>Reads are exposed as a path and writes as functions, which looks
+ * <p>Reads are exposed as paths and writes as functions, which looks
  * inconsistent and is not. useResource keys its effect on the path string, and a
  * string is stable between renders where a function is not - a fetcher would
  * have to be memoised at every call site or the screen would reload itself
@@ -11,6 +11,10 @@ import { apiFetch } from '../client.ts'
  * problem.
  */
 export const vehiclesPath = '/api/v1/vehicles'
+
+export function vehiclePath(vehicleId: string): string {
+  return `${vehiclesPath}/${vehicleId}`
+}
 
 export interface VehicleSummary {
   readonly id: string
@@ -47,6 +51,23 @@ export function createVehicle(vehicle: NewVehicle): Promise<VehicleDetails> {
     method: 'POST',
     body: JSON.stringify(vehicle),
   })
+}
+
+/**
+ * A blank nickname removes it. The convention across this API is that an absent
+ * field is left alone, which leaves an optional value no way to be cleared - so
+ * the backend reads an empty string as "remove", and this sends exactly what the
+ * person left in the input.
+ */
+export function renameVehicle(vehicleId: string, displayName: string): Promise<VehicleDetails> {
+  return apiFetch<VehicleDetails>(vehiclePath(vehicleId), {
+    method: 'PATCH',
+    body: JSON.stringify({ displayName }),
+  })
+}
+
+export function deleteVehicle(vehicleId: string): Promise<void> {
+  return apiFetch<void>(vehiclePath(vehicleId), { method: 'DELETE' })
 }
 
 /**

@@ -54,7 +54,7 @@ describe('garage', () => {
 
     renderApp(paths.garage)
 
-    expect(await screen.findByText('Mașina de teren')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Mașina de teren' })).toBeInTheDocument()
     expect(screen.getByText('B 100 ABC')).toBeInTheDocument()
     expect(screen.getByText('Volkswagen Golf')).toBeInTheDocument()
   })

@@ -12,6 +12,7 @@ import { NotFoundPage } from '../pages/NotFoundPage.tsx'
 import { ProfilePage } from '../pages/ProfilePage.tsx'
 import { RegisterPage } from '../pages/RegisterPage.tsx'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage.tsx'
+import { VehicleDetailsPage } from '../pages/VehicleDetailsPage.tsx'
 import { VerifyEmailPage } from '../pages/VerifyEmailPage.tsx'
 import { WelcomePage } from '../pages/WelcomePage.tsx'
 import { paths } from './paths.ts'
@@ -42,6 +43,7 @@ export function AppRoutes() {
           <Route path={paths.dashboard} element={<DashboardPage />} />
           <Route path={paths.garage} element={<GaragePage />} />
           <Route path={paths.addVehicle} element={<AddVehiclePage />} />
+          <Route path={paths.vehiclePattern} element={<VehicleDetailsPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
         </Route>
       </Route>

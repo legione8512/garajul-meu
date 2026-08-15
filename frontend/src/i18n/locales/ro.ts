@@ -57,6 +57,14 @@ export const ro = {
     instructions: 'Datele sunt cele de pe certificatul de înmatriculare.',
     submit: 'Adaugă vehiculul',
   },
+  vehicle: {
+    backToGarage: 'Înapoi la garaj',
+    rename: 'Salvează porecla',
+    delete: 'Șterge vehiculul',
+    confirmDelete: 'Ștergi acest vehicul? Datele lui se pierd definitiv.',
+    confirmDeleteYes: 'Da, șterge',
+    cancel: 'Renunță',
+  },
   profile: {
     signOut: 'Ieși din cont',
   },
@@ -90,6 +98,7 @@ export const ro = {
     garage: 'Garajul meu',
     profile: 'Profil',
     addVehicle: 'Vehicul nou',
+    vehicleDetails: 'Detalii vehicul',
   },
   /**
    * Phrased as labels rather than sentences on purpose. Romanian requires "de"
