@@ -36,12 +36,15 @@ describe('welcome', () => {
     expect(screen.getByRole('button', { name: ro.welcome.signOut })).toBeInTheDocument()
   })
 
-  /**
-   * The whole reason the status has three values. A refresh that never settles
-   * must leave the page saying nothing about the session either way.
+    /**
+   * The whole reason the status has three values. The pending response is
+   * released at the end for the same reason as in RequireAuth.test: a refresh
+   * promise that never settles never frees the single in-flight slot.
    */
   it('offers neither while the session is still being restored', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => { /* never settles */ })))
+    let release: ((response: Response) => void) | undefined
+    const pending = new Promise<Response>((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn(() => pending))
 
     renderApp(paths.welcome)
 
@@ -49,5 +52,9 @@ describe('welcome', () => {
 
     expect(screen.queryByRole('link', { name: ro.welcome.signIn })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: ro.welcome.signOut })).not.toBeInTheDocument()
+
+    release?.(jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' }))
+
+    expect(await screen.findByRole('link', { name: ro.welcome.signIn })).toBeInTheDocument()
   })
 })

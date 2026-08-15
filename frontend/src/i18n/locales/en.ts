@@ -10,9 +10,16 @@ export const en: typeof ro = {
   },
   common: {
     reference: 'Reference: {{requestId}}',
+    loading: 'Loading…',
   },
   language: {
     label: 'Language',
+  },
+    navigation: {
+    label: 'Primary navigation',
+    home: 'Home',
+    garage: 'Garage',
+    profile: 'Profile',
   },
   fields: {
     email: 'Email address',
@@ -59,6 +66,9 @@ export const en: typeof ro = {
     forgotPassword: 'Forgot your password',
     resetPassword: 'New password',
     notFound: 'Page not found',
+    dashboard: 'Home',
+    garage: 'My garage',
+    profile: 'Profile',
   },
   validation: {
     required: 'Please fill in this field.',

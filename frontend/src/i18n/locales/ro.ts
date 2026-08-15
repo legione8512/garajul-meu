@@ -12,9 +12,16 @@ export const ro = {
   },
   common: {
     reference: 'Referință: {{requestId}}',
+    loading: 'Se încarcă…',
   },
   language: {
     label: 'Limbă',
+  },
+    navigation: {
+    label: 'Navigare principală',
+    home: 'Acasă',
+    garage: 'Garaj',
+    profile: 'Profil',
   },
   fields: {
     email: 'Adresă de email',
@@ -61,6 +68,9 @@ export const ro = {
     forgotPassword: 'Ai uitat parola',
     resetPassword: 'Parolă nouă',
     notFound: 'Pagina nu există',
+    dashboard: 'Acasă',
+    garage: 'Garajul meu',
+    profile: 'Profil',
   },
   /**
    * Phrased as labels rather than sentences on purpose. Romanian requires "de"

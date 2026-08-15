@@ -3,8 +3,7 @@
  *
  * A route path and the links pointing at it live in different files. When they
  * are two separate string literals, a typo in one produces a link that silently
- * lands on the not-found page instead of failing loudly. Naming them here makes
- * that particular mistake impossible to write.
+ * lands on the not-found page instead of failing loudly.
  */
 export const paths = {
   welcome: '/',
@@ -13,4 +12,7 @@ export const paths = {
   login: '/login',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
+  dashboard: '/dashboard',
+  garage: '/garage',
+  profile: '/profile',
 } as const
