@@ -22,6 +22,16 @@ const PROFILE = {
   emailVerified: true,
 }
 
+function stubSuccessfulSignIn() {
+  vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(
+    input.includes('/auth/login')
+      ? jsonResponse(200, { accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null })
+      : input.includes('/auth/refresh')
+        ? jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' })
+        : jsonResponse(200, PROFILE),
+  )))
+}
+
 async function fillIn(email: string, password: string) {
   await userEvent.type(screen.getByLabelText(ro.fields.email), email)
   await userEvent.type(screen.getByLabelText(ro.fields.password), password)
@@ -45,32 +55,32 @@ describe('sign in', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-    /**
-   * Verification and password reset both send the person here with the address
-   * they just proved. Making them type it again is the friction the handover
-   * exists to remove - and no test caught this, because none of them walked two
-   * screens in a row.
-   */
-  it('starts with the address a previous screen handed over', async () => {
-    renderApp(paths.login, { email: 'marius@example.com' })
-
-    expect(await screen.findByLabelText(ro.fields.email)).toHaveValue('marius@example.com')
-  })
-
-  it('signs in and lands on the welcome page', async () => {
+  it('signs in and lands on the dashboard', async () => {
     renderApp(paths.login)
     await screen.findByRole('heading', { level: 1, name: ro.screens.login })
 
-    vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(
-      input.includes('/auth/login')
-        ? jsonResponse(200, { accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null })
-        : jsonResponse(200, PROFILE),
-    )))
+    stubSuccessfulSignIn()
 
     await fillIn('marius@example.com', 'a-long-enough-password')
     await userEvent.click(screen.getByRole('button', { name: ro.login.submit }))
 
-    expect(await screen.findByText(`Ești autentificat ca ${PROFILE.fullName}.`)).toBeInTheDocument()
+    expect(await screen.findByText(ro.dashboard.empty)).toBeInTheDocument()
+  })
+
+  /**
+   * Otherwise a link to /garage sent to somebody signed out always opens the
+   * dashboard instead, and nothing explains why.
+   */
+  it('returns to the address that turned them away', async () => {
+    renderApp(paths.login, { from: paths.garage })
+    await screen.findByRole('heading', { level: 1, name: ro.screens.login })
+
+    stubSuccessfulSignIn()
+
+    await fillIn('marius@example.com', 'a-long-enough-password')
+    await userEvent.click(screen.getByRole('button', { name: ro.login.submit }))
+
+    expect(await screen.findByText(ro.garage.empty)).toBeInTheDocument()
   })
 
   it('shows a translated message when the credentials are refused', async () => {
@@ -113,5 +123,11 @@ describe('sign in', () => {
 
     expect(await screen.findByLabelText(ro.fields.email)).toHaveAttribute('autocomplete', 'email')
     expect(screen.getByLabelText(ro.fields.password)).toHaveAttribute('autocomplete', 'current-password')
+  })
+
+  it('starts with the address a previous screen handed over', async () => {
+    renderApp(paths.login, { email: 'marius@example.com' })
+
+    expect(await screen.findByLabelText(ro.fields.email)).toHaveValue('marius@example.com')
   })
 })

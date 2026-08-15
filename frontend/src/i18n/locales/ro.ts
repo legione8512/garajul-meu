@@ -40,6 +40,15 @@ export const ro = {
     resend: 'Trimite alt cod',
     resent: 'Am trimis un cod nou.',
   },
+    dashboard: {
+    empty: 'Aici vei vedea documentele care urmează să expire. Deocamdată nu ai niciun vehicul.',
+  },
+  garage: {
+    empty: 'Garajul tău e gol. Vehiculele pe care le adaugi vor apărea aici.',
+  },
+  profile: {
+    signOut: 'Ieși din cont',
+  },
     forgotPassword: {
     instructions: 'Scrie adresa contului. Dacă există un cont cu ea, îți trimitem un cod.',
     submit: 'Trimite codul',
@@ -57,8 +66,6 @@ export const ro = {
   welcome: {
     signIn: 'Autentifică-te',
     createAccount: 'Creează un cont',
-    signedInAs: 'Ești autentificat ca {{name}}.',
-    signOut: 'Ieși din cont',
   },
   screens: {
     welcome: 'Bun venit',

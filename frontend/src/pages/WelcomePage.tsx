@@ -1,20 +1,27 @@
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, Navigate } from 'react-router'
 
 import { useAuth } from '../auth/useAuth.ts'
 import { paths } from '../routes/paths.ts'
 
 /**
- * Screen 1 in specification section 5, and the first place the three-state
- * status earns itself: while the silent refresh is still in flight the page
- * offers neither a way in nor a greeting. Showing "sign in" during that moment
- * would tell somebody who is perfectly signed in that they are not.
+ * Screen 1 in specification section 5: the public landing page.
  *
- * <p>Phase 6 replaces the authenticated half with the dashboard.
+ * <p>Somebody already signed in has no use for it, so they are sent to the
+ * dashboard. Keeping `/` public and `/dashboard` separate, rather than having
+ * one address render two different pages, costs a redirect on arrival and buys
+ * routes that can be read, tested and sent to somebody as a link.
+ *
+ * <p>While the status is unknown neither branch shows: offering "sign in" for
+ * that moment would tell somebody who is signed in that they are not.
  */
 export function WelcomePage() {
   const { t } = useTranslation()
-  const { status, profile, signOut } = useAuth()
+  const { status } = useAuth()
+
+  if (status === 'authenticated') {
+    return <Navigate to={paths.dashboard} replace />
+  }
 
   return (
     <>
@@ -26,13 +33,6 @@ export function WelcomePage() {
           {' · '}
           <Link to={paths.register}>{t('welcome.createAccount')}</Link>
         </p>
-      ) : null}
-
-      {status === 'authenticated' && profile !== null ? (
-        <>
-          <p>{t('welcome.signedInAs', { name: profile.fullName })}</p>
-          <button type="button" onClick={() => { void signOut() }}>{t('welcome.signOut')}</button>
-        </>
       ) : null}
     </>
   )

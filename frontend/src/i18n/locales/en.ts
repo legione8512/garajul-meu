@@ -38,6 +38,15 @@ export const en: typeof ro = {
     resend: 'Send another code',
     resent: 'A new code is on its way.',
   },
+    dashboard: {
+    empty: 'Documents about to expire will appear here. You have no vehicles yet.',
+  },
+  garage: {
+    empty: 'Your garage is empty. Vehicles you add will appear here.',
+  },
+  profile: {
+    signOut: 'Sign out',
+  },
     forgotPassword: {
     instructions: 'Enter the account address. If an account exists for it, we will send a code.',
     submit: 'Send the code',
@@ -55,8 +64,6 @@ export const en: typeof ro = {
   welcome: {
     signIn: 'Sign in',
     createAccount: 'Create an account',
-    signedInAs: 'You are signed in as {{name}}.',
-    signOut: 'Sign out',
   },
   screens: {
     welcome: 'Welcome',

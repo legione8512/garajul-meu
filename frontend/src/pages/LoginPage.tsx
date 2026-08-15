@@ -8,8 +8,8 @@ import { TextField } from '../components/TextField.tsx'
 import { emailShape, maxLength, required } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { fieldMessagesFrom, validate, type FieldMessages } from '../forms/validate.ts'
+import { carriedEmail, returnTo } from '../routes/carriedEmail.ts'
 import { paths } from '../routes/paths.ts'
-import { carriedEmail } from '../routes/carriedEmail.ts'
 
 type Field = 'email' | 'password'
 
@@ -28,16 +28,20 @@ const rules = {
 export function LoginPage() {
   const { t } = useTranslation()
   const { signIn } = useAuth()
-  const navigate = useNavigate()
   const location = useLocation()
+  const navigate = useNavigate()
   const { pending, error, submit } = useSubmission()
 
   const [values, setValues] = useState<Record<Field, string>>({
     email: carriedEmail(location.state),
     password: '',
-  })  
-  
+  })
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
+
+  // Where a protected route turned this person away from, if that is how they
+  // arrived. Landing them on the dashboard instead would silently discard what
+  // they actually asked for - a link to /garage would never open /garage.
+  const destination = returnTo(location.state) ?? paths.dashboard
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -54,7 +58,9 @@ export function LoginPage() {
     })
 
     if (failure === null) {
-      navigate(paths.welcome)
+      // replace, so the back button does not return to a sign-in form for a
+      // session that already exists.
+      navigate(destination, { replace: true })
       return
     }
 
