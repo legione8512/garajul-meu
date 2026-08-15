@@ -11,11 +11,12 @@ export const en: typeof ro = {
   common: {
     reference: 'Reference: {{requestId}}',
     loading: 'Loading…',
+    retry: 'Try again',
   },
   language: {
     label: 'Language',
   },
-    navigation: {
+  navigation: {
     label: 'Primary navigation',
     home: 'Home',
     garage: 'Garage',
@@ -28,7 +29,7 @@ export const en: typeof ro = {
     fullName: 'Full name',
     code: 'Verification code',
   },
-    register: {
+  register: {
     submit: 'Create account',
     haveAccount: 'Already have an account? Sign in.',
   },
@@ -38,7 +39,7 @@ export const en: typeof ro = {
     resend: 'Send another code',
     resent: 'A new code is on its way.',
   },
-    dashboard: {
+  dashboard: {
     empty: 'Documents about to expire will appear here. You have no vehicles yet.',
   },
   garage: {
@@ -47,7 +48,7 @@ export const en: typeof ro = {
   profile: {
     signOut: 'Sign out',
   },
-    forgotPassword: {
+  forgotPassword: {
     instructions: 'Enter the account address. If an account exists for it, we will send a code.',
     submit: 'Send the code',
     remembered: 'Remembered your password? Sign in.',
@@ -96,6 +97,8 @@ export const en: typeof ro = {
     EMAIL_ALREADY_EXISTS: 'An account with this email address already exists.',
     USER_NOT_FOUND: 'Account not found.',
     INVALID_CURRENT_PASSWORD: 'Your current password is not correct.',
+    VEHICLE_NOT_FOUND: 'Vehicle not found.',
+    VEHICLE_DUPLICATE_VIN: 'You already have a vehicle with this VIN.',
     VALIDATION_ERROR: 'Please check the details you entered.',
     MALFORMED_REQUEST: 'The request could not be read. Please try again.',
     RESOURCE_NOT_FOUND: 'Not found.',

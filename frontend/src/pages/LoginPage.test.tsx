@@ -22,14 +22,31 @@ const PROFILE = {
   emailVerified: true,
 }
 
+/**
+ * Answers by path, with no catch-all standing in for a screen that was not
+ * thought about.
+ *
+ * <p>This used to end in a ternary whose last branch returned the profile for
+ * anything that was not an auth call, and it broke the day the garage started
+ * fetching: the garage received a user profile, found no length on it, and
+ * rendered a heading and nothing else. The failure appeared in this file while
+ * the change was in another one.
+ */
 function stubSuccessfulSignIn() {
-  vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(
-    input.includes('/auth/login')
-      ? jsonResponse(200, { accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null })
-      : input.includes('/auth/refresh')
-        ? jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' })
-        : jsonResponse(200, PROFILE),
-  )))
+  vi.stubGlobal('fetch', vi.fn((input: string) => {
+    if (input.includes('/auth/login')) {
+      return Promise.resolve(jsonResponse(200, {
+        accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
+      }))
+    }
+    if (input.includes('/auth/refresh')) {
+      return Promise.resolve(jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' }))
+    }
+    if (input.includes('/api/v1/vehicles')) {
+      return Promise.resolve(jsonResponse(200, []))
+    }
+    return Promise.resolve(jsonResponse(200, PROFILE))
+  }))
 }
 
 async function fillIn(email: string, password: string) {
@@ -70,6 +87,11 @@ describe('sign in', () => {
   /**
    * Otherwise a link to /garage sent to somebody signed out always opens the
    * dashboard instead, and nothing explains why.
+   *
+   * <p>Asserted on the heading rather than on the garage's empty state. This
+   * test is about where signing in lands, and tying it to what that screen
+   * happens to render couples it to a page it is not testing - which is exactly
+   * how it broke once.
    */
   it('returns to the address that turned them away', async () => {
     renderApp(paths.login, { from: paths.garage })
@@ -80,7 +102,7 @@ describe('sign in', () => {
     await fillIn('marius@example.com', 'a-long-enough-password')
     await userEvent.click(screen.getByRole('button', { name: ro.login.submit }))
 
-    expect(await screen.findByText(ro.garage.empty)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.garage })).toBeInTheDocument()
   })
 
   it('shows a translated message when the credentials are refused', async () => {

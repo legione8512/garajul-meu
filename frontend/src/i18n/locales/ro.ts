@@ -13,11 +13,12 @@ export const ro = {
   common: {
     reference: 'Referință: {{requestId}}',
     loading: 'Se încarcă…',
+    retry: 'Încearcă din nou',
   },
   language: {
     label: 'Limbă',
   },
-    navigation: {
+  navigation: {
     label: 'Navigare principală',
     home: 'Acasă',
     garage: 'Garaj',
@@ -30,7 +31,7 @@ export const ro = {
     fullName: 'Nume complet',
     code: 'Cod de verificare',
   },
-    register: {
+  register: {
     submit: 'Creează contul',
     haveAccount: 'Ai deja cont? Autentifică-te.',
   },
@@ -40,7 +41,7 @@ export const ro = {
     resend: 'Trimite alt cod',
     resent: 'Am trimis un cod nou.',
   },
-    dashboard: {
+  dashboard: {
     empty: 'Aici vei vedea documentele care urmează să expire. Deocamdată nu ai niciun vehicul.',
   },
   garage: {
@@ -49,7 +50,7 @@ export const ro = {
   profile: {
     signOut: 'Ieși din cont',
   },
-    forgotPassword: {
+  forgotPassword: {
     instructions: 'Scrie adresa contului. Dacă există un cont cu ea, îți trimitem un cod.',
     submit: 'Trimite codul',
     remembered: 'Ți-ai amintit parola? Autentifică-te.',
@@ -99,9 +100,11 @@ export const ro = {
    * point of section 17: the backend sends a stable code and no prose, and this
    * is the one place the code becomes something a person can read.
    *
-   * Only the codes the authentication and account surface can produce are here.
-   * The vehicle, certificate, document, OCR and storage codes arrive with the
-   * phases that can actually raise them.
+   * The vehicle codes arrive with Phase 7, which is the first that can raise
+   * them. VEHICLE_ACCESS_DENIED is deliberately absent: the backend answers 404
+   * for a vehicle somebody else owns, so nothing in V1 can send it, and a
+   * translation for an unreachable code would suggest otherwise. The
+   * certificate, document, OCR and storage codes arrive the same way.
    */
   errors: {
     AUTHENTICATION_REQUIRED: 'Sesiunea a expirat. Autentifică-te din nou.',
@@ -114,6 +117,8 @@ export const ro = {
     EMAIL_ALREADY_EXISTS: 'Există deja un cont cu această adresă de email.',
     USER_NOT_FOUND: 'Contul nu a fost găsit.',
     INVALID_CURRENT_PASSWORD: 'Parola actuală nu este corectă.',
+    VEHICLE_NOT_FOUND: 'Vehiculul nu a fost găsit.',
+    VEHICLE_DUPLICATE_VIN: 'Ai deja un vehicul cu acest VIN.',
     VALIDATION_ERROR: 'Verifică datele introduse.',
     MALFORMED_REQUEST: 'Cererea nu a putut fi citită. Încearcă din nou.',
     RESOURCE_NOT_FOUND: 'Resursa nu a fost găsită.',
