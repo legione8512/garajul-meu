@@ -14,12 +14,13 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Turns every exception into the one {@link ApiErrorResponse} shape.
  *
- * * <p>Stack traces, exception messages and class names must never reach the
+ * <p>Stack traces, exception messages and class names must never reach the
  * client. Section 17 leaves nowhere to put them: a failure answers with one
  * stable code that the frontend translates, and nothing else. Only handled,
  * expected failures name a specific code; everything else collapses to
@@ -59,7 +60,20 @@ public class GlobalExceptionHandler {
 				.body(ApiErrorResponse.of(ErrorCode.VALIDATION_ERROR, request.getRequestURI(),
 						MDC.get(RequestIdFilter.MDC_KEY), fieldErrors));
 	}
-	
+
+	/**
+	 * A path or query value that will not convert - most often an identifier that
+	 * is not a UUID. Without this it reaches the catch-all below and answers 500,
+	 * logged at ERROR, so from Phase 15 a mistyped URL would raise a Sentry alert
+	 * about a fault that is entirely the caller's. It is a client mistake, and it
+	 * says so.
+	 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ApiErrorResponse> handleUnconvertibleParameter(HttpServletRequest request) {
+		log.info("Unconvertible parameter on {} {}", request.getMethod(), request.getRequestURI());
+		return respond(ErrorCode.VALIDATION_ERROR, request);
+	}
+
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ApiErrorResponse> handleMalformedBody(HttpServletRequest request) {
 		log.info("Malformed request body on {} {}", request.getMethod(), request.getRequestURI());

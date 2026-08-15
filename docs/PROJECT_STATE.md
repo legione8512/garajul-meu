@@ -12,13 +12,13 @@ Last updated: 2026-08-15
 
 | Item | Value |
 |---|---|
-| Phase | **4, 5 and 6 complete** once 6.2 is committed. 7 — Vehicle Domain has not started |
-| Last **committed** milestone | **Phase 6.1 — `ab047f0`**: route protection, the authenticated shell and its navigation, plus the bound on the refresh request |
-| Applied, verified green, **not yet committed** | **Phase 6.2** — the content of the three destination screens, and the landing rearrangement: `/` is public again with signed-in visitors redirected to the dashboard, and signing in returns to the address that turned the person away |
+| Phase | **4, 5 and 6 complete. 7 — Vehicle Domain in progress: 7.1 applied and green** |
+| Last **committed** milestone | **Phase 6.2 — `35711d9`**: the content of the three destination screens, and the landing rearrangement — `/` is public again with signed-in visitors redirected to the dashboard, and signing in returns to the address that turned the person away |
+| Applied, verified green, **not yet committed** | **Phase 7.1** — the `vehicles` and `registration_certificates` tables, both entities, ownership enforced **inside** the repository queries, `GET /api/v1/vehicles` and `GET /api/v1/vehicles/{id}`, and a handler for a path parameter that will not convert |
 | Commit history note | `ca3c670` is 4.5b. `6736ef8` is labelled as the Jackson 3 login fix but **also carries the whole authentication-entry-point change** — `ErrorCode`, `ApiErrorAuthenticationEntryPoint`, `SecurityConfig`, `AuthFlowTest`. Two commits were intended and collapsed into one. Left as it is: it is already on the public remote, and rewriting published history for an imprecise message is not worth it. Recorded here so the entry point can still be found |
-| Verified build — backend | `.\mvnw.cmd clean verify` → **`Tests run: 111, Failures: 0, Errors: 0, Skipped: 0`**, `BUILD SUCCESS`, **four** PostgreSQL containers |
+| Verified build — backend | `.\mvnw.cmd clean verify` → **`Tests run: 117, Failures: 0, Errors: 0, Skipped: 0`** across **19 test classes**, `BUILD SUCCESS`, **four** PostgreSQL containers. Count the classes as well as the tests: `ls target/surefire-reports/*.txt \| wc -l`. A class's elapsed time also reveals whether it started a container of its own — under a second means it reused a cached context, twenty-odd seconds means a fifth container appeared |
 | Verified build — frontend | from `frontend/`: `npm run test:run` → **94 passed in 22 test files**; `npm run build`; `npm run lint`. **Count the files as well as the tests**, and check for empty ones with `find src -type f -size -1c` — on 2026-08-14 a test file never reached disk and on 2026-08-15 two arrived empty, all three invisible to a green suite |
-| Next verified step | **Phase 7 — Vehicle Domain**, the first feature with data of its own: the `vehicles` table, ownership enforced in the backend per section 15, and the two endpoints the skeleton is waiting for — `GET /api/v1/vehicles` and `GET /api/v1/dashboard`. Note that `POST /api/v1/vehicles` is specified as creating a vehicle **and a confirmed registration certificate atomically**, which ties it to Phase 8; settle what Phase 7 can finish on its own before starting. Section 6 sets the i18n contract — `ro` and `en`, no user-facing string hardcoded in a component, the pre-authentication language kept in a local non-sensitive preference and the authenticated one in `users.preferred_language`, and **the frontend translating the backend's stable error codes**. Section 5 lists twenty-two screens; **screens 1–5 — Welcome, Create Account, Email Verification, Login, Forgot/Reset Password — belong to Phase 5, agreed 2026-08-14.** The specification does not say so outright, but Phase 6 is the dashboard and garage skeleton, which presupposes an authenticated user. Agreed breakdown: **5.1 done** — routing, app shell, test harness; **5.2 done** — i18next; **5.3 next** — the API client, token handling and the 401 → refresh → retry loop; **5.4** — the five screens, which is where the pages stop being a single `<h1>` |
+| Next verified step | **Phase 7.2** — `POST /api/v1/vehicles`, which the contract specifies as creating the vehicle **and its confirmed registration certificate atomically**; it asks for the four fields the schema declares NOT NULL, and Phase 8 adds the remaining thirty optional ones together with the field policy in section 8. Also `PATCH /api/v1/vehicles/{id}` for the nickname and `DELETE /api/v1/vehicles/{id}`. Then **7.3**, the frontend: garage list, vehicle detail, add form, deletion. Section 6 sets the i18n contract — `ro` and `en`, no user-facing string hardcoded in a component, the pre-authentication language kept in a local non-sensitive preference and the authenticated one in `users.preferred_language`, and **the frontend translating the backend's stable error codes**. Section 5 lists twenty-two screens; 1–5 were Phase 5, and the skeletons of the dashboard, the garage and the profile were Phase 6. The garage and vehicle screens with real content are 7.3. |
 
 ### What 4.5b delivers
 
@@ -126,6 +126,7 @@ Flyway runs at startup over the direct (non-pooled) endpoint. Migrations live in
 | 1 | `V1__create_users_table.sql` | Neon `development`, and every Testcontainers run |
 | 2 | `V2__create_verification_tokens_table.sql` | Neon `development`, and every Testcontainers run |
 | 3 | `V3__create_refresh_tokens_table.sql` | Neon `development`, and every Testcontainers run |
+| 4 | `V4__create_vehicles_and_registration_certificates.sql` | every Testcontainers run; **not yet applied to Neon `development`** |
 
 `V1` creates `users` per specification section 10.1, with `pk_users`, a
 `ck_users_preferred_language` CHECK limiting the column to `ro`/`en`, and the
@@ -135,6 +136,18 @@ unique index `ux_users_email`.
 `ON DELETE CASCADE` foreign key to `users` — which is how section 24 account
 deletion reaches this table — a CHECK on the three token types, and the index
 `ix_verification_tokens_user_type`.
+
+`V4` creates **both** `vehicles` (section 10.2) and `registration_certificates`
+(section 10.3) in one migration, because section 9 leaves a vehicle with no
+identity of its own: the certificate is the source of truth for registration
+number, VIN, make and commercial description, so a `vehicles` table on its own
+would hold rows nobody could name. All thirty-five certificate columns are
+created now even though Phase 7 maps only four — adding a column later is a new
+migration, and there is no reason to spend four of them on a schema already
+known in full. `ix_vehicles_user` serves the garage listing, which runs on every
+load; `ux_registration_certificates_vehicle` enforces the one-to-one rather than
+trusting it; and `ux_registration_certificates_user_vin` is the section 9 rule
+that one account cannot hold the same VIN twice.
 
 **Migrations live only in `src/main/resources/db/migration`.** A copy under
 `src/test/resources` makes tests pass while the application fails to start:
@@ -162,10 +175,12 @@ schema change from here is a new `V2__`, `V3__` file.
 | Local secrets | `backend/application-local.yml`, gitignored, loaded via `spring.config.import: optional:file:./application-local.yml` |
 | Artifact | `target/backend-0.0.1-SNAPSHOT.jar`, repackaged as an executable jar |
 
-The `/api/v1` surface implemented so far is the authentication block plus the
-account-management endpoints: `GET`, `PATCH` and `DELETE /api/v1/users/me`, and
-`POST /me/change-password`, `/me/change-email` and `/me/confirm-email-change`.
-That is the whole of Phase 4; see the package tables below.
+The `/api/v1` surface implemented so far is the authentication block, the
+account-management endpoints — `GET`, `PATCH` and `DELETE /api/v1/users/me`, and
+`POST /me/change-password`, `/me/change-email` and `/me/confirm-email-change`,
+which is the whole of Phase 4 — plus the first two vehicle reads from Phase 7.1:
+`GET /api/v1/vehicles` and `GET /api/v1/vehicles/{vehicleId}`. See the package
+tables below.
 
 #### Package `ro.garajulmeu.exception`
 
@@ -174,7 +189,7 @@ That is the whole of Phase 4; see the package tables below.
 | `ErrorCode` | The canonical catalogue from specification section 17, each code carrying its HTTP status so the same failure cannot answer differently in two endpoints. `AUTHENTICATION_REQUIRED` covers both a missing bearer token and one that fails verification — one code, because the client's next move is the same either way |
 | `ApiException` | Thrown for expected business failures; carries an `ErrorCode`, never user-facing text |
 | `ApiErrorResponse` | The single JSON shape for every failure: `code`, `status`, `path`, `timestamp`, `fieldErrors`. Deliberately has **no message field**, so the frontend cannot display untranslated server English |
-| `GlobalExceptionHandler` | `@RestControllerAdvice` mapping every exception to that shape |
+| `GlobalExceptionHandler` | `@RestControllerAdvice` mapping every exception to that shape. Handles `MethodArgumentTypeMismatchException` since 7.1 — a path or query value that will not convert, in practice an identifier that is not a UUID. Without it the catch-all answered 500 and logged at ERROR, so from Phase 15 a mistyped URL would have raised a Sentry alert for a fault entirely the caller's. It went unnoticed until Phase 7 because no endpoint before it had a path parameter |
 
 Log levels follow specification section 27: expected 4xx outcomes log at INFO,
 only unhandled exceptions log at ERROR — so Sentry, from Phase 15, will not
@@ -293,6 +308,17 @@ valid bearer token. All six endpoints under `/api/v1/auth/**` are legitimately
 pre-authentication, so the wholesale `permitAll` is correct **today** — see the
 standing rule in the deferred-work table before adding anything else there.
 
+#### Packages `ro.garajulmeu.vehicle` and `ro.garajulmeu.registrationcertificate`
+
+| Class | Role |
+|---|---|
+| `Vehicle` | Deliberately thin, per section 9: who owns it, what its owner chose to call it, timestamps. No VIN, no registration number, no make. The image columns exist in the table but are **not mapped** — they are Phase 12, and Hibernate's `validate` checks the mappings that exist rather than demanding one per column |
+| `RegistrationCertificate` | The source of truth for what a vehicle is. Maps exactly the four columns the schema declares NOT NULL — registration number, make, commercial description, VIN — which is not an arbitrary subset but every field a certificate cannot exist without. Also carries `userId`, denormalised, so the database can enforce one VIN per account |
+| `VehicleRepository` | Two constructor-expression queries returning DTOs directly. **There is no `findById` here**, and that is the point: ownership is a `where` clause rather than a check somebody has to remember to write, so an unfiltered read is not available to be reached for by accident. The join is explicit (`join RegistrationCertificate c on c.vehicleId = v.id`) rather than a mapped `@OneToOne`, which avoids both an association between two feature packages and a second query per row |
+| `VehicleService` | `garageOf` and `detailsOf`. A vehicle belonging to somebody else answers exactly as one that does not exist |
+| `VehicleController` | `GET /api/v1/vehicles` and `GET /api/v1/vehicles/{vehicleId}`. The account comes from the token and can never be asked for |
+| `VehicleSummary`, `VehicleDetails` | Projections in `vehicle.dto`. The summary deliberately omits the VIN: a list does not need it, and section 24 argues for carrying identifying data only where it is used |
+
 #### Package `ro.garajulmeu.common`
 
 | Class | Role |
@@ -396,6 +422,8 @@ would be guessing at what they have to support.
 | `AccountDeletionTest` (9 tests) | Deletion, and what it must not leave behind. The account row goes; **every verification code and refresh token goes with it**, counted in the database rather than assumed, because neither child is mapped as an association and the foreign key is the only thing that removes them. **The address is free for a new registration afterwards** — the test that would catch the day somebody turns this into a soft delete or an anonymised tombstone, since either would keep `ux_users_email` occupied. A wrong password deletes nothing; the refresh token stops working at once; **the access token outlives the account and opens nothing**, answering `USER_NOT_FOUND`, which is the honest consequence of a stateless JWT that cannot be recalled; the response clears the refresh cookie; deleting one account leaves another intact; and a caller with no token is refused |
 | `CorsTest` (3 tests) | A preflight from the application origin is allowed to carry credentials; one from anywhere else is refused; and **an unauthenticated API call still carries the CORS headers and exposes `X-Request-Id`** — asserted on a response that fails, deliberately, because without those headers on error responses a browser hides the body and the frontend could not read the code or the request id from precisely the answers that need explaining |
 
+| `VehicleReadTest` (6 tests) | The two vehicle reads over HTTP. The garage lists only the caller's vehicles and is empty for an account with none; details carry the identity held on the **certificate**, not on the vehicle row. **Somebody else's vehicle and an identifier nobody owns produce the identical 404 `VEHICLE_NOT_FOUND`** — asserted together in one test, because the property being protected is that the two are indistinguishable, and two separate tests would each pass while the pair diverged. An identifier that is not a UUID answers `VALIDATION_ERROR` rather than 500. Both endpoints refuse a caller with no token. Tokens are issued directly through `AccessTokenService` rather than by logging in: the token is real and the security filter verifies it exactly as it would any other, so nothing is bypassed — it only avoids paying for an Argon2 comparison in every test of a feature that has nothing to do with passwords |
+
 Four test classes replace `EmailProvider` with `@MockitoBean` — `AuthServiceTest`,
 `PasswordResetServiceTest`, `AuthFlowTest` and `EmailChangeFlowTest` — because
 it is the only way to read a code that is stored as an Argon2 hash and therefore
@@ -404,9 +432,10 @@ Spring context and PostgreSQL container, so the build starts **four**:
 `AuthFlowTest`, `AuthRateLimitTest` (which overrides the rate limit properties),
 `AuthServiceTest`, and `RefreshTokenServiceTest`. Four classes reuse an existing
 context rather than adding a fifth container: `PasswordResetServiceTest` matches
-`AuthServiceTest`, while `UserProfileFlowTest`, `EmailChangeFlowTest` and
-`AccountDeletionTest` match `AuthFlowTest`. Two of those — `UserProfileFlowTest`
-and `AccountDeletionTest` — do so **with an `EmailProvider` mock they never
+`AuthServiceTest`, while `UserProfileFlowTest`, `EmailChangeFlowTest`,
+`AccountDeletionTest` and `VehicleReadTest` match `AuthFlowTest`. Three of those
+— `UserProfileFlowTest`, `AccountDeletionTest` and `VehicleReadTest` — do so
+**with an `EmailProvider` mock they never
 use**, because `@MockitoBean` joins the cache key through
 `BeanOverrideContextCustomizer` and dropping it would have split the context.
 All four run in about a second with no container of their own, and the build
@@ -580,6 +609,12 @@ Sentry at Phase 15.
 | 2026-08-15 | Signing in returns the person to the address that turned them away, recorded in route state by `RequireAuth`, and falls back to the dashboard. Without it a link to `/garage` always dumps the recipient somewhere else after signing in, with no explanation. **`returnTo` accepts only values starting with `/`**: without that check, anything able to place a value in route state could redirect a freshly authenticated session to another origin. |
 | 2026-08-15 | **Signing out performs no navigation of its own, and the design changed because of it.** The plan said sign-out returns to `/`. Writing it exposed a race: ending the session makes the status anonymous, `RequireAuth` sees that on `/profile` and redirects to sign-in, and a hand-written navigation to `/` arrives after. Doing it in the other order is no better — `WelcomePage` sees a session that still exists and sends the person back to the dashboard. The clean answer was to remove the navigation entirely and let the gate do the departure, which lands on sign-in. Three fewer lines, no race, no flash, and a coherent message: the session ended, here is where to start another. The recorded `from` means signing back in returns to the profile. |
 | 2026-08-15 | **`/` is public and `/dashboard` is separate**, rather than one address rendering two different pages by status. It costs a redirect when somebody signed in lands on `/`, and buys routes that can be read, tested and sent to another person as a link. The temporary authenticated branch added to the welcome screen in 5.4b is gone, as planned. |
+| 2026-08-15 | **`vehicles` and `registration_certificates` arrive in one migration, and vehicle creation stays inside Phase 7.** Section 9 gives a vehicle no identity of its own — the certificate owns the registration number, VIN, make and commercial description, and forbids duplicating them onto the vehicle for convenience. A vehicle without a certificate is therefore a row nobody can name, which is why the contract specifies `POST /api/v1/vehicles` as creating both atomically and why creation could not be cleanly deferred to Phase 8. The boundary that *was* available is a principled one: **the schema declares exactly four certificate columns NOT NULL**, so Phase 7 asks for those four and Phase 8 adds the remaining thirty optional ones with the field policy in section 8. Flagged as an interpretation of the phase order rather than a contradiction of it, and approved. |
+| 2026-08-15 | **`user_id` is denormalised onto `registration_certificates` so `UNIQUE (user_id, vin)` can exist.** Section 9 requires that one account cannot hold the same VIN twice while different accounts may — a constraint spanning two tables, which PostgreSQL cannot index. The alternative was a check in the service, which two simultaneous requests can both pass; registration already learned that lesson and lets `ux_users_email` be the arbiter. The duplication cannot drift because **V1 implements no ownership transfer**, so the value never changes for a given row. Note what is duplicated: the *owner*, not the identity. The VIN stays in one place, which matters because a VIN can be corrected later and an owner cannot. **A deviation from the section 10.3 data dictionary, surfaced and approved rather than decided alone.** |
+| 2026-08-15 | **Ownership is a `where` clause, not a check that follows one.** `VehicleRepository` exposes no `findById`; both queries take the account id and match it in SQL. Section 15 says knowing a UUID must never be enough to reach another account's data, and the surest way to honour that across a codebase that will grow many vehicle endpoints is to make the unfiltered read unavailable — a future endpoint cannot forget a check that has no unguarded method to call. |
+| 2026-08-15 | **A vehicle somebody else owns answers 404, not 403.** `VEHICLE_ACCESS_DENIED` exists in the section 17 catalogue and was rejected here: a refusal that admits the vehicle is real turns the endpoint into a way of discovering other people's vehicles one identifier at a time, which is exactly what section 15 is guarding. The code stays in the catalogue unused — V1 has no shared ownership to give it a legitimate use. The test asserts the two cases **together**, because the property is that they are indistinguishable and two separate tests would each keep passing while the pair quietly diverged. |
+| 2026-08-15 | **`GET /api/v1/dashboard` is deferred to Phase 10.** It is a projection, and the projection worth computing on the server is about documents that expire — which do not exist until Phase 10. Building it now would mean an endpoint that returns a vehicle count, and the garage list already carries that. Same reasoning that kept Phase 6 from stubbing endpoints: an answer invented early is one a later phase has to undo. |
+| 2026-08-15 | **The certificate entity maps four of thirty-five columns.** Hibernate's `validate` requires every mapped property to have a column, not every column to have a property, so the unmapped thirty are legal — and all of them are nullable, so Phase 7.2 can insert a row with only the four. The alternative, mapping all thirty-five now, would have put a three-hundred-line entity through a paste channel that has lost files twice in this project, to serve a phase that is not writing them yet. |
 
 ## Known issues and open decisions
 
@@ -597,7 +632,7 @@ Sentry at Phase 15.
 | **No endpoint under `/users/me` is rate limited**, and three of them now cost real work: `change-password` pays two Argon2 operations (a comparison and an encode), `change-email` pays a comparison **and sends an email to a real inbox**, and `confirm-email-change` pays a comparison. Deferred on the reasoning that a valid bearer token is itself a guard — the caller must already hold an unexpired access token for that exact account — and, for the email change specifically, that the code goes to an address the caller may not control, so grinding buys nothing. That is weaker than it sounds if a token is ever stolen: a thief could still spend the account's mail reputation by requesting changes in a loop. The policies to reuse already exist — `credentialCheck` and `emailDispatch` — and the key would be the account id rather than the network address. **Trigger: any authenticated endpoint that sends mail or costs a hash going live without another guard**, or the first evidence of grinding. | standing |
 | `spring-boot-configuration-processor` only runs because `maven.compiler.proc=full` is set in `pom.xml`. **JDK 21 requires the option to be set explicitly**; without it the processor is silently skipped and no metadata is generated. | done |
 | ~~`HttpStatusEntryPoint` returns a bare 401 with no body~~ — **closed 2026-08-14** by `ApiErrorAuthenticationEntryPoint`. Was scheduled for 4.4, slipped, and was caught by re-reading `SecurityConfig` rather than by any test. | done |
-| No `AccessDeniedHandler`, so a 403 from Spring Security itself would still answer with a bare body. Not built yet because nothing can trigger it: every rule is `anyRequest().authenticated()` with no roles, and `VEHICLE_ACCESS_DENIED` and its relatives are `ApiException`s from services that already take the `GlobalExceptionHandler` path. Building it now would mean inventing an authorization rule to test it against. **Trigger: the first real authorization rule on the chain**, realistically Phase 7 with vehicle ownership. Both places that take an entry point take a handler too. | 7 |
+| No `AccessDeniedHandler`, so a 403 from Spring Security itself would still answer with a bare body. **Phase 7 arrived and did not trigger it, as expected but for a sharper reason than the one recorded here**: vehicle ownership is enforced in the repository query and a vehicle somebody else owns answers 404, so no authorization rule reaches the filter chain and no 403 is producible. Every rule is still `anyRequest().authenticated()` with no roles. Building the handler now would mean inventing a rule to test it against. **Trigger unchanged: the first real authorization rule on the chain** — realistically the admin surface, or shared vehicle ownership, neither of which is V1. Both places that take an entry point take a handler too. | standing |
 | Surefire now sets `argLine` for the Mockito agent. JaCoCo also writes `argLine`, so when coverage is added the value must become `@{argLine} -javaagent:...` or one plugin will silently overwrite the other. | 14 |
 | `eslint-plugin-jsx-a11y` **cannot be installed yet.** Verified against the registry on 2026-08-14: the latest release is 6.10.2 and its peer range is `eslint ^3 \|\| … \|\| ^9`, while this project runs **ESLint 10.8.0**. There is no newer version and no prerelease tag — only a `v5-backport` line. Forcing it past the peer check was rejected: a lint plugin running outside its supported range is the kind of thing that appears to work and silently stops reporting. **Trigger: a jsx-a11y release whose peer range includes ESLint 10.** If that does not arrive by the time the frontend has real forms, revisit the 2026-08-12 choice of ESLint over Oxlint, because the plugin was its entire justification. | 5 |
 | ~~Five specification citations in the Java source cite the wrong sections~~ — **closed 2026-08-15.** `EmailProvider` said 22 for the RO/EN email templates (it is 6), `LoggingEmailProvider` said 30 for the ban on logging codes (it is 27), and `GlobalExceptionHandler`, `SecurityConfig` and `GlobalExceptionHandlerTest` all cited 30 for "internal detail must not reach the client" — a rule section 30 does not contain, being the development phase order. Corrected in comments only; no behaviour changed. Found by reading the specification directly rather than trusting the notes, which is the only way this class of error surfaces. | done |
