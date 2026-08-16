@@ -23,8 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OcrImageValidatorTest {
 
 	private final OcrImageValidator validator =
-			new OcrImageValidator(new OcrProperties("stub", 10, 30, 1024 * 1024, 200, 40_000_000));
-
+			new OcrImageValidator(new OcrProperties("stub", 10, 30, 1024 * 1024, 200, 40_000_000, 0.80));
 	private static byte[] image(String format, int width, int height) throws IOException {
 		BufferedImage picture = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -70,8 +69,7 @@ class OcrImageValidatorTest {
 	@Test
 	void anUploadOverTheLimitIsRefused() throws IOException {
 		OcrImageValidator tiny =
-				new OcrImageValidator(new OcrProperties("stub", 10, 30, 512, 200, 40_000_000));
-
+				new OcrImageValidator(new OcrProperties("stub", 10, 30, 512, 200, 40_000_000, 0.80));
 		assertRefused(image("png", 800, 400), tiny);
 	}
 

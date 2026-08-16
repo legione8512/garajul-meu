@@ -12,9 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -72,6 +75,32 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiErrorResponse> handleUnconvertibleParameter(HttpServletRequest request) {
 		log.info("Unconvertible parameter on {} {}", request.getMethod(), request.getRequestURI());
 		return respond(ErrorCode.VALIDATION_ERROR, request);
+	}
+
+	/**
+	 * A required part or header that never arrived - a multipart request with no
+	 * file in it, for instance. Both types are named because they are unrelated:
+	 * MissingServletRequestPartException extends ServletException and is not a
+	 * ServletRequestBindingException, so handling only the latter leaves the
+	 * multipart case falling through to the catch-all and answering 500 for
+	 * something the caller did.
+	 */
+	@ExceptionHandler({ MissingServletRequestPartException.class, ServletRequestBindingException.class })
+	public ResponseEntity<ApiErrorResponse> handleMissingPart(HttpServletRequest request) {
+		log.info("Missing part or parameter on {} {}", request.getMethod(), request.getRequestURI());
+		return respond(ErrorCode.MALFORMED_REQUEST, request);
+	}
+
+	/**
+	 * An upload the servlet container refused before anything of ours saw it.
+	 * IMAGE_TOO_LARGE rather than a generic failure because it is exactly what
+	 * happened and the catalogue already has the word for it; the code is not
+	 * OCR-specific, and Phase 12's vehicle images will arrive here too.
+	 */
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ResponseEntity<ApiErrorResponse> handleOversizedUpload(HttpServletRequest request) {
+		log.info("Upload over the container limit on {} {}", request.getMethod(), request.getRequestURI());
+		return respond(ErrorCode.IMAGE_TOO_LARGE, request);
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)

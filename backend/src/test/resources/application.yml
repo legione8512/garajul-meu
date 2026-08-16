@@ -17,12 +17,18 @@ spring:
     hibernate:
       ddl-auto: validate
 
-# Only the email provider is repeated here. The timings in AuthProperties have
-# @DefaultValue defaults and tests have no reason to change them; repeating them
-# would create two copies that quietly drift apart.
+# Because this file shadows the main one, every @ConditionalOnProperty seam has
+# to be repeated here or its bean simply does not exist in tests. @DefaultValue
+# on the properties record does not help: it applies when the record is bound,
+# while the condition reads the raw environment, so an absent property means an
+# absent bean however the default is written. The timings in AuthProperties are
+# a different matter - they have @DefaultValue defaults, nothing conditions on
+# them, and repeating them would create two copies that quietly drift apart.
 garajul-meu:
   email:
     provider: logging
+  ocr:
+    provider: stub
   jwt:
     secret: "test-only-signing-key-never-used-outside-tests"
 
