@@ -88,3 +88,11 @@ garajul-meu:
   # Provisional. Section 35 calibrates this against representative samples,
   # which do not exist yet - so it is a placeholder that says so.
     confidence-threshold: 0.80
+  # Identifiers, not secrets: they name a processor, they do not open it. The
+  # credentials come from the environment - locally from
+  # `gcloud auth application-default login`, in production from a service
+  # account - and never from this file.
+    google:
+      project-id: garajul-meu-505722
+      location: eu
+      processor-id: 7f0ef1c4beff0c0f

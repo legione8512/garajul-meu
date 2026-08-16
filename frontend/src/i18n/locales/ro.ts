@@ -211,6 +211,8 @@ export const ro = {
     OCR_FILE_INVALID: 'Fișierul nu este o fotografie pe care o putem citi. Încearcă un JPEG sau un PNG clar.',
     OCR_RATE_LIMITED: 'Ai folosit deocamdată toate scanările disponibile. Încearcă din nou mai târziu.',
     IMAGE_TOO_LARGE: 'Fotografia este prea mare. Încearcă una mai mică.',
+    OCR_PROVIDER_UNAVAILABLE: 'Serviciul de citire a fotografiilor nu răspunde acum. Încearcă din nou în câteva minute.',
+    OCR_PROCESSING_FAILED: 'Fotografia nu a putut fi procesată. Poți completa datele manual.',
     VALIDATION_ERROR: 'Verifică datele introduse.',
     MALFORMED_REQUEST: 'Cererea nu a putut fi citită. Încearcă din nou.',
     RESOURCE_NOT_FOUND: 'Resursa nu a fost găsită.',

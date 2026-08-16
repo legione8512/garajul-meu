@@ -54,6 +54,16 @@
 			<artifactId>bcprov-jdk18on</artifactId>
 			<version>1.85.2</version>
 		</dependency>
+				<!--
+			Document AI, pinned rather than managed: this project has no Google BOM
+			and needs exactly one of their libraries. Section 32's provider seam is
+			what keeps this dependency from reaching further than the adapter.
+		-->
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-document-ai</artifactId>
+			<version>2.97.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>

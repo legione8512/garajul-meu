@@ -191,6 +191,8 @@ export const en: typeof ro = {
     OCR_FILE_INVALID: 'That file is not a photograph we can read. Try a clear JPEG or PNG.',
     OCR_RATE_LIMITED: 'You have used all your scans for now. Please try again later.',
     IMAGE_TOO_LARGE: 'That photograph is too large. Try a smaller one.',
+    OCR_PROVIDER_UNAVAILABLE: 'The photograph reading service is not responding right now. Please try again in a few minutes.',
+    OCR_PROCESSING_FAILED: 'That photograph could not be processed. You can fill the details in by hand.',
     VALIDATION_ERROR: 'Please check the details you entered.',
     MALFORMED_REQUEST: 'The request could not be read. Please try again.',
     RESOURCE_NOT_FOUND: 'Not found.',
