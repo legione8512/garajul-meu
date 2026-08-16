@@ -73,18 +73,18 @@ garajul-meu:
     token-refresh:
       limit: 60
       window: 1h
-ocr:
+  ocr:
   # Section 13's initial defaults. Production may raise or lower them; the
   # allowance is metered in the database, not in memory, because each request
   # costs money at the provider.
-  daily-limit: 10
-  monthly-limit: 30
+    daily-limit: 10
+    monthly-limit: 30
   # Section 32's seam. "stub" answers with a canned document; "google" calls
   # Document AI and arrives in 9.3.
-  provider: stub
-  max-upload-bytes: 10485760
-  min-side: 200
-  max-pixels: 40000000
+    provider: stub
+    max-upload-bytes: 10485760
+    min-side: 200
+    max-pixels: 40000000
   # Provisional. Section 35 calibrates this against representative samples,
   # which do not exist yet - so it is a placeholder that says so.
-  confidence-threshold: 0.80
+    confidence-threshold: 0.80
