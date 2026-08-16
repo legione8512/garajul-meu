@@ -65,6 +65,7 @@ export const en: typeof ro = {
   },
   certificate: {
     open: 'View the registration certificate',
+    backToVehicle: 'Back to the vehicle',
     save: 'Save the certificate',
     saved: 'The certificate has been saved.',
     sensitiveNote: 'Owner and legal-user details are optional. They are never used for reminders.',

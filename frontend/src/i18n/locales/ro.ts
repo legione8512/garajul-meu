@@ -67,6 +67,7 @@ export const ro = {
   },
   certificate: {
     open: 'Vezi certificatul de înmatriculare',
+    backToVehicle: 'Înapoi la vehicul',
     save: 'Salvează certificatul',
     saved: 'Certificatul a fost salvat.',
     sensitiveNote: 'Datele proprietarului și ale utilizatorului legal sunt opționale. Nu sunt folosite niciodată pentru memento-uri.',

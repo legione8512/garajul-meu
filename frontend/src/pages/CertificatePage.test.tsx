@@ -173,4 +173,17 @@ describe('registration certificate', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(ro.errors.VEHICLE_NOT_FOUND)
     expect(screen.queryByRole('button', { name: ro.certificate.save })).not.toBeInTheDocument()
   })
+    /**
+   * Found in a browser, not here: the link said "back to the garage" and led to
+   * the vehicle. Asserting the name and the destination together is what makes a
+   * label that lies about where it goes a failure rather than a nuisance.
+   */
+  it('the way back names the place it actually leads to', async () => {
+    stubCertificate(() => jsonResponse(200, STORED))
+
+    await open()
+
+    expect(screen.getByRole('link', { name: ro.certificate.backToVehicle }))
+      .toHaveAttribute('href', paths.vehicle('a'))
+  })
 })

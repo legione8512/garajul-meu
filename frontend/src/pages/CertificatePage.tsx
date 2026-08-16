@@ -148,8 +148,7 @@ export function CertificatePage() {
     <>
       <h1>{t('screens.certificate')}</h1>
 
-      <p><Link to={paths.vehicle(vehicleId)}>{t('vehicle.backToGarage')}</Link></p>
-
+      <p><Link to={paths.vehicle(vehicleId)}>{t('certificate.backToVehicle')}</Link></p>
       {loading && <p role="status">{t('common.loading')}</p>}
 
       {error !== null && <p role="alert">{t(errorMessageKey(error.code))}</p>}
