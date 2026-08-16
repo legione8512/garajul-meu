@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 
@@ -34,7 +34,7 @@ export function VehicleDetailsPage() {
   const navigate = useNavigate()
   const { vehicleId = '' } = useParams()
 
-  const { data, error, loading, reload } = useResource<VehicleDetails>(vehiclePath(vehicleId))
+  const { data, error, loading } = useResource<VehicleDetails>(vehiclePath(vehicleId))
 
   const rename = useSubmission()
   const removal = useSubmission()
@@ -46,7 +46,21 @@ export function VehicleDetailsPage() {
   const [message, setMessage] = useState<ValidationMessage | undefined>(undefined)
   const [confirming, setConfirming] = useState(false)
 
-  const nickname = draft ?? data?.displayName ?? ''
+  /**
+   * The renamed vehicle, once the server has confirmed it.
+   *
+   * <p>Held here rather than fetched again. Reloading would empty the resource
+   * while the request was in flight - useResource reports data only for the
+   * request currently on screen - and the whole page, list, form and delete
+   * button, would vanish and come back on every rename. The PATCH already
+   * answers with the vehicle; asking twice is both slower and a window in which
+   * the screen shows nothing.
+   */
+  const [renamed, setRenamed] = useState<VehicleDetails | null>(null)
+  const fresh = useRef<VehicleDetails | null>(null)
+
+  const vehicle = renamed ?? data
+  const nickname = draft ?? vehicle?.displayName ?? ''
 
   async function handleRename(event: FormEvent) {
     event.preventDefault()
@@ -59,15 +73,12 @@ export function VehicleDetailsPage() {
     }
 
     const failure = await rename.submit(async () => {
-      await renameVehicle(vehicleId, nickname)
+      fresh.current = await renameVehicle(vehicleId, nickname)
     })
 
-    if (failure === null) {
-      // Back to deriving from the server, then ask it again. The PATCH response
-      // is discarded on purpose: one source for what is on screen beats two that
-      // can disagree, and this costs a single request.
+    if (failure === null && fresh.current !== null) {
+      setRenamed(fresh.current)
       setDraft(null)
-      reload()
     }
   }
 
@@ -83,25 +94,26 @@ export function VehicleDetailsPage() {
 
   return (
     <>
-      <h1>{data === null ? t('screens.vehicleDetails') : vehicleLabel(data)}</h1>
+      <h1>{vehicle === null ? t('screens.vehicleDetails') : vehicleLabel(vehicle)}</h1>
 
       <p><Link to={paths.garage}>{t('vehicle.backToGarage')}</Link></p>
+      <p><Link to={paths.certificate(vehicleId)}>{t('certificate.open')}</Link></p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 
       {error !== null && <p role="alert">{t(errorMessageKey(error.code))}</p>}
 
-      {data !== null && (
+      {vehicle !== null && (
         <>
           <dl>
             <dt>{t('fields.registrationNumber')}</dt>
-            <dd>{data.registrationNumber}</dd>
+            <dd>{vehicle.registrationNumber}</dd>
             <dt>{t('fields.make')}</dt>
-            <dd>{data.make}</dd>
+            <dd>{vehicle.make}</dd>
             <dt>{t('fields.commercialDescription')}</dt>
-            <dd>{data.commercialDescription}</dd>
+            <dd>{vehicle.commercialDescription}</dd>
             <dt>{t('fields.vin')}</dt>
-            <dd>{data.vin}</dd>
+            <dd>{vehicle.vin}</dd>
           </dl>
 
           <form onSubmit={(event) => { void handleRename(event) }} noValidate>

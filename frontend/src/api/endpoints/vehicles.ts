@@ -19,9 +19,11 @@ export function vehiclePath(vehicleId: string): string {
 export interface VehicleSummary {
   readonly id: string
   /**
-   * Optional twice over: the field itself is optional, and the backend omits
-   * null values from JSON rather than sending them. Typing it as both is the
-   * only honest description of what can actually arrive.
+   * Optional in the API and null on the wire: the field itself is optional, and
+   * the backend sends an explicit JSON null when there is no nickname rather
+   * than omitting the key - there is no NON_NULL configuration anywhere on that
+   * side. Declaring both is what makes `??` correct whichever one arrives, and
+   * costs nothing if the backend ever starts omitting them.
    */
   readonly displayName?: string | null
   readonly registrationNumber: string

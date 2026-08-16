@@ -16,7 +16,7 @@ describe('backend error codes', () => {
    * these ever resolves to UNKNOWN, a real failure is being shown to somebody
    * as "something went wrong" while the backend said exactly what happened.
    */
-  it('has wording for every code the authentication surface can send', () => {
+  it('has wording for every code the backend can currently send', () => {
     const codes = [
       'AUTHENTICATION_REQUIRED',
       'INVALID_CREDENTIALS',
@@ -28,6 +28,8 @@ describe('backend error codes', () => {
       'EMAIL_ALREADY_EXISTS',
       'USER_NOT_FOUND',
       'INVALID_CURRENT_PASSWORD',
+      'VEHICLE_NOT_FOUND',
+      'VEHICLE_DUPLICATE_VIN',
       'VALIDATION_ERROR',
       'RATE_LIMITED',
       'INTERNAL_ERROR',

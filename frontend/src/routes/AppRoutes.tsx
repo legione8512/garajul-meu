@@ -4,6 +4,7 @@ import { RequireAuth } from '../auth/RequireAuth.tsx'
 import { AppLayout } from '../layouts/AppLayout.tsx'
 import { RootLayout } from '../layouts/RootLayout.tsx'
 import { AddVehiclePage } from '../pages/AddVehiclePage.tsx'
+import { CertificatePage } from '../pages/CertificatePage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.tsx'
 import { GaragePage } from '../pages/GaragePage.tsx'
@@ -44,6 +45,7 @@ export function AppRoutes() {
           <Route path={paths.garage} element={<GaragePage />} />
           <Route path={paths.addVehicle} element={<AddVehiclePage />} />
           <Route path={paths.vehiclePattern} element={<VehicleDetailsPage />} />
+          <Route path={paths.certificatePattern} element={<CertificatePage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
         </Route>
       </Route>

@@ -1,7 +1,6 @@
 package ro.garajulmeu.vehicle;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
+import ro.garajulmeu.registrationcertificate.CertificateValues;
 import ro.garajulmeu.registrationcertificate.RegistrationCertificate;
 import ro.garajulmeu.registrationcertificate.RegistrationCertificateRepository;
 import ro.garajulmeu.vehicle.dto.CreateVehicleRequest;
@@ -66,14 +66,14 @@ public class VehicleService {
 	 */
 	@Transactional
 	public VehicleDetails create(UUID accountId, CreateVehicleRequest request) {
-		String vin = normalisedVin(request.vin());
+		String vin = CertificateValues.normalisedVin(request.vin());
 
 		if (certificateRepository.existsByUserIdAndVin(accountId, vin)) {
 			throw new ApiException(ErrorCode.VEHICLE_DUPLICATE_VIN);
 		}
 
 		Vehicle vehicle = new Vehicle(accountId);
-		vehicle.setDisplayName(trimmedOrNull(request.displayName()));
+		vehicle.setDisplayName(CertificateValues.trimmedOrNull(request.displayName()));
 
 		// Flushed rather than merely saved. The two entities are not linked by a
 		// mapped association, so Hibernate has nothing telling it which insert
@@ -85,7 +85,7 @@ public class VehicleService {
 		RegistrationCertificate certificate = new RegistrationCertificate(
 				vehicle.getId(),
 				accountId,
-				normalisedRegistrationNumber(request.registrationNumber()),
+				CertificateValues.normalisedRegistrationNumber(request.registrationNumber()),
 				request.make().trim(),
 				request.commercialDescription().trim(),
 				vin);
@@ -110,7 +110,7 @@ public class VehicleService {
 				.orElseThrow(() -> new ApiException(ErrorCode.VEHICLE_NOT_FOUND));
 
 		if (request.displayName() != null) {
-			vehicle.setDisplayName(trimmedOrNull(request.displayName()));
+			vehicle.setDisplayName(CertificateValues.trimmedOrNull(request.displayName()));
 		}
 		vehicleRepository.saveAndFlush(vehicle);
 
@@ -132,35 +132,5 @@ public class VehicleService {
 		vehicleRepository.delete(vehicle);
 		vehicleRepository.flush();
 		log.info("Deleted vehicle {} of account {}", vehicleId, accountId);
-	}
-
-	/**
-	 * A VIN contains no spaces and no lower case, so both are removed rather than
-	 * refused. The unique index is case- and byte-sensitive: without this, the
-	 * same vehicle typed once in lower case would sit beside itself in the same
-	 * garage, and section 9's rule would be true only of people who type
-	 * consistently.
-	 */
-	private static String normalisedVin(String raw) {
-		return raw.replaceAll("\\s", "").toUpperCase(Locale.ROOT);
-	}
-
-	/**
-	 * Registration numbers are uppercase by law, and the garage is ordered by
-	 * this column - so leaving the case alone would sort "b 100 abc" away from
-	 * its neighbours for no reason the reader could see. Repeated spaces are
-	 * collapsed; a single one is kept, because that is how a plate is written.
-	 */
-	private static String normalisedRegistrationNumber(String raw) {
-		return raw.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
-	}
-
-	/** Make and description keep their case: "Dacia" is not "DACIA". */
-	private static String trimmedOrNull(String raw) {
-		if (raw == null) {
-			return null;
-		}
-		String trimmed = raw.trim();
-		return trimmed.isEmpty() ? null : trimmed;
 	}
 }
