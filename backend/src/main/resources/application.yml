@@ -31,6 +31,12 @@ spring:
     url: ${DB_MIGRATION_URL}
     user: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  servlet:
+    multipart:
+      # Just above our own limit, so the container refuses the absurd uploads
+       # before buffering them and our validator handles the merely too large.
+      max-file-size: 12MB
+      max-request-size: 13MB
 
 logging:
   level:
@@ -73,3 +79,9 @@ ocr:
   # costs money at the provider.
   daily-limit: 10
   monthly-limit: 30
+  # Section 32's seam. "stub" answers with a canned document; "google" calls
+  # Document AI and arrives in 9.3.
+  provider: stub
+  max-upload-bytes: 10485760
+  min-side: 200
+  max-pixels: 40000000
