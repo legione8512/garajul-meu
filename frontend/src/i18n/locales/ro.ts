@@ -70,6 +70,7 @@ export const ro = {
     backToVehicle: 'Înapoi la vehicul',
     save: 'Salvează certificatul',
     saved: 'Certificatul a fost salvat.',
+    problems: 'Verifică următoarele câmpuri:',
     sensitiveNote: 'Datele proprietarului și ale utilizatorului legal sunt opționale. Nu sunt folosite niciodată pentru memento-uri.',
     groups: {
       identity: 'Identificare',

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -89,7 +89,7 @@ async function open() {
 }
 
 describe('registration certificate', () => {
-  it('shows what is stored, grouped as the document is', async () => {
+  it('shows what is stored, laid over the template', async () => {
     stubCertificate(() => jsonResponse(200, STORED))
 
     await open()
@@ -100,9 +100,7 @@ describe('registration certificate', () => {
     expect(screen.getByLabelText(ro.certificate.fields.c2EqualsC1)).toBeChecked()
     // Empty on the document is empty here, not the word "null".
     expect(screen.getByLabelText(ro.certificate.fields.vehicleMassKg)).toHaveValue('')
-
-    const owner = screen.getByRole('group', { name: ro.certificate.groups.owner })
-    expect(within(owner).getByText(ro.certificate.sensitiveNote)).toBeInTheDocument()
+    expect(screen.getByText(ro.certificate.sensitiveNote)).toBeInTheDocument()
   })
 
   /**
@@ -185,5 +183,21 @@ describe('registration certificate', () => {
 
     expect(screen.getByRole('link', { name: ro.certificate.backToVehicle }))
       .toHaveAttribute('href', paths.vehicle('a'))
+  })
+    /**
+   * The certificate prints this on two panels and section 10.3 stores it once,
+   * so both boxes are the same value seen twice. Editing either has to move
+   * both, and a label that appears twice is the one shape getByLabelText
+   * refuses to resolve - which is why this asks for all of them.
+   */
+  it('the certificate number is one value shown in two places', async () => {
+    stubCertificate(() => jsonResponse(200, STORED))
+
+    await open()
+
+    const boxes = screen.getAllByLabelText(ro.certificate.fields.certificateNumber)
+    expect(boxes).toHaveLength(2)
+    expect(boxes[0]).toHaveValue('A00123456')
+    expect(boxes[1]).toHaveValue('A00123456')
   })
 })

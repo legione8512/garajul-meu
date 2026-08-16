@@ -4,13 +4,10 @@ import { Link, useParams } from 'react-router'
 
 import { certificatePath, saveCertificate, type CertificateData } from '../api/endpoints/certificate.ts'
 import { useResource } from '../api/useResource.ts'
-import {
-  certificateFields, fieldGroups, fieldsOf, type CertificateField, type FieldSpec,
-} from '../certificate/fields.ts'
+import { CertificateOverlay } from '../certificate/CertificateOverlay.tsx'
+import { certificateFields, fieldGroups, fieldsOf, type CertificateField } from '../certificate/fields.ts'
 import { fromForm, toForm, type CertificateForm } from '../certificate/values.ts'
-import { CheckboxField } from '../components/CheckboxField.tsx'
 import { FormError } from '../components/FormError.tsx'
-import { TextField } from '../components/TextField.tsx'
 import { maxLength, required, type Rule } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { fieldMessagesFrom, validate, type FieldMessages, type FieldRules } from '../forms/validate.ts'
@@ -36,14 +33,17 @@ const rules: FieldRules<CertificateField> = Object.fromEntries(
 ) as FieldRules<CertificateField>
 
 /**
- * Screen 10 in specification section 5, in its manual form. Phase 8.3 lays these
- * same fields over the template image at calibrated coordinates, and Phase 9
- * fills them from OCR - which is why the screen is generated from the field
- * table rather than hand-written: the overlay attaches coordinates to entries
- * that already exist instead of keeping a second list that can drift.
+ * Screen 10 in specification section 5, in its manual form: the approved
+ * template with editable fields laid over it, which is the UI model section 7
+ * fixes. Phase 9 fills the same fields from OCR.
  *
  * <p>Saving sends every field, which is what makes the backend's replacement
  * semantics safe: a field omitted there is cleared, and this never omits one.
+ *
+ * <p>Problems are listed above the template rather than beside each box. There
+ * is no room next to a field on a scanned document, and a list that names the
+ * field and says what is wrong is readable where a floating marker would not be.
+ * Each field still carries aria-invalid and its own description.
  */
 export function CertificatePage() {
   const { t } = useTranslation()
@@ -52,9 +52,6 @@ export function CertificatePage() {
   const { data, error, loading } = useResource<CertificateData>(certificatePath(vehicleId))
   const save = useSubmission()
 
-  // Null means "showing whatever the server last said". Copying server state
-  // into state with an effect would overwrite whatever somebody was typing the
-  // moment a response landed.
   const [draft, setDraft] = useState<CertificateForm | null>(null)
   const [messages, setMessages] = useState<FieldMessages<CertificateField>>({})
   const [saved, setSaved] = useState(false)
@@ -67,6 +64,17 @@ export function CertificatePage() {
   const stored = useRef<CertificateData | null>(null)
 
   const form = draft ?? (data === null ? null : toForm(data))
+
+  const problems = fieldGroups.flatMap(group => fieldsOf(group).flatMap(spec => {
+    const message = messages[spec.name]
+    return message === undefined
+      ? []
+      : [{
+          name: spec.name,
+          label: t(`certificate.fields.${spec.name}`),
+          text: t(message.key, message.values),
+        }]
+  }))
 
   function change(field: CertificateField, value: string) {
     if (form === null) {
@@ -96,7 +104,7 @@ export function CertificatePage() {
 
     if (failure === null && stored.current !== null) {
       // The answer, not another question. Reloading instead would empty the
-      // resource while the request was in flight, and this whole form would
+      // resource while the request was in flight, and the whole template would
       // vanish and come back on every save.
       setDraft(toForm(stored.current))
       setSaved(true)
@@ -108,47 +116,12 @@ export function CertificatePage() {
     }
   }
 
-  function field(spec: FieldSpec) {
-    if (form === null) {
-      return null
-    }
-
-    const label = t(`certificate.fields.${spec.name}`)
-
-    if (spec.kind === 'boolean') {
-      return (
-        <CheckboxField
-          key={spec.name}
-          label={label}
-          checked={form[spec.name] === 'true'}
-          onChange={(checked) => { change(spec.name, checked ? 'true' : '') }}
-        />
-      )
-    }
-
-    return (
-      <TextField
-        key={spec.name}
-        label={label}
-        type={spec.kind === 'date' ? 'date' : 'text'}
-        // Numbers are text inputs on purpose. A number input in a Romanian
-        // browser refuses "66,5", which is how the power of a car is written
-        // here; the value is parsed on the way out instead.
-        inputMode={spec.kind === 'integer' || spec.kind === 'decimal' ? 'numeric' : undefined}
-        multiline={spec.kind === 'multiline'}
-        maxLength={spec.maxLength}
-        value={form[spec.name]}
-        onChange={(value) => { change(spec.name, value) }}
-        message={messages[spec.name]}
-      />
-    )
-  }
-
   return (
     <>
       <h1>{t('screens.certificate')}</h1>
 
       <p><Link to={paths.vehicle(vehicleId)}>{t('certificate.backToVehicle')}</Link></p>
+
       {loading && <p role="status">{t('common.loading')}</p>}
 
       {error !== null && <p role="alert">{t(errorMessageKey(error.code))}</p>}
@@ -157,13 +130,20 @@ export function CertificatePage() {
         <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
           <FormError error={save.error} />
 
-          {fieldGroups.map(group => (
-            <fieldset key={group}>
-              <legend>{t(`certificate.groups.${group}`)}</legend>
-              {group === 'owner' && <p>{t('certificate.sensitiveNote')}</p>}
-              {fieldsOf(group).map(spec => field(spec))}
-            </fieldset>
-          ))}
+          <p>{t('certificate.sensitiveNote')}</p>
+
+          {problems.length > 0 && (
+            <div role="alert">
+              <p>{t('certificate.problems')}</p>
+              <ul>
+                {problems.map(problem => (
+                  <li key={problem.name}>{problem.label}: {problem.text}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <CertificateOverlay form={form} messages={messages} onChange={change} />
 
           <button type="submit" disabled={save.pending}>{t('certificate.save')}</button>
 

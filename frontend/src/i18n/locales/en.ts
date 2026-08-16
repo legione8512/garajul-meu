@@ -68,6 +68,7 @@ export const en: typeof ro = {
     backToVehicle: 'Back to the vehicle',
     save: 'Save the certificate',
     saved: 'The certificate has been saved.',
+    problems: 'Please check the following fields:',
     sensitiveNote: 'Owner and legal-user details are optional. They are never used for reminders.',
     groups: {
       identity: 'Identification',
