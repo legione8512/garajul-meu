@@ -3,8 +3,8 @@ package ro.garajulmeu.ocr;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -67,6 +67,9 @@ class OcrFlowTest {
 
 	@Autowired
 	private OcrProperties properties;
+	
+	@Autowired
+	private Clock clock;
 
 	/** Unused. Present only so this class shares AuthFlowTest's context. */
 	@MockitoBean
@@ -89,7 +92,7 @@ class OcrFlowTest {
 	}
 
 	private int spentToday(UUID accountId) {
-		return usageRepository.findByUserIdAndUsageDate(accountId, LocalDate.now())
+		return usageRepository.findByUserIdAndUsageDate(accountId, OcrQuota.allowanceDay(clock))
 				.map(OcrUsage::getRequestCount)
 				.orElse(0);
 	}
@@ -168,7 +171,7 @@ class OcrFlowTest {
 	void theDailyAllowanceIsEnforcedOnTheEndpoint() throws Exception {
 		Account account = givenAccount("exhausted@example.com");
 
-		OcrUsage spent = new OcrUsage(account.id(), LocalDate.now());
+		OcrUsage spent = new OcrUsage(account.id(), OcrQuota.allowanceDay(clock));
 		for (int i = 0; i < properties.dailyLimit(); i++) {
 			spent.increment();
 		}

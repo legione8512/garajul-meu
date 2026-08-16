@@ -1,5 +1,6 @@
 package ro.garajulmeu.ocr;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -43,6 +44,9 @@ class OcrQuotaTest {
 
 	@Autowired
 	private OcrProperties properties;
+	
+	@Autowired
+	private Clock clock;
 
 	private UUID givenAccount(String email) {
 		return userRepository.saveAndFlush(new User("Marius Robert", email, "argon2-placeholder")).getId();
@@ -56,8 +60,13 @@ class OcrQuotaTest {
 		usageRepository.saveAndFlush(usage);
 	}
 
+	/**
+	 * The same question the service asks, asked the same way. Computing this with
+	 * a bare LocalDate.now() is what let the two disagree between midnight and
+	 * three in the morning, when the system zone is a day ahead of UTC.
+	 */
 	private LocalDate today() {
-		return LocalDate.now();
+		return OcrQuota.allowanceDay(clock);
 	}
 
 	@Test

@@ -2,6 +2,7 @@ package ro.garajulmeu.ocr;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -30,6 +31,25 @@ public class OcrQuota {
 
 	private static final Logger log = LoggerFactory.getLogger(OcrQuota.class);
 
+	/**
+	 * The day the allowance is measured in, and it is not the server's.
+	 *
+	 * <p>The {@code Clock} bean is UTC, which is right for everything that
+	 * measures elapsed time - a token's life, a code's expiry - because those are
+	 * durations and a duration has no timezone. <strong>An allowance is not a
+	 * duration.</strong> Section 13 promises somebody ten scans a day, and the day
+	 * meant is the one they are living in; measured in UTC, their allowance would
+	 * reset at three in the morning local time and anybody scanning at one would
+	 * be spending tomorrow's without being told.
+	 *
+	 * <p>Fixed to the application's audience rather than read from
+	 * {@code users.timezone}, which would be more correct and costs a lookup per
+	 * scan plus a way for somebody to gain a day by changing their zone. Phase 11
+	 * schedules reminders per account and will have to answer this properly; when
+	 * it does, this constant is the thing it replaces.
+	 */
+	static final ZoneId ALLOWANCE_ZONE = ZoneId.of("Europe/Bucharest");
+
 	private final OcrUsageRepository usageRepository;
 	private final OcrProperties properties;
 	private final Clock clock;
@@ -38,6 +58,17 @@ public class OcrQuota {
 		this.usageRepository = usageRepository;
 		this.properties = properties;
 		this.clock = clock;
+	}
+
+	/**
+	 * Which day an allowance is being spent from. One definition, called by this
+	 * class and by its tests, because the two disagreeing is exactly the failure
+	 * this method exists to prevent: a test asking `LocalDate.now()` while the
+	 * service asked the UTC clock agreed for twenty-one hours out of every
+	 * twenty-four, and the three it did not were the small hours.
+	 */
+	static LocalDate allowanceDay(Clock clock) {
+		return LocalDate.now(clock.withZone(ALLOWANCE_ZONE));
 	}
 
 	/**
@@ -50,7 +81,7 @@ public class OcrQuota {
 	 */
 	@Transactional
 	public void consume(UUID accountId) {
-		LocalDate today = LocalDate.now(clock);
+		LocalDate today = allowanceDay(clock);
 
 		usageRepository.ensureRowFor(accountId, today);
 
