@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { OcrScan, ProposedField } from '../api/endpoints/ocr.ts'
-import { applyScan, tally } from './scan.ts'
+import { applyScan, proposalsFor, tally } from './scan.ts'
 import { fromForm, toForm, type CertificateForm } from './values.ts'
 import type { CertificateData } from '../api/endpoints/certificate.ts'
 
@@ -109,5 +109,40 @@ describe('applying a scan to the certificate form', () => {
     ))
 
     expect(tally(statuses)).toEqual({ detected: 2, needsReview: 1, notDetected: 1 })
+  })
+    /**
+   * Two screens take scans and hold different things. The rule that a proposal
+   * with no value never clears is the same on both, and lives in one function -
+   * these assert it through the general one rather than only through the
+   * certificate's case.
+   */
+  it('writes only the fields the screen says it accepts', () => {
+    const current = { vin: '', make: '', displayName: 'Mașina mea' }
+
+    const { values } = proposalsFor(current, scanOf(
+      detected('make', 'Dacia'),
+      detected('colour', 'rosu'),
+    ), ['vin', 'make'])
+
+    expect(values.make).toBe('Dacia')
+    expect('colour' in values).toBe(false)
+    expect(values.displayName).toBe('Mașina mea')
+  })
+
+  it('leaves an accepted field alone when its proposal carries no value', () => {
+    const current = { vin: 'VF1AAAAAAAA000001', make: '' }
+
+    const { values } = proposalsFor(current, scanOf(missing('vin')), ['vin', 'make'])
+
+    expect(values.vin).toBe('VF1AAAAAAAA000001')
+  })
+
+  it('records a status only for the fields the screen accepts', () => {
+    const { statuses } = proposalsFor({ vin: '', make: '' }, scanOf(
+      review('vin'),
+      detected('colour', 'rosu'),
+    ), ['vin', 'make'])
+
+    expect(statuses).toEqual({ vin: 'NEEDS_REVIEW' })
   })
 })

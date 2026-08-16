@@ -53,6 +53,9 @@ export const en: typeof ro = {
   },
   addVehicle: {
     instructions: 'These are the details printed on the registration certificate.',
+    scan: {
+      review: 'Check these fields, the photograph was not clear enough: {{fields}}.',
+    },
     submit: 'Add the vehicle',
   },
   vehicle: {

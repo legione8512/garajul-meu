@@ -55,6 +55,9 @@ export const ro = {
   },
   addVehicle: {
     instructions: 'Datele sunt cele de pe certificatul de înmatriculare.',
+    scan: {
+      review: 'Verifică aceste câmpuri, fotografia nu a fost destul de clară: {{fields}}.',
+    },
     submit: 'Adaugă vehiculul',
   },
   vehicle: {

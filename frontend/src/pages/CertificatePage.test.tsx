@@ -110,7 +110,7 @@ const resultLine = (detected: number, needsReview: number, notDetected: number) 
 
 async function scanWith(...fields: ProposedField[]) {
   await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
-  await screen.findByText(new RegExp(ro.certificate.scan.note))
+  await screen.findByText(ro.certificate.scan.note)
   return fields
 }
 

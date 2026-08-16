@@ -17,6 +17,18 @@ const CREATED = {
   commercialDescription: 'Logan', vin: 'VF1AAAAAAAA000001', createdAt: '2026-08-15T10:00:00Z',
 }
 
+const photograph = () => new File(['a photograph'], 'certificate.jpg', { type: 'image/jpeg' })
+
+const proposal = (field: string, value: string | null, status: string) =>
+  ({ field, value, confidence: 0.9, status })
+
+const reviewLine = (fields: string) => ro.addVehicle.scan.review.replace('{{fields}}', fields)
+
+async function openAddVehicle() {
+  renderApp(paths.addVehicle)
+  await screen.findByRole('heading', { level: 1, name: ro.screens.addVehicle })
+}
+
 interface Sent {
   posts: number
   body: Record<string, unknown> | null
@@ -41,7 +53,7 @@ function jsonResponse(status: number, body: unknown): Response {
  * whatever nickname was typed, and the nickname is asserted on the request body
  * where this screen actually decides it.
  */
-function stubVehicles(onCreate: () => Response): Sent {
+function stubVehicles(onCreate: () => Response, onScan?: () => Response): Sent {
   const sent: Sent = { posts: 0, body: null }
 
   vi.stubGlobal('fetch', vi.fn((input: string, init?: RequestInit) => {
@@ -49,6 +61,9 @@ function stubVehicles(onCreate: () => Response): Sent {
       return Promise.resolve(jsonResponse(200, {
         accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
       }))
+    }
+    if (input.includes('/api/v1/ocr/')) {
+      return Promise.resolve(onScan === undefined ? jsonResponse(200, { fields: [] }) : onScan())
     }
     if (input.includes('/api/v1/vehicles')) {
       if (init?.method === 'POST') {
@@ -159,5 +174,71 @@ describe('add vehicle', () => {
     const vin = await screen.findByLabelText(ro.fields.vin)
     expect(vin).toHaveAttribute('aria-invalid', 'true')
     expect(vin).toHaveAccessibleDescription(i18n.t('validation.maxLength', { max: 32 }))
+  })
+    /**
+   * Section 3's other entrance. The photograph fills the same form the hand
+   * does, and nothing is created until the same button is pressed.
+   */
+  it('a photograph fills the fields printed on the certificate', async () => {
+    const sent = stubVehicles(() => jsonResponse(201, CREATED), () => jsonResponse(200, {
+      fields: [
+        proposal('registrationNumber', 'B 100 ABC', 'DETECTED'),
+        proposal('make', 'Dacia', 'DETECTED'),
+        proposal('commercialDescription', 'Logan', 'DETECTED'),
+        proposal('vin', 'VF1AAAAAAAA000001', 'DETECTED'),
+      ],
+    }))
+
+    await openAddVehicle()
+    await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
+    await screen.findByText(ro.certificate.scan.note)
+
+    expect(screen.getByLabelText(ro.fields.vin)).toHaveValue('VF1AAAAAAAA000001')
+    expect(screen.getByLabelText(ro.fields.make)).toHaveValue('Dacia')
+    expect(sent.posts).toBe(0)
+
+    await userEvent.click(screen.getByRole('button', { name: ro.addVehicle.submit }))
+    await screen.findByRole('heading', { level: 1, name: 'Dacia Logan' })
+
+    expect(sent.body).toMatchObject({ vin: 'VF1AAAAAAAA000001', registrationNumber: 'B 100 ABC' })
+  })
+
+  /**
+   * An uncertain reading leaves the field empty, and on a form of four inputs
+   * the useful thing is not a border but the name of the one to look at.
+   *
+   * <p>Asserted against the composed sentence rather than a regular expression
+   * built from the label: "VIN (serie de șasiu)" contains parentheses, which a
+   * RegExp reads as a capture group, so the pattern quietly looks for text
+   * without them and finds nothing. A translated string is not a pattern.
+   */
+  it('names the field the photograph could not be read for', async () => {
+    stubVehicles(() => jsonResponse(201, CREATED), () => jsonResponse(200, {
+      fields: [
+        proposal('make', 'Dacia', 'DETECTED'),
+        proposal('vin', null, 'NEEDS_REVIEW'),
+      ],
+    }))
+
+    await openAddVehicle()
+    await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
+
+    expect(await screen.findByText(reviewLine(ro.fields.vin))).toBeInTheDocument()
+    expect(screen.getByLabelText(ro.fields.vin)).toHaveValue('')
+  })
+
+  /** The nickname is not on the document, so no scan may touch it. */
+  it('a scan leaves the nickname alone', async () => {
+    stubVehicles(() => jsonResponse(201, CREATED), () => jsonResponse(200, {
+      fields: [proposal('make', 'Dacia', 'DETECTED')],
+    }))
+
+    await openAddVehicle()
+    await userEvent.type(screen.getByLabelText(ro.fields.displayName), 'Mașina de teren')
+    await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
+    await screen.findByText(ro.certificate.scan.note)
+
+    expect(screen.getByLabelText(ro.fields.displayName)).toHaveValue('Mașina de teren')
+    expect(screen.getByLabelText(ro.fields.make)).toHaveValue('Dacia')
   })
 })

@@ -1,8 +1,10 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 
+import { scanCertificate, type OcrScan, type ScanStatus } from '../api/endpoints/ocr.ts'
 import { createVehicle } from '../api/endpoints/vehicles.ts'
+import { proposalsFor, tally } from '../certificate/scan.ts'
 import { FormError } from '../components/FormError.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { maxLength, required } from '../forms/rules.ts'
@@ -30,14 +32,31 @@ const EMPTY: Record<Field, string> = {
 }
 
 /**
+ * The four this form holds that are also printed on the certificate. The
+ * nickname is not on the document at all - it is what its owner calls the car -
+ * so no scan can propose one, and a scan must not touch one already typed.
+ */
+const SCANNABLE: readonly Field[] = ['registrationNumber', 'make', 'commercialDescription', 'vin']
+
+/**
  * Screen 8 in specification section 5.
  *
  * <p>Four required fields and a nickname. Section 8 names exactly those four as
  * the minimum to save a vehicle, and they are exactly the four columns section
  * 10.3 declares NOT NULL - the requirement is stated twice and agrees with
- * itself. The remaining thirty certificate fields arrive in Phase 8 and the
- * photographed path in Phase 9; section 3 lists manual creation beside it as an
- * equal, so this screen is finished rather than provisional.
+ * itself.
+ *
+ * <p><strong>Section 3's two entrances, both here.</strong> It calls creation
+ * "manually or from a photographed Romanian registration certificate", and until
+ * now only the manual one existed: the certificate screen can scan, but reaching
+ * it requires having already typed the VIN and the make, which is the wrong way
+ * round for somebody holding the document. The photograph fills the same form
+ * the hand does; nothing is created until the same button is pressed.
+ *
+ * <p>Per-field scan states are deliberately not drawn here. The overlay needs
+ * them because it has thirty-three boxes over an image; this form has four
+ * inputs in a column, where what is missing is not decoration but the name of
+ * the field to look at - so the uncertain ones are listed by name instead.
  *
  * <p>No rule checks the VIN's seventeen characters. Section 13 places semantic
  * VIN validation inside the OCR review, and refusing a short one typed by hand
@@ -47,9 +66,12 @@ export function AddVehiclePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { pending, error, submit } = useSubmission()
+  const scan = useSubmission()
+  const photoInputId = useId()
 
   const [values, setValues] = useState<Record<Field, string>>(EMPTY)
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
+  const [statuses, setStatuses] = useState<Partial<Record<Field, ScanStatus>>>({})
 
   /**
    * Where the new vehicle's identifier is caught. useSubmission returns the
@@ -60,6 +82,43 @@ export function AddVehiclePage() {
    * across a call.
    */
   const createdId = useRef<string | null>(null)
+
+  /** The same problem again, for the scan's answer. */
+  const proposals = useRef<OcrScan | null>(null)
+
+  const counts = tally(statuses)
+  const scanned = counts.detected + counts.needsReview + counts.notDetected > 0
+  const uncertain = SCANNABLE.filter(field => statuses[field] === 'NEEDS_REVIEW')
+
+  async function handlePhotograph(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.target
+    const file = input.files?.[0]
+
+    // Clearing the input is what lets the same photograph be tried a second
+    // time: a file input fires no change event when the selection has not
+    // changed, so without this a retry after a failed scan would do nothing.
+    input.value = ''
+
+    if (file === undefined) {
+      return
+    }
+
+    const failure = await scan.submit(async () => {
+      proposals.current = await scanCertificate(file)
+    })
+
+    if (failure !== null || proposals.current === null) {
+      return
+    }
+
+    const result = proposalsFor(values, proposals.current, SCANNABLE)
+
+    setValues(result.values)
+    setStatuses(result.statuses)
+    // The values underneath them changed. Problems reported against the old ones
+    // would be pointing at text that is no longer in the inputs.
+    setMessages({})
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -95,6 +154,34 @@ export function AddVehiclePage() {
 
       <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
+
+        <div>
+          <label htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
+          <input
+            id={photoInputId}
+            type="file"
+            accept="image/jpeg,image/png"
+            onChange={(event) => { void handlePhotograph(event) }}
+            disabled={scan.pending}
+          />
+
+          {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
+
+          <FormError error={scan.error} />
+
+          {scanned && (
+            <>
+              <p role="status">{t('certificate.scan.result', counts)}</p>
+              {uncertain.length > 0 && (
+                <p>{t('addVehicle.scan.review', {
+                  fields: uncertain.map(field => t(`fields.${field}`)).join(', '),
+                })}
+                </p>
+              )}
+              <p>{t('certificate.scan.note')}</p>
+            </>
+          )}
+        </div>
 
         <TextField
           label={t('fields.registrationNumber')}
