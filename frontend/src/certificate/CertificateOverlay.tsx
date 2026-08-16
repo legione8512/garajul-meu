@@ -1,15 +1,19 @@
 import { useId, useState, type CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { ScanStatus } from '../api/endpoints/ocr.ts'
 import template from '../assets/registration-certificate-template.jpg'
 import { certificateFields, type CertificateField, type FieldSpec } from './fields.ts'
 import { fieldPositions } from './coordinates.ts'
+import type { FieldStatuses } from './scan.ts'
 import type { CertificateForm } from './values.ts'
 import type { FieldMessages } from '../forms/validate.ts'
 
 interface CertificateOverlayProps {
   form: CertificateForm
   messages: FieldMessages<CertificateField>
+  /** Empty until a scan has run, which is most of this screen's life. */
+  statuses: FieldStatuses
   onChange: (field: CertificateField, value: string) => void
 }
 
@@ -31,6 +35,29 @@ const MAX_SCALE = 3
 const STEP = 0.25
 
 const percent = (fraction: number) => `${(fraction * 100).toFixed(4)}%`
+
+/**
+ * The three states of section 7, told by line style rather than by colour.
+ * Colour alone would leave the states invisible to anyone who cannot
+ * distinguish them, which WCAG 1.4.1 is precisely about; every field also
+ * carries the state in its accessible description, so it is said in words too.
+ */
+const SCAN_OUTLINE: Record<ScanStatus, string> = {
+  DETECTED: '1px solid currentColor',
+  NEEDS_REVIEW: '2px dashed currentColor',
+  NOT_DETECTED: '1px dotted currentColor',
+}
+
+/**
+ * A validation problem outranks a scan state: one is something to fix, the other
+ * something to know, and a box can only say one thing at a time.
+ */
+function outlineFor(hasMessage: boolean, status: ScanStatus | undefined): string {
+  if (hasMessage) {
+    return '2px solid currentColor'
+  }
+  return status === undefined ? '1px solid transparent' : SCAN_OUTLINE[status]
+}
 
 /**
  * Hidden from sight, not from screen readers. The template prints the code next
@@ -79,7 +106,7 @@ function specOf(name: CertificateField): FieldSpec | undefined {
  * <p>A field may be laid out more than once. "Numărul certificatului" is printed
  * on two panels and stored once, so both boxes read and write the same value.
  */
-export function CertificateOverlay({ form, messages, onChange }: CertificateOverlayProps) {
+export function CertificateOverlay({ form, messages, statuses, onChange }: CertificateOverlayProps) {
   const { t } = useTranslation()
   const baseId = useId()
   const [scale, setScale] = useState(1)
@@ -117,7 +144,17 @@ export function CertificateOverlay({ form, messages, onChange }: CertificateOver
             const describedBy = `${id}-message`
             const label = t(`certificate.fields.${position.name}`)
             const message = messages[position.name]
+            const status = statuses[position.name]
             const value = form[position.name]
+
+            // One description slot. After a scan every coded field has a state,
+            // which is deliberately verbose: it is the only way somebody not
+            // looking at the picture learns which values came from it.
+            const description = message !== undefined
+              ? t(message.key, message.values)
+              : status === undefined
+                ? undefined
+                : t(`certificate.scan.status.${status}`)
 
             const box: CSSProperties = {
               position: 'absolute',
@@ -132,7 +169,7 @@ export function CertificateOverlay({ form, messages, onChange }: CertificateOver
               height: '100%',
               boxSizing: 'border-box',
               background: 'transparent',
-              border: message === undefined ? '1px solid transparent' : '2px solid currentColor',
+              border: outlineFor(message !== undefined, status),
               font: 'inherit',
             }
 
@@ -149,7 +186,7 @@ export function CertificateOverlay({ form, messages, onChange }: CertificateOver
                       onChange={(event) => { onChange(position.name, event.target.checked ? 'true' : '') }}
                       style={{ width: '100%', height: '100%' }}
                       aria-invalid={message !== undefined}
-                      aria-describedby={message === undefined ? undefined : describedBy}
+                      aria-describedby={description === undefined ? undefined : describedBy}
                     />
                     )
                   : spec.kind === 'multiline'
@@ -161,7 +198,7 @@ export function CertificateOverlay({ form, messages, onChange }: CertificateOver
                         onChange={(event) => { onChange(position.name, event.target.value) }}
                         style={{ ...control, resize: 'none' }}
                         aria-invalid={message !== undefined}
-                        aria-describedby={message === undefined ? undefined : describedBy}
+                        aria-describedby={description === undefined ? undefined : describedBy}
                       />
                       )
                     : (
@@ -176,12 +213,12 @@ export function CertificateOverlay({ form, messages, onChange }: CertificateOver
                         onChange={(event) => { onChange(position.name, event.target.value) }}
                         style={control}
                         aria-invalid={message !== undefined}
-                        aria-describedby={message === undefined ? undefined : describedBy}
+                        aria-describedby={description === undefined ? undefined : describedBy}
                       />
                       )}
 
-                {message !== undefined && (
-                  <span id={describedBy} style={HIDDEN}>{t(message.key, message.values)}</span>
+                {description !== undefined && (
+                  <span id={describedBy} style={HIDDEN}>{description}</span>
                 )}
               </div>
             )

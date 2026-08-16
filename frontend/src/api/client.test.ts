@@ -132,4 +132,22 @@ describe('api client', () => {
     await expect(apiFetch<void>('/api/v1/users/me/change-password', { method: 'POST', body: '{}' }))
       .resolves.toBeUndefined()
   })
+
+  /**
+   * A multipart request is only readable if its Content-Type carries the
+   * boundary separating the parts, and only the browser knows the boundary it
+   * generated. Setting application/json here - which every other body gets -
+   * would leave the backend unable to find any part at all.
+   */
+  it('lets the browser set the content type for a multipart upload', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(200, { fields: [] })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const body = new FormData()
+    body.append('image', new File(['a photograph'], 'certificate.jpg', { type: 'image/jpeg' }))
+
+    await apiFetch('/api/v1/ocr/registration-certificate', { method: 'POST', body })
+
+    expect(headersOf(fetchMock.mock.calls[0]).has('Content-Type')).toBe(false)
+  })
 })

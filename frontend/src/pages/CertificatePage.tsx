@@ -1,11 +1,13 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 
 import { certificatePath, saveCertificate, type CertificateData } from '../api/endpoints/certificate.ts'
+import { scanCertificate, type OcrScan } from '../api/endpoints/ocr.ts'
 import { useResource } from '../api/useResource.ts'
 import { CertificateOverlay } from '../certificate/CertificateOverlay.tsx'
 import { certificateFields, fieldGroups, fieldsOf, type CertificateField } from '../certificate/fields.ts'
+import { applyScan, tally, type FieldStatuses } from '../certificate/scan.ts'
 import { fromForm, toForm, type CertificateForm } from '../certificate/values.ts'
 import { FormError } from '../components/FormError.tsx'
 import { maxLength, required, type Rule } from '../forms/rules.ts'
@@ -33,12 +35,18 @@ const rules: FieldRules<CertificateField> = Object.fromEntries(
 ) as FieldRules<CertificateField>
 
 /**
- * Screen 10 in specification section 5, in its manual form: the approved
- * template with editable fields laid over it, which is the UI model section 7
- * fixes. Phase 9 fills the same fields from OCR.
+ * Screen 10 in specification section 5: the approved template with editable
+ * fields laid over it, which is the UI model section 7 fixes. The same fields
+ * are filled either by hand or from a photograph - section 13's OCR is a way of
+ * proposing values here, never a second screen and never a second shape.
  *
  * <p>Saving sends every field, which is what makes the backend's replacement
  * semantics safe: a field omitted there is cleared, and this never omits one.
+ *
+ * <p><strong>A scan proposes; it does not save.</strong> Section 13 requires the
+ * person to review and correct first, so the scan only changes what is on
+ * screen, and the same Save button they would have used anyway is what stores
+ * it.
  *
  * <p>Problems are listed above the template rather than beside each box. There
  * is no room next to a field on a scanned document, and a list that names the
@@ -48,12 +56,15 @@ const rules: FieldRules<CertificateField> = Object.fromEntries(
 export function CertificatePage() {
   const { t } = useTranslation()
   const { vehicleId = '' } = useParams()
+  const photoInputId = useId()
 
   const { data, error, loading } = useResource<CertificateData>(certificatePath(vehicleId))
   const save = useSubmission()
+  const scan = useSubmission()
 
   const [draft, setDraft] = useState<CertificateForm | null>(null)
   const [messages, setMessages] = useState<FieldMessages<CertificateField>>({})
+  const [statuses, setStatuses] = useState<FieldStatuses>({})
   const [saved, setSaved] = useState(false)
 
   /**
@@ -63,7 +74,12 @@ export function CertificatePage() {
    */
   const stored = useRef<CertificateData | null>(null)
 
+  /** The same problem again, for the scan's answer. */
+  const proposals = useRef<OcrScan | null>(null)
+
   const form = draft ?? (data === null ? null : toForm(data))
+  const counts = tally(statuses)
+  const scanned = counts.detected + counts.needsReview + counts.notDetected > 0
 
   const problems = fieldGroups.flatMap(group => fieldsOf(group).flatMap(spec => {
     const message = messages[spec.name]
@@ -82,6 +98,37 @@ export function CertificatePage() {
     }
     setSaved(false)
     setDraft({ ...form, [field]: value })
+  }
+
+  async function handlePhotograph(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.target
+    const file = input.files?.[0]
+
+    // Clearing the input is what lets the same photograph be tried a second
+    // time: a file input fires no change event when the selection has not
+    // changed, so without this a retry after a failed scan would do nothing.
+    input.value = ''
+
+    if (file === undefined || form === null) {
+      return
+    }
+
+    const failure = await scan.submit(async () => {
+      proposals.current = await scanCertificate(file)
+    })
+
+    if (failure !== null || proposals.current === null) {
+      return
+    }
+
+    const result = applyScan(form, proposals.current)
+
+    setDraft(result.form)
+    setStatuses(result.statuses)
+    // The values underneath them changed. Problems reported against the old ones
+    // would be pointing at text that is no longer on screen.
+    setMessages({})
+    setSaved(false)
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -132,6 +179,28 @@ export function CertificatePage() {
 
           <p>{t('certificate.sensitiveNote')}</p>
 
+          <div>
+            <label htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
+            <input
+              id={photoInputId}
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={(event) => { void handlePhotograph(event) }}
+              disabled={scan.pending}
+            />
+
+            {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
+
+            <FormError error={scan.error} />
+
+            {scanned && (
+              <>
+                <p role="status">{t('certificate.scan.result', counts)}</p>
+                <p>{t('certificate.scan.note')}</p>
+              </>
+            )}
+          </div>
+
           {problems.length > 0 && (
             <div role="alert">
               <p>{t('certificate.problems')}</p>
@@ -143,7 +212,7 @@ export function CertificatePage() {
             </div>
           )}
 
-          <CertificateOverlay form={form} messages={messages} onChange={change} />
+          <CertificateOverlay form={form} messages={messages} statuses={statuses} onChange={change} />
 
           <button type="submit" disabled={save.pending}>{t('certificate.save')}</button>
 

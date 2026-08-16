@@ -3,19 +3,26 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import type { CertificateData } from '../api/endpoints/certificate.ts'
+import type { CertificateField } from './fields.ts'
+import type { FieldMessages } from '../forms/validate.ts'
 import { ro } from '../i18n/locales/ro.ts'
 import { CertificateOverlay } from './CertificateOverlay.tsx'
+import type { FieldStatuses } from './scan.ts'
 import { toForm } from './values.ts'
 
 const EMPTY = Object.fromEntries(
   Object.keys(ro.certificate.fields).map(name => [name, null]),
 ) as unknown as CertificateData
 
-function show() {
+function show(
+  statuses: FieldStatuses = {},
+  messages: FieldMessages<CertificateField> = {},
+) {
   render(
     <CertificateOverlay
       form={toForm({ ...EMPTY, registrationNumber: 'B 100 ABC', make: 'Dacia', commercialDescription: 'Logan', vin: 'VF1' })}
-      messages={{}}
+      messages={messages}
+      statuses={statuses}
       onChange={() => undefined}
     />,
   )
@@ -64,5 +71,38 @@ describe('CertificateOverlay', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(level(300))
     expect(screen.getByRole('button', { name: ro.certificate.zoomIn })).toBeDisabled()
+  })
+
+  /**
+   * The state is drawn as a line style and also said in words. Asserting the
+   * words is what makes this a test rather than a screenshot: a border is
+   * invisible to anyone not looking at the picture, and section 7's three states
+   * are information, not decoration.
+   */
+  it('a field filled by the scan says where its value came from', () => {
+    show({ make: 'DETECTED' })
+
+    expect(screen.getByLabelText(ro.certificate.fields.make))
+      .toHaveAccessibleDescription(ro.certificate.scan.status.DETECTED)
+  })
+
+  it('a field the scan was unsure about asks to be checked', () => {
+    show({ vin: 'NEEDS_REVIEW' })
+
+    expect(screen.getByLabelText(ro.certificate.fields.vin))
+      .toHaveAccessibleDescription(ro.certificate.scan.status.NEEDS_REVIEW)
+  })
+
+  /**
+   * A box can only say one thing, and the thing worth saying is the one the
+   * person has to act on. Without this the scan state would keep announcing
+   * itself over a field that will not save.
+   */
+  it('a validation problem outranks the scan state on the same field', () => {
+    show({ make: 'DETECTED' }, { make: { key: 'validation.required' } })
+
+    const field = screen.getByLabelText(ro.certificate.fields.make)
+    expect(field).toHaveAccessibleDescription(ro.validation.required)
+    expect(field).toHaveAttribute('aria-invalid', 'true')
   })
 })

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CertificateData } from '../api/endpoints/certificate.ts'
+import type { ProposedField, ScanStatus } from '../api/endpoints/ocr.ts'
 import { certificateFields } from '../certificate/fields.ts'
 import { ro } from '../i18n/locales/ro.ts'
 import { paths } from '../routes/paths.ts'
@@ -51,6 +52,7 @@ const STORED: CertificateData = {
 interface Sent {
   body: CertificateData | null
   patches: number
+  scans: number
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -60,14 +62,21 @@ function jsonResponse(status: number, body: unknown): Response {
   })
 }
 
-function stubCertificate(read: () => Response, write?: () => Response): Sent {
-  const sent: Sent = { body: null, patches: 0 }
+function stubCertificate(read: () => Response, write?: () => Response, scan?: () => Response): Sent {
+  const sent: Sent = { body: null, patches: 0, scans: 0 }
 
   vi.stubGlobal('fetch', vi.fn((input: string, init?: RequestInit) => {
     if (input.includes('/auth/refresh')) {
       return Promise.resolve(jsonResponse(200, {
         accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
       }))
+    }
+    // Before the certificate branch, deliberately: the OCR path also ends in
+    // "/registration-certificate", so checking that one first would send every
+    // scan to the certificate stub and the test would pass for the wrong reason.
+    if (input.includes('/ocr/registration-certificate')) {
+      sent.scans += 1
+      return Promise.resolve(scan === undefined ? jsonResponse(200, { fields: [] }) : scan())
     }
     if (input.includes('/registration-certificate')) {
       if (init?.method === 'PATCH') {
@@ -86,6 +95,23 @@ function stubCertificate(read: () => Response, write?: () => Response): Sent {
 async function open() {
   renderApp(paths.certificate('a'))
   await screen.findByLabelText(ro.certificate.fields.vin)
+}
+
+const photograph = () => new File(['a photograph'], 'certificate.jpg', { type: 'image/jpeg' })
+
+const proposal = (field: string, value: string | null, status: ScanStatus): ProposedField =>
+  ({ field, value, confidence: 0.9, status })
+
+const resultLine = (detected: number, needsReview: number, notDetected: number) =>
+  ro.certificate.scan.result
+    .replace('{{detected}}', String(detected))
+    .replace('{{needsReview}}', String(needsReview))
+    .replace('{{notDetected}}', String(notDetected))
+
+async function scanWith(...fields: ProposedField[]) {
+  await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
+  await screen.findByText(new RegExp(ro.certificate.scan.note))
+  return fields
 }
 
 describe('registration certificate', () => {
@@ -171,7 +197,8 @@ describe('registration certificate', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(ro.errors.VEHICLE_NOT_FOUND)
     expect(screen.queryByRole('button', { name: ro.certificate.save })).not.toBeInTheDocument()
   })
-    /**
+
+  /**
    * Found in a browser, not here: the link said "back to the garage" and led to
    * the vehicle. Asserting the name and the destination together is what makes a
    * label that lies about where it goes a failure rather than a nuisance.
@@ -184,7 +211,8 @@ describe('registration certificate', () => {
     expect(screen.getByRole('link', { name: ro.certificate.backToVehicle }))
       .toHaveAttribute('href', paths.vehicle('a'))
   })
-    /**
+
+  /**
    * The certificate prints this on two panels and section 10.3 stores it once,
    * so both boxes are the same value seen twice. Editing either has to move
    * both, and a label that appears twice is the one shape getByLabelText
@@ -199,5 +227,81 @@ describe('registration certificate', () => {
     expect(boxes).toHaveLength(2)
     expect(boxes[0]).toHaveValue('A00123456')
     expect(boxes[1]).toHaveValue('A00123456')
+  })
+
+  it('a photograph fills the fields it could be read from', async () => {
+    const sent = stubCertificate(() => jsonResponse(200, STORED), undefined, () => jsonResponse(200, {
+      fields: [proposal('colour', 'rosu', 'DETECTED'), proposal('seats', '7', 'DETECTED')],
+    }))
+
+    await open()
+    await scanWith()
+
+    expect(sent.scans).toBe(1)
+    expect(screen.getByLabelText(ro.certificate.fields.colour)).toHaveValue('rosu')
+    expect(screen.getByLabelText(ro.certificate.fields.seats)).toHaveValue('7')
+  })
+
+  /**
+   * The property worth protecting, asserted through the screen rather than only
+   * through applyScan. "Not detected" must never mean "empty it": somebody who
+   * typed their VIN and then photographed a creased certificate keeps the VIN.
+   */
+  it('a field the photograph could not show keeps what was already there', async () => {
+    stubCertificate(() => jsonResponse(200, STORED), undefined, () => jsonResponse(200, {
+      fields: [proposal('vin', null, 'NOT_DETECTED'), proposal('colour', 'rosu', 'DETECTED')],
+    }))
+
+    await open()
+    await scanWith()
+
+    expect(screen.getByLabelText(ro.certificate.fields.vin)).toHaveValue('VF1AAAAAAAA000001')
+  })
+
+  it('the result says how many fields landed in each of the three states', async () => {
+    stubCertificate(() => jsonResponse(200, STORED), undefined, () => jsonResponse(200, {
+      fields: [
+        proposal('colour', 'rosu', 'DETECTED'),
+        proposal('seats', '7', 'DETECTED'),
+        proposal('vin', null, 'NEEDS_REVIEW'),
+        proposal('fuelType', null, 'NOT_DETECTED'),
+      ],
+    }))
+
+    await open()
+    await scanWith()
+
+    expect(screen.getByText(resultLine(2, 1, 1))).toBeInTheDocument()
+  })
+
+  /**
+   * Ten a day, thirty a month. The one message that must not promise tomorrow,
+   * because the same code answers for the monthly limit too.
+   */
+  it('an exhausted allowance is explained and changes nothing on screen', async () => {
+    stubCertificate(() => jsonResponse(200, STORED), undefined,
+      () => jsonResponse(429, { code: 'OCR_RATE_LIMITED' }))
+
+    await open()
+    await userEvent.upload(screen.getByLabelText(ro.certificate.scan.choose), photograph())
+
+    expect(await screen.findByText(ro.errors.OCR_RATE_LIMITED)).toBeInTheDocument()
+    expect(screen.getByLabelText(ro.certificate.fields.colour)).toHaveValue('albastru')
+    expect(screen.queryByText(ro.certificate.scan.note)).not.toBeInTheDocument()
+  })
+
+  /** A scan proposes; the ordinary Save button is still what stores anything. */
+  it('saving after a scan sends the scanned values', async () => {
+    const sent = stubCertificate(() => jsonResponse(200, STORED), undefined, () => jsonResponse(200, {
+      fields: [proposal('colour', 'rosu', 'DETECTED')],
+    }))
+
+    await open()
+    await scanWith()
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.save }))
+
+    await screen.findByText(ro.certificate.saved)
+
+    expect(sent.body?.colour).toBe('rosu')
   })
 })
