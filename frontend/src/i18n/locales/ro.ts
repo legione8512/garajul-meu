@@ -71,6 +71,10 @@ export const ro = {
     save: 'Salvează certificatul',
     saved: 'Certificatul a fost salvat.',
     problems: 'Verifică următoarele câmpuri:',
+    zoomIn: 'Mărește',
+    zoomOut: 'Micșorează',
+    zoomReset: 'Mărime inițială',
+    zoomLevel: 'Mărire: {{percent}}%',
     sensitiveNote: 'Datele proprietarului și ale utilizatorului legal sunt opționale. Nu sunt folosite niciodată pentru memento-uri.',
     groups: {
       identity: 'Identificare',

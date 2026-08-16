@@ -69,6 +69,10 @@ export const en: typeof ro = {
     save: 'Save the certificate',
     saved: 'The certificate has been saved.',
     problems: 'Please check the following fields:',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomReset: 'Original size',
+    zoomLevel: 'Zoom: {{percent}}%',
     sensitiveNote: 'Owner and legal-user details are optional. They are never used for reminders.',
     groups: {
       identity: 'Identification',
