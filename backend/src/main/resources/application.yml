@@ -67,3 +67,9 @@ garajul-meu:
     token-refresh:
       limit: 60
       window: 1h
+ocr:
+  # Section 13's initial defaults. Production may raise or lower them; the
+  # allowance is metered in the database, not in memory, because each request
+  # costs money at the provider.
+  daily-limit: 10
+  monthly-limit: 30
