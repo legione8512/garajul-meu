@@ -1,8 +1,11 @@
 package ro.garajulmeu.notification;
 
 import java.time.Instant;
+
+
 import java.time.LocalTime;
 import java.util.UUID;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +21,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import ro.garajulmeu.TestcontainersConfiguration;
 import ro.garajulmeu.email.EmailProvider;
+import ro.garajulmeu.registrationcertificate.RegistrationCertificate;
+import ro.garajulmeu.registrationcertificate.RegistrationCertificateRepository;
 import ro.garajulmeu.security.AccessTokenService;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
+import ro.garajulmeu.vehicle.Vehicle;
+import ro.garajulmeu.vehicle.VehicleRepository;
+import ro.garajulmeu.reminder.ReminderStatus;
+import ro.garajulmeu.reminder.Reminder;
+import ro.garajulmeu.reminder.ReminderRepository;
+import ro.garajulmeu.reminder.ReminderService;
+import ro.garajulmeu.vehicledocument.VehicleDocument;
+import ro.garajulmeu.vehicledocument.VehicleDocumentRepository;
+import ro.garajulmeu.vehicledocument.DocumentType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -64,6 +78,21 @@ class NotificationPreferencesFlowTest {
 	/** Unused. Present only so this class shares AuthFlowTest's context. */
 	@MockitoBean
 	private EmailProvider emailProvider;
+	
+	@Autowired
+	private VehicleRepository vehicleRepository;
+
+	@Autowired
+	private RegistrationCertificateRepository certificateRepository;
+
+	@Autowired
+	private VehicleDocumentRepository documentRepository;
+
+	@Autowired
+	private ReminderRepository reminderRepository;
+
+	@Autowired
+	private ReminderService reminderService;
 
 	private record Account(UUID id, String token) {
 	}
@@ -218,5 +247,36 @@ class NotificationPreferencesFlowTest {
 		mockMvc.perform(get(PATH)).andExpect(status().isUnauthorized());
 		mockMvc.perform(put(PATH).contentType(MediaType.APPLICATION_JSON).content(ALL_ON))
 				.andExpect(status().isUnauthorized());
+	}
+	/**
+	 * Section 12: "changing global reminder preferences reconciles future PENDING
+	 * reminders only". Turning three switches off leaves three offsets scheduled,
+	 * and the rows for the others cancelled rather than removed.
+	 */
+	@Test
+	void changingPreferencesReconcilesEveryDocumentInTheGarage() throws Exception {
+		Account account = givenAccount("reconcile@example.com");
+		Vehicle vehicle = vehicleRepository.saveAndFlush(new Vehicle(account.id()));
+		certificateRepository.saveAndFlush(new RegistrationCertificate(
+				vehicle.getId(), account.id(), "B 100 ABC", "Dacia", "Logan", "VF1AAAAAAAA000050"));
+
+		VehicleDocument document = documentRepository.saveAndFlush(new VehicleDocument(
+				vehicle.getId(), DocumentType.RCA, LocalDate.now().plusDays(400)));
+		reminderService.reconcile(account.id(), document);
+
+		mockMvc.perform(put(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"notificationsEnabled":true,"remind30Days":true,"remind14Days":false,
+								 "remind7Days":false,"remind3Days":false,"remind1Day":true,
+								 "remindOnExpiry":true,"notificationLocalTime":"09:00:00"}
+								"""))
+				.andExpect(status().isOk());
+
+		assertThat(reminderRepository.findByVehicleDocumentIdAndStatus(
+						document.getId(), ReminderStatus.PENDING))
+				.extracting(Reminder::getOffsetDays)
+				.containsExactlyInAnyOrder(30, 1, 0);
 	}
 }

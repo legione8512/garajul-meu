@@ -4,11 +4,13 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import ro.garajulmeu.notification.dto.NotificationPreferencesView;
 import ro.garajulmeu.notification.dto.SaveNotificationPreferencesRequest;
+import ro.garajulmeu.reminder.ReminderService;
 
 @Service
 public class NotificationPreferencesService {
@@ -17,8 +19,20 @@ public class NotificationPreferencesService {
 
 	private final NotificationPreferencesRepository repository;
 
-	NotificationPreferencesService(NotificationPreferencesRepository repository) {
+	/**
+	 * Reached through the context rather than injected, and only here.
+	 * ReminderService needs these preferences to decide what to schedule, and this
+	 * needs ReminderService to reconcile after a change - a constructor cycle
+	 * Spring cannot resolve. The lazy lookup breaks it at the one point where the
+	 * two genuinely call each other, without pushing an event bus through the
+	 * whole design to avoid saying so.
+	 */
+	private final ApplicationContext context;
+
+	NotificationPreferencesService(NotificationPreferencesRepository repository,
+			ApplicationContext context) {
 		this.repository = repository;
+		this.context = context;
 	}
 
 	/**
@@ -35,12 +49,11 @@ public class NotificationPreferencesService {
 	}
 
 	/**
-	 * The row for this account, existing or defaulted. Package-private because
-	 * reminder generation in 11.2 needs the entity rather than the view, and must
-	 * see exactly what the read endpoint reports.
+	 * The row for this account, existing or defaulted. Public because reminder
+	 * generation reads it, and must see exactly what the read endpoint reports.
 	 */
 	@Transactional(readOnly = true)
-	NotificationPreferences preferencesOf(UUID accountId) {
+	public NotificationPreferences preferencesOf(UUID accountId) {
 		return repository.findByUserId(accountId)
 				.orElseGet(() -> NotificationPreferences.defaultsFor(accountId));
 	}
@@ -48,9 +61,10 @@ public class NotificationPreferencesService {
 	/**
 	 * Replaces the whole set, creating the row on first save.
 	 *
-	 * <p>Section 12 adds a consequence this does not have yet: changing these
-	 * reconciles future PENDING reminders while leaving SENT history alone. There
-	 * are no reminders until 11.2, and the hook belongs here when there are.
+	 * <p>Section 12: "changing global reminder preferences reconciles future
+	 * PENDING reminders only; SENT history is not rewritten." Reconciliation runs
+	 * over every document in the garage, because a preference is not about one of
+	 * them.
 	 */
 	@Transactional
 	public NotificationPreferencesView replace(UUID accountId,
@@ -68,6 +82,8 @@ public class NotificationPreferencesService {
 		preferences.setNotificationLocalTime(request.notificationLocalTime());
 
 		repository.saveAndFlush(preferences);
+		context.getBean(ReminderService.class).reconcileGarage(accountId);
+
 		log.info("Updated notification preferences for account {}", accountId);
 
 		return view(preferences);

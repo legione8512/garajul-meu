@@ -56,6 +56,11 @@ garajul-meu:
   email:
     # Production must override this with "resend".
     provider: logging
+  push:
+  # The only provider that exists. Section 18 makes push native-only and the
+  # applications are phases 17 and 18; production overrides this with
+  # "firebase" when there is something to deliver to.
+    provider: logging
   cors:
     # Exact origins, never a wildcard: a wildcard cannot be combined with
     # credentials, and every request this API answers carries them.

@@ -27,6 +27,8 @@ spring:
 garajul-meu:
   email:
     provider: logging
+  push:
+    provider: logging
   ocr:
     provider: stub
   jwt:

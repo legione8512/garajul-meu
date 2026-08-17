@@ -1,10 +1,6 @@
 package ro.garajulmeu.vehicledocument;
 
 import java.time.Clock;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-
-import ro.garajulmeu.common.PageResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -12,11 +8,15 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import ro.garajulmeu.common.PageResponse;
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
+import ro.garajulmeu.reminder.ReminderService;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 import ro.garajulmeu.vehicle.VehicleRepository;
@@ -29,7 +29,7 @@ import ro.garajulmeu.vehicledocument.dto.SaveDocumentRequest;
 public class VehicleDocumentService {
 
 	private static final Logger log = LoggerFactory.getLogger(VehicleDocumentService.class);
-	
+
 	/** Enough for a screenful; the client asks for more by asking for page two. */
 	private static final int DEFAULT_PAGE_SIZE = 20;
 
@@ -43,13 +43,16 @@ public class VehicleDocumentService {
 	private final VehicleDocumentRepository documentRepository;
 	private final VehicleRepository vehicleRepository;
 	private final UserRepository userRepository;
+	private final ReminderService reminderService;
 	private final Clock clock;
 
 	VehicleDocumentService(VehicleDocumentRepository documentRepository,
-			VehicleRepository vehicleRepository, UserRepository userRepository, Clock clock) {
+			VehicleRepository vehicleRepository, UserRepository userRepository,
+			ReminderService reminderService, Clock clock) {
 		this.documentRepository = documentRepository;
 		this.vehicleRepository = vehicleRepository;
 		this.userRepository = userRepository;
+		this.reminderService = reminderService;
 		this.clock = clock;
 	}
 
@@ -69,74 +72,6 @@ public class VehicleDocumentService {
 		return view(document, todayFor(accountId));
 	}
 
-	@Transactional
-	public DocumentDetails add(UUID accountId, UUID vehicleId, SaveDocumentRequest request) {
-		requireVehicle(accountId, vehicleId);
-
-		VehicleDocument document = new VehicleDocument(vehicleId, typeOf(request), request.validUntil());
-		apply(request, document);
-		documentRepository.saveAndFlush(document);
-
-		// The identifier and the type, never the reference number: section 27 keeps
-		// a policy number out of the logs as it keeps a verification code out.
-		log.info("Added {} document {} to vehicle {}", document.getType(), document.getId(), vehicleId);
-
-		return view(document, todayFor(accountId));
-	}
-
-	@Transactional
-	public DocumentDetails correct(UUID accountId, UUID vehicleId, UUID documentId,
-			SaveDocumentRequest request) {
-		VehicleDocument document = require(accountId, vehicleId, documentId);
-
-		document.setType(typeOf(request));
-		document.setValidUntil(request.validUntil());
-		apply(request, document);
-		documentRepository.saveAndFlush(document);
-
-		return view(document, todayFor(accountId));
-	}
-
-	/**
-	 * The next period of cover, as a new row. Section 12.
-	 *
-	 * <p><strong>The superseded record is not touched at all.</strong> There is no
-	 * {@code is_current} to turn off - section 11 forbids one - and its dates
-	 * remain true of the period it covered. It becomes historical by the passage
-	 * of time rather than by a write, which is also why renewing twice by mistake
-	 * loses nothing.
-	 *
-	 * <p><strong>An overlapping renewal is accepted.</strong> Section 11 sets out
-	 * how to choose between records that overlap - greatest {@code valid_from},
-	 * then newest row - so the model already knows how to read one. Refusing what
-	 * the specification explains how to interpret would be inventing a rule it
-	 * declined to state.
-	 */
-	@Transactional
-	public DocumentDetails renew(UUID accountId, UUID vehicleId, UUID documentId,
-			RenewDocumentRequest request) {
-		VehicleDocument superseded = require(accountId, vehicleId, documentId);
-
-		VehicleDocument renewal =
-				new VehicleDocument(vehicleId, superseded.getType(), request.validUntil());
-		apply(request, renewal);
-		documentRepository.saveAndFlush(renewal);
-
-		log.info("Renewed {} document {} of vehicle {} as {}",
-				superseded.getType(), documentId, vehicleId, renewal.getId());
-
-		return view(renewal, todayFor(accountId));
-	}
-
-	@Transactional
-	public void delete(UUID accountId, UUID vehicleId, UUID documentId) {
-		VehicleDocument document = require(accountId, vehicleId, documentId);
-
-		documentRepository.delete(document);
-		documentRepository.flush();
-		log.info("Deleted document {} of vehicle {}", documentId, vehicleId);
-	}
-	
 	/**
 	 * Section 16's chronological history. It adds no table and no entity: section
 	 * 1 puts the history in the records themselves - "document renewal history
@@ -171,6 +106,94 @@ public class VehicleDocumentService {
 				found.getSize(),
 				found.getTotalElements(),
 				found.getTotalPages());
+	}
+
+	@Transactional
+	public DocumentDetails add(UUID accountId, UUID vehicleId, SaveDocumentRequest request) {
+		requireVehicle(accountId, vehicleId);
+
+		VehicleDocument document = new VehicleDocument(vehicleId, typeOf(request), request.validUntil());
+		apply(request, document);
+		documentRepository.saveAndFlush(document);
+		reminderService.reconcile(accountId, document);
+
+		// The identifier and the type, never the reference number: section 27 keeps
+		// a policy number out of the logs as it keeps a verification code out.
+		log.info("Added {} document {} to vehicle {}", document.getType(), document.getId(), vehicleId);
+
+		return view(document, todayFor(accountId));
+	}
+
+	/**
+	 * Section 12: changing {@code valid_until} cancels the obsolete PENDING
+	 * reminders and generates the new set. Reconciling unconditionally rather than
+	 * only when the date moved - a correction that changed nothing costs six rows
+	 * rewritten, and a correction that moved the date by a day while the code
+	 * decided it had not is a reminder that never arrives.
+	 */
+	@Transactional
+	public DocumentDetails correct(UUID accountId, UUID vehicleId, UUID documentId,
+			SaveDocumentRequest request) {
+		VehicleDocument document = require(accountId, vehicleId, documentId);
+
+		document.setType(typeOf(request));
+		document.setValidUntil(request.validUntil());
+		apply(request, document);
+		documentRepository.saveAndFlush(document);
+		reminderService.reconcile(accountId, document);
+
+		return view(document, todayFor(accountId));
+	}
+
+	/**
+	 * The next period of cover, as a new row. Section 12.
+	 *
+	 * <p><strong>The superseded record is not touched at all.</strong> There is no
+	 * {@code is_current} to turn off - section 11 forbids one - and its dates
+	 * remain true of the period it covered. It becomes historical by the passage
+	 * of time rather than by a write, which is also why renewing twice by mistake
+	 * loses nothing.
+	 *
+	 * <p><strong>An overlapping renewal is accepted.</strong> Section 11 sets out
+	 * how to choose between records that overlap - greatest {@code valid_from},
+	 * then newest row - so the model already knows how to read one. Refusing what
+	 * the specification explains how to interpret would be inventing a rule it
+	 * declined to state.
+	 *
+	 * <p>Its <em>reminders</em>, however, are cancelled: the record stays, its
+	 * warnings do not, because they are about an expiry that has been replaced.
+	 */
+	@Transactional
+	public DocumentDetails renew(UUID accountId, UUID vehicleId, UUID documentId,
+			RenewDocumentRequest request) {
+		VehicleDocument superseded = require(accountId, vehicleId, documentId);
+
+		VehicleDocument renewal =
+				new VehicleDocument(vehicleId, superseded.getType(), request.validUntil());
+		apply(request, renewal);
+		documentRepository.saveAndFlush(renewal);
+
+		reminderService.cancelFor(superseded.getId());
+		reminderService.reconcile(accountId, renewal);
+
+		log.info("Renewed {} document {} of vehicle {} as {}",
+				superseded.getType(), documentId, vehicleId, renewal.getId());
+
+		return view(renewal, todayFor(accountId));
+	}
+
+	/**
+	 * The reminders go with it, removed by the foreign key rather than by anything
+	 * here - the same arrangement that carries a certificate away with its
+	 * vehicle.
+	 */
+	@Transactional
+	public void delete(UUID accountId, UUID vehicleId, UUID documentId) {
+		VehicleDocument document = require(accountId, vehicleId, documentId);
+
+		documentRepository.delete(document);
+		documentRepository.flush();
+		log.info("Deleted document {} of vehicle {}", documentId, vehicleId);
 	}
 
 	/**

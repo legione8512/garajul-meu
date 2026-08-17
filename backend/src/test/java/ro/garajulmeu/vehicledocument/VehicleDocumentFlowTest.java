@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,9 @@ import ro.garajulmeu.TestcontainersConfiguration;
 import ro.garajulmeu.email.EmailProvider;
 import ro.garajulmeu.registrationcertificate.RegistrationCertificate;
 import ro.garajulmeu.registrationcertificate.RegistrationCertificateRepository;
+import ro.garajulmeu.reminder.ReminderStatus;
+import ro.garajulmeu.reminder.Reminder;
+import ro.garajulmeu.reminder.ReminderRepository;
 import ro.garajulmeu.security.AccessTokenService;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
@@ -74,6 +78,9 @@ class VehicleDocumentFlowTest {
 	/** Unused. Present only so this class shares AuthFlowTest's context. */
 	@MockitoBean
 	private EmailProvider emailProvider;
+	
+	@Autowired
+	private ReminderRepository reminderRepository;
 
 	private record Account(UUID id, String token) {
 	}
@@ -544,6 +551,126 @@ class VehicleDocumentFlowTest {
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger.token()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("VEHICLE_NOT_FOUND"));
+	}
+	
+	private List<Reminder> remindersOf(UUID documentId) {
+		return reminderRepository.findByVehicleDocumentIdOrderByScheduledAt(documentId);
+	}
+
+	/** Section 12's six default offsets, scheduled the moment a document exists. */
+	@Test
+	void addingADocumentSchedulesItsReminders() throws Exception {
+		Account account = givenAccount("reminders@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000040");
+
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("RCA", null, today().plusDays(200), "")))
+				.andExpect(status().isCreated());
+
+		VehicleDocument stored = documentRepository.findAll().getFirst();
+
+		assertThat(remindersOf(stored.getId()))
+				.extracting(Reminder::getOffsetDays)
+				.containsExactly(30, 14, 7, 3, 1, 0);
+		assertThat(remindersOf(stored.getId()))
+				.allMatch(reminder -> reminder.getStatus() == ReminderStatus.PENDING);
+	}
+
+	/** A policy expiring in two days gets two reminders, not six at once. */
+	@Test
+	void aDocumentExpiringSoonSchedulesOnlyTheOffsetsStillAhead() throws Exception {
+		Account account = givenAccount("soon@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000041");
+
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("ITP", null, today().plusDays(2), "")))
+				.andExpect(status().isCreated());
+
+		VehicleDocument stored = documentRepository.findAll().getFirst();
+
+		assertThat(remindersOf(stored.getId()))
+				.extracting(Reminder::getOffsetDays)
+				.containsExactly(1, 0);
+	}
+
+	/**
+	 * Section 12: changing the date cancels the obsolete set and generates a new
+	 * one. The old rows are cancelled rather than removed, so the history still
+	 * explains why nothing arrived.
+	 */
+	@Test
+	void correctingTheExpiryCancelsTheOldRemindersAndSchedulesNewOnes() throws Exception {
+		Account account = givenAccount("recompute@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000042");
+
+		VehicleDocument document = documentRepository.saveAndFlush(
+				new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(200)));
+		mockMvc.perform(patch(path(vehicleId) + "/" + document.getId())
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("RCA", null, today().plusDays(400), "")))
+				.andExpect(status().isOk());
+
+		assertThat(remindersOf(document.getId()))
+				.filteredOn(reminder -> reminder.getStatus() == ReminderStatus.PENDING)
+				.extracting(Reminder::getOffsetDays)
+				.containsExactly(30, 14, 7, 3, 1, 0);
+	}
+
+	/**
+	 * Section 12's renewal clause. The superseded record keeps its row and its
+	 * dates - 10.3 - but loses its warnings, because they are about an expiry that
+	 * has been replaced.
+	 */
+	@Test
+	void renewingCancelsTheSupersededRemindersAndSchedulesTheNewOnes() throws Exception {
+		Account account = givenAccount("renewreminders@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000043");
+
+		VehicleDocument original = documentRepository.saveAndFlush(
+				new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(200)));
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("RCA", null, today().plusDays(200), "")))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(null, today().plusDays(560), "")))
+				.andExpect(status().isCreated());
+
+		assertThat(remindersOf(original.getId()))
+				.allMatch(reminder -> reminder.getStatus() == ReminderStatus.CANCELLED);
+		assertThat(documentRepository.findById(original.getId()).orElseThrow().getValidUntil())
+				.isEqualTo(today().plusDays(200));
+	}
+
+	/** Deleting the document takes its reminders by foreign key. */
+	@Test
+	void deletingADocumentTakesItsRemindersWithIt() throws Exception {
+		Account account = givenAccount("deletereminders@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000044");
+
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("RCA", null, today().plusDays(200), "")))
+				.andExpect(status().isCreated());
+
+		VehicleDocument stored = documentRepository.findAll().getFirst();
+		assertThat(remindersOf(stored.getId())).isNotEmpty();
+
+		mockMvc.perform(delete(path(vehicleId) + "/" + stored.getId())
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(status().isNoContent());
+
+		assertThat(reminderRepository.count()).isZero();
 	}
 
 	@Test
