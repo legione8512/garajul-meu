@@ -430,6 +430,121 @@ class VehicleDocumentFlowTest {
 
 		assertThat(documentRepository.count()).isEqualTo(1);
 	}
+	
+	private String historyPath(UUID vehicleId) {
+		return "/api/v1/vehicles/" + vehicleId + "/history";
+	}
+
+	/**
+	 * The history is the records themselves - section 1 asks for renewal history
+	 * "without overwriting previous records", and section 10 declares no event log
+	 * to keep one in. This is the same assertion as 10.3's, read from the other
+	 * end: what renewal declines to touch is exactly what history shows.
+	 */
+	@Test
+	void theHistoryKeepsSupersededRecordsNewestEntryFirst() throws Exception {
+		Account account = givenAccount("history@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000030");
+
+		VehicleDocument original = documentRepository.saveAndFlush(
+				new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10)));
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(null, today().plusDays(376), "")))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(get(historyPath(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(2))
+				.andExpect(jsonPath("$.items.length()").value(2))
+				.andExpect(jsonPath("$.items[1].id").value(original.getId().toString()));
+	}
+
+	@Test
+	void theHistoryCanBeNarrowedToOneType() throws Exception {
+		Account account = givenAccount("filter@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000031");
+
+		documentRepository.saveAndFlush(new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10)));
+		documentRepository.saveAndFlush(new VehicleDocument(vehicleId, DocumentType.ITP, today().plusDays(20)));
+
+		mockMvc.perform(get(historyPath(vehicleId) + "?type=ITP")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.items[0].type").value("ITP"));
+	}
+
+	/** The same code the write path uses, so a typo in a filter is not silently everything. */
+	@Test
+	void anUnrecognisedFilterIsNamedRatherThanIgnored() throws Exception {
+		Account account = givenAccount("badfilter@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000032");
+
+		mockMvc.perform(get(historyPath(vehicleId) + "?type=VIGNETTE")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_TYPE_INVALID"));
+	}
+
+	/**
+	 * Without a ceiling, one request asks for every row a vehicle has ever had.
+	 * The answer is the most it may have rather than an error, because pagination
+	 * is navigation and a caller moving through a list should not have to handle a
+	 * failure for asking to move too far.
+	 */
+	@Test
+	void anOversizedPageIsClampedRatherThanRefused() throws Exception {
+		Account account = givenAccount("clamp@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000033");
+
+		documentRepository.saveAndFlush(new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10)));
+
+		mockMvc.perform(get(historyPath(vehicleId) + "?size=5000&page=-3")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.size").value(100))
+				.andExpect(jsonPath("$.page").value(0));
+	}
+
+	@Test
+	void theSecondPageCarriesTheRestAndTheTotalsAgree() throws Exception {
+		Account account = givenAccount("paging@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000034");
+
+		for (int i = 1; i <= 3; i++) {
+			documentRepository.saveAndFlush(
+					new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(i * 10)));
+		}
+
+		mockMvc.perform(get(historyPath(vehicleId) + "?size=2&page=0")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(jsonPath("$.items.length()").value(2))
+				.andExpect(jsonPath("$.totalElements").value(3))
+				.andExpect(jsonPath("$.totalPages").value(2));
+
+		mockMvc.perform(get(historyPath(vehicleId) + "?size=2&page=1")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(jsonPath("$.items.length()").value(1))
+				.andExpect(jsonPath("$.page").value(1));
+	}
+
+	@Test
+	void anotherAccountsHistoryIsNotFound() throws Exception {
+		Account owner = givenAccount("histowner@example.com");
+		Account stranger = givenAccount("histstranger@example.com");
+		UUID vehicleId = givenVehicle(owner.id(), "VF1AAAAAAAA000035");
+
+		documentRepository.saveAndFlush(new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10)));
+
+		mockMvc.perform(get(historyPath(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger.token()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("VEHICLE_NOT_FOUND"));
+	}
 
 	@Test
 	void everyEndpointRefusesACallerWithNoToken() throws Exception {
@@ -447,5 +562,6 @@ class VehicleDocumentFlowTest {
 						.contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(delete(path(vehicleId) + "/" + documentId)).andExpect(status().isUnauthorized());
+		mockMvc.perform(get(historyPath(vehicleId))).andExpect(status().isUnauthorized());
 	}
 }

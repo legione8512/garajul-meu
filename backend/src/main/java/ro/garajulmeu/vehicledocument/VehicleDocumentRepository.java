@@ -3,7 +3,8 @@ package ro.garajulmeu.vehicledocument;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -53,4 +54,28 @@ public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument
 			where v.userId = :userId
 			""")
 	List<VehicleDocument> ofGarage(@Param("userId") UUID userId);
+	
+	/**
+	 * Every record ever kept for a vehicle, newest first, optionally of one type.
+	 *
+	 * <p>Section 10.4 annotates {@code created_at} as "Audit/history ordering", so
+	 * this orders by when a record was *entered* rather than by the period it
+	 * covers - a correction typed today belongs at the top even if it fixes a
+	 * policy from last year. **The second key is a tie-break, not a preference**:
+	 * two rows written in the same microsecond would otherwise come back in an
+	 * order the database is free to choose, and a test that passes on luck is
+	 * worse than one that fails.
+	 *
+	 * <p>The optional filter is a null-tolerant comparison rather than a second
+	 * finder, so the ownership join is written once.
+	 */
+	@Query("""
+			select d from VehicleDocument d
+			join Vehicle v on v.id = d.vehicleId
+			where d.vehicleId = :vehicleId and v.userId = :userId
+				and (:type is null or d.type = :type)
+			order by d.createdAt desc, d.validUntil desc
+			""")
+	Page<VehicleDocument> historyOf(@Param("vehicleId") UUID vehicleId, @Param("userId") UUID userId,
+			@Param("type") DocumentType type, Pageable pageable);
 }

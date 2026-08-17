@@ -1,6 +1,10 @@
 package ro.garajulmeu.vehicledocument;
 
 import java.time.Clock;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
+import ro.garajulmeu.common.PageResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -25,6 +29,16 @@ import ro.garajulmeu.vehicledocument.dto.SaveDocumentRequest;
 public class VehicleDocumentService {
 
 	private static final Logger log = LoggerFactory.getLogger(VehicleDocumentService.class);
+	
+	/** Enough for a screenful; the client asks for more by asking for page two. */
+	private static final int DEFAULT_PAGE_SIZE = 20;
+
+	/**
+	 * Without a ceiling, one request can ask for every row a vehicle has ever had.
+	 * A hundred is far more than screen 14 shows and far less than a page anybody
+	 * would want to render.
+	 */
+	private static final int MAX_PAGE_SIZE = 100;
 
 	private final VehicleDocumentRepository documentRepository;
 	private final VehicleRepository vehicleRepository;
@@ -121,6 +135,42 @@ public class VehicleDocumentService {
 		documentRepository.delete(document);
 		documentRepository.flush();
 		log.info("Deleted document {} of vehicle {}", documentId, vehicleId);
+	}
+	
+	/**
+	 * Section 16's chronological history. It adds no table and no entity: section
+	 * 1 puts the history in the records themselves - "document renewal history
+	 * without overwriting previous records" - and section 10 declares no event log
+	 * to keep it in. Superseded records are the history, which is precisely why
+	 * renewal never touches them.
+	 *
+	 * <p><strong>Page size is clamped rather than refused.</strong> Pagination is
+	 * navigation, not data: a caller asking for five thousand rows is asking to
+	 * move through the list, and answering with the most it may have is more
+	 * useful than an error it has to handle. A negative page is the same mistake
+	 * and gets the same treatment.
+	 */
+	@Transactional(readOnly = true)
+	public PageResponse<DocumentDetails> historyOf(UUID accountId, UUID vehicleId,
+			String type, Integer page, Integer size) {
+		requireVehicle(accountId, vehicleId);
+
+		DocumentType filter = type == null ? null : DocumentType.of(type)
+				.orElseThrow(() -> new ApiException(ErrorCode.DOCUMENT_TYPE_INVALID));
+
+		int wantedPage = Math.max(0, page == null ? 0 : page);
+		int wantedSize = Math.clamp(size == null ? DEFAULT_PAGE_SIZE : size, 1, MAX_PAGE_SIZE);
+
+		LocalDate today = todayFor(accountId);
+		Page<VehicleDocument> found = documentRepository.historyOf(
+				vehicleId, accountId, filter, PageRequest.of(wantedPage, wantedSize));
+
+		return new PageResponse<>(
+				found.getContent().stream().map(document -> view(document, today)).toList(),
+				found.getNumber(),
+				found.getSize(),
+				found.getTotalElements(),
+				found.getTotalPages());
 	}
 
 	/**
