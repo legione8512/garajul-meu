@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import ro.garajulmeu.ocr.CertificateCode.Kind;
 import ro.garajulmeu.ocr.OcrDocument.Block;
+import ro.garajulmeu.ocr.OcrDocument.Box;
 
 /**
  * Turns what a provider read into what the certificate screen can show.
@@ -29,10 +30,15 @@ import ro.garajulmeu.ocr.OcrDocument.Block;
  * printed code is on the same line as its value in every photograph of a
  * certificate, however it was taken.
  *
- * <p>The value taken is the nearest block to the right of the code on the same
- * line. That places a constraint on the adapter in 9.3: Document AI must be
- * asked for blocks at word or line granularity, because a provider returning one
- * block per paragraph would hand back the code and the value fused together.
+ * <p><strong>A value is several words, and the gaps say which ones.</strong>
+ * Document AI reports one token per word, so "AUTOTURISM M1" arrives as two
+ * blocks and taking the nearest one alone would propose half a category. The
+ * words of one value are joined while the gap between them stays small. The
+ * numbers are measured rather than chosen: on a photographed certificate put
+ * through the real processor, words inside one value sat at most 0.006 apart, a
+ * code sat 0.001 to 0.028 from the first word of its own value, and the nearest
+ * thing belonging to another cell was 0.044 away. {@link #VALUE_GAP} sits in
+ * that empty corridor.
  */
 @Component
 public class RomanianRegistrationCertificateMapper {
@@ -46,6 +52,27 @@ public class RomanianRegistrationCertificateMapper {
 
 	/** Seventeen characters, and never I, O or Q - they would be read as 1 and 0. */
 	private static final String VIN_PATTERN = "[A-HJ-NPR-Z0-9]{17}";
+
+	/**
+	 * The widest gap that still belongs inside one cell, as a fraction of the page
+	 * width. Above the largest measured code-to-value gap (0.028) and below the
+	 * smallest measured gap to the next cell (0.044).
+	 */
+	private static final double VALUE_GAP = 0.035;
+
+	/**
+	 * The gap at which two words were printed apart rather than touching. A plate
+	 * arrives as "CT" "-" "92" with gaps of 0.001 and an address as "Str" "."
+	 * "ENACHITA" with 0.001 then 0.006; joining everything with a space would
+	 * propose "CT - 92". The provider measured the space, so it is read rather
+	 * than guessed.
+	 */
+	private static final double SPACE_GAP = 0.002;
+
+	/** Down the page, then across it - so the same photograph always maps the same way. */
+	private static final Comparator<Block> READING_ORDER =
+			Comparator.<Block>comparingDouble(block -> block.box().y())
+					.thenComparingDouble(block -> block.box().x());
 
 	private final OcrProperties properties;
 
@@ -63,37 +90,48 @@ public class RomanianRegistrationCertificateMapper {
 		return new OcrScan(List.copyOf(proposals));
 	}
 
+	/**
+	 * <p>A photographed certificate carries marks that read as codes but are not:
+	 * a filled one produced a second "A" nowhere near the registration number.
+	 * Anchors are therefore taken in reading order rather than in whatever order
+	 * the provider listed them, and the first one that actually has a value beside
+	 * it wins - a lone letter with empty page to its right cannot take a field
+	 * away from the printed code.
+	 */
 	private OcrScan.ProposedField propose(CertificateCode code, OcrDocument document) {
-		Optional<Block> anchor = document.blocks().stream()
+		List<Block> anchors = document.blocks().stream()
 				.filter(block -> CertificateCode.ofPrinted(block.text())
 						.filter(found -> found == code).isPresent())
-				.findFirst();
+				.filter(block -> isNotSomebodyElsesValue(block, document))
+				.sorted(READING_ORDER)
+				.toList();
 
-		if (anchor.isEmpty()) {
-			return nothing(code);
+		for (Block anchor : anchors) {
+			Optional<Block> value = valueRightOf(anchor, document);
+			if (value.isPresent()) {
+				return proposalFrom(code, value.get());
+			}
 		}
 
-		Optional<Block> value = valueBesideThe(anchor.get(), document);
-		if (value.isEmpty()) {
-			return nothing(code);
-		}
+		return nothing(code);
+	}
 
-		Block block = value.get();
-		Optional<String> usable = read(code.kind(), block.text());
+	private OcrScan.ProposedField proposalFrom(CertificateCode code, Block value) {
+		Optional<String> usable = read(code.kind(), value.text());
 
 		if (usable.isEmpty()) {
 			// Something was read and it does not hold up - a date nobody can parse,
 			// a VIN of the wrong shape. The text is deliberately not proposed: the
 			// field could not display it, and an empty box asking to be checked is
 			// honest where a box full of nonsense is not.
-			return new OcrScan.ProposedField(code.field(), null, block.confidence(), FieldStatus.NEEDS_REVIEW);
+			return new OcrScan.ProposedField(code.field(), null, value.confidence(), FieldStatus.NEEDS_REVIEW);
 		}
 
-		FieldStatus status = block.confidence() >= properties.confidenceThreshold()
+		FieldStatus status = value.confidence() >= properties.confidenceThreshold()
 				? FieldStatus.DETECTED
 				: FieldStatus.NEEDS_REVIEW;
 
-		return new OcrScan.ProposedField(code.field(), usable.get(), block.confidence(), status);
+		return new OcrScan.ProposedField(code.field(), usable.get(), value.confidence(), status);
 	}
 
 	private static OcrScan.ProposedField nothing(CertificateCode code) {
@@ -101,23 +139,109 @@ public class RomanianRegistrationCertificateMapper {
 	}
 
 	/**
-	 * The nearest block to the right of the code, on the same line.
+	 * A word that sits in another code's value box is that value, not a code.
 	 *
-	 * <p>"The same line" is measured from the centres, with the code's own height
-	 * as the tolerance - a photograph is never perfectly square to the camera, and
-	 * demanding equal tops would lose the value on any picture taken by hand.
+	 * <p>Half the plates in the country begin with B, and B is also the code for
+	 * the first registration date. Without this, a Bucharest certificate would
+	 * offer "100 ABC" as a date. The test is the same corridor the join uses: no
+	 * genuine code had another cell's content within {@link #VALUE_GAP} to its
+	 * left on any of the twenty-seven codes measured.
 	 */
-	private static Optional<Block> valueBesideThe(Block anchor, OcrDocument document) {
-		double anchorCentre = anchor.box().y() + anchor.box().height() / 2;
-		double anchorRight = anchor.box().x() + anchor.box().width();
-		double tolerance = anchor.box().height();
-
+	private static boolean isNotSomebodyElsesValue(Block block, OcrDocument document) {
 		return document.blocks().stream()
+				.filter(other -> other != block)
+				.filter(other -> CertificateCode.ofPrinted(other.text()).isPresent())
+				.noneMatch(other -> sitsInTheValueBoxOf(block, other));
+	}
+
+	/**
+	 * "The same line" is measured from the centres, with the code's own height as
+	 * the tolerance - a photograph is never perfectly square to the camera, and
+	 * demanding equal tops would lose the value on any picture taken by hand. The
+	 * lower bound on the gap is not zero because a value may be printed a hair
+	 * inside its code's box: a power reading overlapped its P.2 by 0.004.
+	 */
+	private static boolean sitsInTheValueBoxOf(Block block, Block anchor) {
+		if (Math.abs(centreOf(block) - centreOf(anchor)) > anchor.box().height()) {
+			return false;
+		}
+
+		double gap = block.box().x() - rightOf(anchor);
+		return gap <= VALUE_GAP && gap >= -anchor.box().width() / 2;
+	}
+
+	/** The words to the right of the code, up to the gap that means another cell. */
+	private static Optional<Block> valueRightOf(Block anchor, OcrDocument document) {
+		List<Block> line = document.blocks().stream()
 				.filter(block -> block != anchor)
-				.filter(block -> block.box().x() >= anchorRight - anchor.box().width() / 2)
-				.filter(block -> Math.abs(block.box().y() + block.box().height() / 2 - anchorCentre) <= tolerance)
-				.filter(block -> CertificateCode.ofPrinted(block.text()).isEmpty())
-				.min(Comparator.comparingDouble(block -> block.box().x()));
+				.filter(block -> block.box().x() > anchor.box().x())
+				.filter(block -> Math.abs(centreOf(block) - centreOf(anchor)) <= anchor.box().height())
+				.sorted(Comparator.comparingDouble(block -> block.box().x()))
+				.toList();
+
+		List<Block> words = new ArrayList<>();
+		double edge = rightOf(anchor);
+
+		for (Block block : line) {
+			double gap = block.box().x() - edge;
+
+			if (words.isEmpty() && gap < -anchor.box().width() / 2) {
+				continue;
+			}
+			if (gap > VALUE_GAP) {
+				break;
+			}
+			// Not for the first word: a plate beginning with B is a value, not the
+			// date code. From the second word on, a code means the next cell.
+			if (!words.isEmpty() && CertificateCode.ofPrinted(block.text()).isPresent()) {
+				break;
+			}
+
+			words.add(block);
+			edge = Math.max(edge, rightOf(block));
+		}
+
+		return words.isEmpty() ? Optional.empty() : Optional.of(joined(words));
+	}
+
+	/**
+	 * One block standing for the whole value. The confidence is the worst of the
+	 * words, because a value is only as trustworthy as its least certain part -
+	 * an address read perfectly except for the town is not a good address.
+	 */
+	private static Block joined(List<Block> words) {
+		Block first = words.getFirst();
+		StringBuilder text = new StringBuilder(first.text());
+		double confidence = first.confidence();
+		double left = first.box().x();
+		double top = first.box().y();
+		double right = rightOf(first);
+		double bottom = bottomOf(first);
+
+		for (Block word : words.subList(1, words.size())) {
+			if (word.box().x() - right >= SPACE_GAP) {
+				text.append(' ');
+			}
+			text.append(word.text());
+			confidence = Math.min(confidence, word.confidence());
+			top = Math.min(top, word.box().y());
+			right = Math.max(right, rightOf(word));
+			bottom = Math.max(bottom, bottomOf(word));
+		}
+
+		return new Block(text.toString(), confidence, new Box(left, top, right - left, bottom - top));
+	}
+
+	private static double centreOf(Block block) {
+		return block.box().y() + block.box().height() / 2;
+	}
+
+	private static double rightOf(Block block) {
+		return block.box().x() + block.box().width();
+	}
+
+	private static double bottomOf(Block block) {
+		return block.box().y() + block.box().height();
 	}
 
 	/**
