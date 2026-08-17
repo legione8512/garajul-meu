@@ -20,15 +20,26 @@ interface Settled<T> {
  * Reads one address and reports the three states a screen has to draw.
  *
  * <p>Section 3 lists the frontend stack without a data-fetching library, so this
- * is hand-written for the same reason the forms are: three screens with one GET
- * each do not carry TanStack Query's weight. Revisit at Phase 10, where deleting
- * a document has to refresh a list on another screen - that is the problem a
- * cache solves and this does not.
+ * is hand-written for the same reason the forms are: a handful of screens with
+ * one GET each do not carry TanStack Query's weight.
+ *
+ * <p><strong>Phase 10 was the review this used to schedule, and the answer was
+ * no.</strong> The note here said that deleting a document would have to refresh
+ * a list on another screen, and that a cache solves that where this does not.
+ * Phase 10 shipped screens 11, 13, 14 and the dashboard, and nothing went stale
+ * - because there is no cache to go stale. Every mount fetches, so a screen
+ * arrived at after a change anywhere always shows the change. The cost is a
+ * request per mount, and the invalidation problem only exists once something is
+ * kept. Revisit if a screen ever has to show data changed by another screen
+ * **without a navigation between them**, which is a different problem and the
+ * only one a cache would be earning its keep against.
  *
  * <p><strong>The dependency is a path, not a function.</strong> A hook taking
  * {@code () => apiFetch(...)} re-runs on every render, because the caller builds
  * a new function each time and the effect sees a changed dependency - the screen
- * then reloads itself forever. A string cannot do that.
+ * then reloads itself forever. A string cannot do that, and it is also what lets
+ * a filter and a page number live in the address: screen 14 changes either and
+ * the reload needs no further wiring.
  *
  * <p><strong>Loading is derived, not stored.</strong> Setting a flag at the top
  * of the effect would re-render the component before the request had even been

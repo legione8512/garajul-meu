@@ -112,3 +112,29 @@ export function renewDocument(
 export function deleteDocument(vehicleId: string, documentId: string): Promise<void> {
   return apiFetch<void>(documentPath(vehicleId, documentId), { method: 'DELETE' })
 }
+
+/**
+ * The chronological history of one vehicle's documents, section 16's paginated
+ * endpoint.
+ *
+ * <p>The filter and the page live in the path rather than in component state
+ * because `useResource` keys its effect on the path string: changing either
+ * changes the string, and the screen reloads without any further machinery.
+ * Absent parameters are omitted rather than sent empty, so the default page has
+ * a clean address.
+ */
+export function historyPath(
+  vehicleId: string, options: { readonly type?: string, readonly page?: number } = {},
+): string {
+  const query = new URLSearchParams()
+
+  if (options.type !== undefined && options.type !== '') {
+    query.set('type', options.type)
+  }
+  if (options.page !== undefined && options.page > 0) {
+    query.set('page', String(options.page))
+  }
+
+  const suffix = query.toString()
+  return `/api/v1/vehicles/${vehicleId}/history${suffix === '' ? '' : `?${suffix}`}`
+}

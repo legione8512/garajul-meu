@@ -48,6 +48,7 @@ export const ro = {
   },
   dashboard: {
     empty: 'Aici vei vedea documentele care urmează să expire. Deocamdată nu ai niciun vehicul.',
+    configure: 'Documente și expirări',
   },
   garage: {
     empty: 'Garajul tău e gol. Vehiculele pe care le adaugi vor apărea aici.',
@@ -179,6 +180,17 @@ export const ro = {
       notCovered: 'Nu ești acoperit azi.',
       notConfigured: 'Neconfigurat.',
     },
+  },
+    history: {
+    title: 'Istoric',
+    open: 'Istoricul documentelor',
+    filter: 'Arată doar',
+    allTypes: 'Toate tipurile',
+    none: 'Nicio înregistrare.',
+    page: 'Pagina {{page}} din {{pages}}.',
+    total: '{{total}} înregistrări în total.',
+    previous: 'Pagina anterioară',
+    next: 'Pagina următoare',
   },
   profile: {
     signOut: 'Ieși din cont',

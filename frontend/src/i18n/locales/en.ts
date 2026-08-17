@@ -46,6 +46,7 @@ export const en: typeof ro = {
   },
   dashboard: {
     empty: 'Documents about to expire will appear here. You have no vehicles yet.',
+    configure: 'Documents and expiry dates',
   },
   garage: {
     empty: 'Your garage is empty. Vehicles you add will appear here.',
@@ -177,6 +178,17 @@ export const en: typeof ro = {
       notCovered: 'You are not covered today.',
       notConfigured: 'Not configured.',
     },
+  },
+    history: {
+    title: 'History',
+    open: 'Document history',
+    filter: 'Show only',
+    allTypes: 'All types',
+    none: 'No records.',
+    page: 'Page {{page}} of {{pages}}.',
+    total: '{{total}} records in total.',
+    previous: 'Previous page',
+    next: 'Next page',
   },
   profile: {
     signOut: 'Sign out',

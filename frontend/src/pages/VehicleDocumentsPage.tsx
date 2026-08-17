@@ -89,6 +89,8 @@ export function VehicleDocumentsPage() {
 
       <p><Link to={paths.vehicle(vehicleId)}>{t('documents.backToVehicle')}</Link></p>
 
+      <p><Link to={paths.history(vehicleId)}>{t('history.open')}</Link></p>
+
       {loading && <p role="status">{t('common.loading')}</p>}
 
       {error !== null && <p role="alert">{t(errorMessageKey(error.code))}</p>}

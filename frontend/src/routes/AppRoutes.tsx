@@ -14,11 +14,12 @@ import { ProfilePage } from '../pages/ProfilePage.tsx'
 import { RegisterPage } from '../pages/RegisterPage.tsx'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage.tsx'
 import { VehicleDetailsPage } from '../pages/VehicleDetailsPage.tsx'
+import { VehicleDocumentDetailsPage } from '../pages/VehicleDocumentDetailsPage.tsx'
+import { VehicleDocumentsPage } from '../pages/VehicleDocumentsPage.tsx'
+import { VehicleHistoryPage } from '../pages/VehicleHistoryPage.tsx'
 import { VerifyEmailPage } from '../pages/VerifyEmailPage.tsx'
 import { WelcomePage } from '../pages/WelcomePage.tsx'
 import { paths } from './paths.ts'
-import { VehicleDocumentsPage } from '../pages/VehicleDocumentsPage.tsx'
-import { VehicleDocumentDetailsPage } from '../pages/VehicleDocumentDetailsPage.tsx'
 
 /**
  * The route table, deliberately separate from the Router that drives it.
@@ -39,8 +40,6 @@ export function AppRoutes() {
         <Route path={paths.forgotPassword} element={<ForgotPasswordPage />} />
         <Route path={paths.resetPassword} element={<ResetPasswordPage />} />
         <Route path="*" element={<NotFoundPage />} />
-        <Route path={paths.documentsPattern} element={<VehicleDocumentsPage />} />
-        <Route path={paths.documentPattern} element={<VehicleDocumentDetailsPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>
@@ -50,6 +49,9 @@ export function AppRoutes() {
           <Route path={paths.addVehicle} element={<AddVehiclePage />} />
           <Route path={paths.vehiclePattern} element={<VehicleDetailsPage />} />
           <Route path={paths.certificatePattern} element={<CertificatePage />} />
+          <Route path={paths.documentsPattern} element={<VehicleDocumentsPage />} />
+          <Route path={paths.documentPattern} element={<VehicleDocumentDetailsPage />} />
+          <Route path={paths.historyPattern} element={<VehicleHistoryPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
         </Route>
       </Route>

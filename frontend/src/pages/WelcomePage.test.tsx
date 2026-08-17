@@ -12,6 +12,11 @@ function jsonResponse(status: number, body: unknown): Response {
   })
 }
 
+const PROFILE = {
+  id: '1', fullName: 'Marius Robert', email: 'marius@example.com',
+  preferredLanguage: 'ro', timezone: 'Europe/Bucharest', emailVerified: true,
+}
+
 describe('welcome', () => {
   it('offers both ways in when nobody is signed in', async () => {
     renderApp(paths.welcome)
@@ -20,20 +25,36 @@ describe('welcome', () => {
     expect(screen.getByRole('link', { name: ro.welcome.createAccount })).toBeInTheDocument()
   })
 
-  /** The public landing page has nothing to offer somebody already signed in. */
+  /**
+   * The public landing page has nothing to offer somebody already signed in.
+   *
+   * <p>Answers by path and rejects anything else, the arrangement LoginPage's
+   * stub arrived at the hard way: a catch-all returning the profile served the
+   * dashboard a user account on 2026-08-17, and the crash appeared in this file
+   * while the change was in another one. Asserted on the heading for the same
+   * reason - this test is about where a signed-in visitor is sent, not about
+   * what that screen renders.
+   */
   it('sends a signed-in visitor to the dashboard', async () => {
-    vi.stubGlobal('fetch', vi.fn((input: string) => Promise.resolve(
-      input.includes('/auth/refresh')
-        ? jsonResponse(200, { accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null })
-        : jsonResponse(200, {
-            id: '1', fullName: 'Marius Robert', email: 'marius@example.com',
-            preferredLanguage: 'ro', timezone: 'Europe/Bucharest', emailVerified: true,
-          }),
-    )))
+    vi.stubGlobal('fetch', vi.fn((input: string) => {
+      if (input.includes('/auth/refresh')) {
+        return Promise.resolve(jsonResponse(200, {
+          accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
+        }))
+      }
+      if (input.includes('/users/me')) {
+        return Promise.resolve(jsonResponse(200, PROFILE))
+      }
+      if (input.includes('/api/v1/dashboard')) {
+        return Promise.resolve(jsonResponse(200, { vehicles: [] }))
+      }
+      return Promise.reject(new Error(`unstubbed request: ${input}`))
+    }))
 
     renderApp(paths.welcome)
 
-    expect(await screen.findByText(ro.dashboard.empty)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.dashboard }))
+      .toBeInTheDocument()
   })
 
   /**

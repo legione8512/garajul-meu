@@ -23,14 +23,18 @@ const PROFILE = {
 }
 
 /**
- * Answers by path, with no catch-all standing in for a screen that was not
- * thought about.
+ * Answers by path, and **refuses anything it was not told about**.
  *
  * <p>This used to end in a ternary whose last branch returned the profile for
  * anything that was not an auth call, and it broke the day the garage started
  * fetching: the garage received a user profile, found no length on it, and
- * rendered a heading and nothing else. The failure appeared in this file while
- * the change was in another one.
+ * rendered a heading and nothing else. It was rewritten then with a comment
+ * promising no catch-all - and kept one, returning the profile from its last
+ * line. On 2026-08-17 the identical failure arrived with the dashboard.
+ *
+ * <p>So the last line now rejects. A screen this file has never heard of fails
+ * loudly, in this file, naming the address it asked for - which is the only way
+ * the next person finds out here rather than three files away.
  */
 function stubSuccessfulSignIn() {
   vi.stubGlobal('fetch', vi.fn((input: string) => {
@@ -42,10 +46,16 @@ function stubSuccessfulSignIn() {
     if (input.includes('/auth/refresh')) {
       return Promise.resolve(jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' }))
     }
+    if (input.includes('/users/me')) {
+      return Promise.resolve(jsonResponse(200, PROFILE))
+    }
+    if (input.includes('/api/v1/dashboard')) {
+      return Promise.resolve(jsonResponse(200, { vehicles: [] }))
+    }
     if (input.includes('/api/v1/vehicles')) {
       return Promise.resolve(jsonResponse(200, []))
     }
-    return Promise.resolve(jsonResponse(200, PROFILE))
+    return Promise.reject(new Error(`unstubbed request: ${input}`))
   }))
 }
 
@@ -72,6 +82,13 @@ describe('sign in', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  /**
+   * Asserted on the heading, for the reason the test below already gives: this
+   * is about where signing in lands, and tying it to whatever that screen
+   * happens to render couples it to a page it is not testing. It was still
+   * reading the dashboard's empty state on 2026-08-17, and broke when the
+   * dashboard gained content.
+   */
   it('signs in and lands on the dashboard', async () => {
     renderApp(paths.login)
     await screen.findByRole('heading', { level: 1, name: ro.screens.login })
@@ -81,7 +98,8 @@ describe('sign in', () => {
     await fillIn('marius@example.com', 'a-long-enough-password')
     await userEvent.click(screen.getByRole('button', { name: ro.login.submit }))
 
-    expect(await screen.findByText(ro.dashboard.empty)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: ro.screens.dashboard }))
+      .toBeInTheDocument()
   })
 
   /**
