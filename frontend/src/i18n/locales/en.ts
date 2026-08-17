@@ -190,6 +190,28 @@ export const en: typeof ro = {
     previous: 'Previous page',
     next: 'Next page',
   },
+  reminders: {
+    title: 'Notifications',
+    nativeOnly: 'Push notifications arrive in the phone application, which does not exist yet. '
+      + 'Until then, document status is always visible on the dashboard.',
+    none: 'No reminders scheduled for this document.',
+    lead: {
+      onTheDay: 'On the day it expires:',
+      oneDay: 'One day before:',
+      // Identical on purpose. The split exists for Romanian, which needs "de"
+      // above nineteen; English gets the same sentence twice rather than a
+      // second mechanism to keep the two locales the same shape.
+      fewDays: '{{days}} days before:',
+      manyDays: '{{days}} days before:',
+    },
+    outcome: {
+      scheduled: 'scheduled for {{when}}.',
+      sending: 'sending now.',
+      sent: 'marked as sent on {{when}}.',
+      failed: 'could not be sent.',
+      cancelled: 'cancelled.',
+    },
+  },
   profile: {
     signOut: 'Sign out',
   },

@@ -14,6 +14,7 @@ import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
 import ro.garajulmeu.notification.NotificationPreferences;
 import ro.garajulmeu.notification.NotificationPreferencesService;
+import ro.garajulmeu.reminder.dto.ReminderView;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 import ro.garajulmeu.vehicledocument.VehicleDocument;
@@ -106,6 +107,32 @@ public class ReminderService {
 		for (VehicleDocument document : documentRepository.ofGarage(accountId)) {
 			reconcile(accountId, document);
 		}
+	}
+
+	/**
+	 * What one document's reminders look like to its owner. Section 16's
+	 * "read scheduled reminder view".
+	 *
+	 * <p><strong>The document lookup is the ownership check, and it runs
+	 * first.</strong> Reading the reminders of a document that belongs to somebody
+	 * else would answer an empty list, which is indistinguishable from a document
+	 * that has none - so the caller would learn nothing, and would also learn
+	 * nothing when the identifier was simply wrong. Section 15's rule is that
+	 * knowing a UUID is never enough; answering DOCUMENT_NOT_FOUND is how that is
+	 * said out loud.
+	 */
+	@Transactional(readOnly = true)
+	public List<ReminderView> scheduleOf(UUID accountId, UUID vehicleId, UUID documentId) {
+		documentRepository.byIdOfVehicle(documentId, vehicleId, accountId)
+				.orElseThrow(() -> new ApiException(ErrorCode.DOCUMENT_NOT_FOUND));
+
+		return reminderRepository
+				.findByVehicleDocumentIdAndStatusNotOrderByScheduledAt(documentId,
+						ReminderStatus.CANCELLED)
+				.stream()
+				.map(reminder -> new ReminderView(reminder.getOffsetDays(),
+						reminder.getScheduledAt(), reminder.getStatus(), reminder.getSentAt()))
+				.toList();
 	}
 
 	/**

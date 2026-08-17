@@ -57,6 +57,23 @@ function stubDocument(read: () => Response, write?: () => Response): Sent {
         accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
       }))
     }
+
+        // First of everything that follows, and the ordering is load-bearing twice
+    // over: a reminders path contains "/documents/" *and* the document's own id,
+    // so either later branch would swallow it and answer an object where the
+    // screen expects an array. The catch-all at the bottom would answer PROFILE,
+    // which is the crash that has now been introduced three times in this
+    // project by exactly this shape of stub.
+    if (input.includes('/reminders')) {
+      return Promise.resolve(jsonResponse(200, [
+        { offsetDays: 30, scheduledAt: '2026-11-01T07:00:00Z', status: 'PENDING', sentAt: null },
+        {
+          offsetDays: 14, scheduledAt: '2026-11-17T07:00:00Z',
+          status: 'SENT', sentAt: '2026-11-17T07:00:12Z',
+        },
+      ]))
+    }
+
     // Before the document branches, deliberately: the renew path ends in the
     // document's own id, so checking that one first would send every renewal to
     // the read stub and the test would pass for the wrong reason.
@@ -218,5 +235,26 @@ describe('document details', () => {
       .toHaveTextContent(ro.errors.DOCUMENT_NOT_FOUND)
     expect(screen.queryByRole('button', { name: ro.documents.saveCorrection }))
       .not.toBeInTheDocument()
+  })
+    /**
+   * The list, and the sentence that keeps it honest. Every reminder in V1 web
+   * completes having reached nothing - section 18 makes push native-only - so a
+   * screen showing "sent" without the standing note would mislead every current
+   * user. Both are asserted together for that reason.
+   */
+  it('lists the reminders and says where they have not yet arrived', async () => {
+    stubDocument(() => jsonResponse(200, STORED))
+
+    await open()
+
+    expect(await screen.findByText(
+      ro.reminders.lead.manyDays.replace('{{days}}', '30'), { exact: false },
+    )).toBeInTheDocument()
+
+    expect(screen.getByText(
+      ro.reminders.lead.fewDays.replace('{{days}}', '14'), { exact: false },
+    )).toBeInTheDocument()
+
+    expect(screen.getByText(ro.reminders.nativeOnly)).toBeInTheDocument()
   })
 })

@@ -192,6 +192,31 @@ export const ro = {
     previous: 'Pagina anterioară',
     next: 'Pagina următoare',
   },
+  reminders: {
+    title: 'Notificări',
+    // Section 18 makes push native-only, and section 18 also names what the web
+    // does instead. Both halves are said here because a screen listing "sent"
+    // reminders without the first half is telling every current user something
+    // false about their own car.
+    nativeOnly: 'Notificările push ajung în aplicația de telefon, care încă nu există. '
+      + 'Până atunci, starea documentelor e mereu vizibilă pe tabloul de bord.',
+    none: 'Niciun reminder programat pentru acest document.',
+    lead: {
+      onTheDay: 'În ziua expirării:',
+      oneDay: 'Cu o zi înainte:',
+      fewDays: 'Cu {{days}} zile înainte:',
+      manyDays: 'Cu {{days}} de zile înainte:',
+    },
+    outcome: {
+      scheduled: 'programat pentru {{when}}.',
+      sending: 'se trimite acum.',
+      // "Marcat ca trimis", not "trimis": in V1 web the reminder completed
+      // having reached no device at all, and the wording says so.
+      sent: 'marcat ca trimis pe {{when}}.',
+      failed: 'nu a putut fi trimis.',
+      cancelled: 'anulat.',
+    },
+  },
   profile: {
     signOut: 'Ieși din cont',
   },

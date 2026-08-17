@@ -9,6 +9,7 @@ import { useResource } from '../api/useResource.ts'
 import { FormError } from '../components/FormError.tsx'
 import { SelectField } from '../components/SelectField.tsx'
 import { DocumentFields } from '../documents/DocumentFields.tsx'
+import { DocumentReminders } from '../documents/DocumentReminders.tsx'
 import {
   EMPTY_PERIOD, periodBody, periodOf, periodRules,
   type PeriodField, type PeriodValues,
@@ -29,7 +30,9 @@ type Messages = Partial<Record<PeriodField, ValidationMessage>>
  * mounted when only a path parameter changes, so without this the person lands
  * on the record a renewal just created with the renewal form still holding what
  * created it, and with the previous document's corrections still in state. The
- * key forces a remount, which is the whole of the fix.
+ * key forces a remount, which is the whole of the fix - and it now carries the
+ * reminder list with it, which reads a different address per document and would
+ * otherwise show the superseded record's schedule.
  */
 export function VehicleDocumentDetailsPage() {
   const { documentId = '' } = useParams()
@@ -55,6 +58,11 @@ export function VehicleDocumentDetailsPage() {
  * control-flow analysis cannot see an assignment made inside the async callback,
  * so a local narrows to `never` after the null check - which fails outright when
  * a property is read from it, and, worse, passes silently when one is not.
+ *
+ * <p>The reminders sit between the state and the forms, and that is where they
+ * belong: the sentence above says what is true today, the list says what will be
+ * said about it later, and both are things to read before either form is a thing
+ * to do.
  */
 function DocumentScreen() {
   const { t, i18n } = useTranslation()
@@ -162,6 +170,8 @@ function DocumentScreen() {
             const state = stateOf(document, formatDate)
             return <p data-tone={state.tone}>{t(state.key, state.values)}</p>
           })()}
+
+          <DocumentReminders vehicleId={vehicleId} documentId={documentId} />
 
           <h2>{t('documents.correct')}</h2>
 

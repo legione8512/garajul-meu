@@ -11,16 +11,32 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * No account id here, unlike every other repository in the project, and
- * deliberately: nothing reachable from the API reads this table yet. The view
- * section 16 describes arrives in 11.5 and will be scoped there, through the
- * document that owns the reminder.
+ * <p><strong>No account id, unlike every other repository in this project - and
+ * that survived 11.5 on purpose.</strong> The endpoint section 16 describes is
+ * now implemented, so this table is finally readable from the API; ownership is
+ * checked one step earlier, by looking the document up through
+ * {@code VehicleDocumentRepository.byIdOfVehicle}, which already matches vehicle
+ * and account in SQL. Repeating the join here would be the same rule in two
+ * queries, and section 15's requirement is that ownership is enforced - not that
+ * every query enforces it twice.
  */
 public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
 
 	List<Reminder> findByVehicleDocumentIdAndStatus(UUID vehicleDocumentId, ReminderStatus status);
 
 	List<Reminder> findByVehicleDocumentIdOrderByScheduledAt(UUID vehicleDocumentId);
+
+	/**
+	 * What a reader is shown: everything except the cancelled, in firing order.
+	 *
+	 * <p>Cancelled rows are excluded rather than deleted. Each correction cancels
+	 * six reminders and schedules six more, so a document corrected three times
+	 * holds twenty-four rows of which eighteen are cancelled - a list that answers
+	 * neither "when will I be told" nor "was I told", while burying both. Section
+	 * 12 wants the rows kept, and they are.
+	 */
+	List<Reminder> findByVehicleDocumentIdAndStatusNotOrderByScheduledAt(UUID vehicleDocumentId,
+			ReminderStatus status);
 
 	/**
 	 * The scheduler's only question, answered with everything sending needs.
