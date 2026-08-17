@@ -17,6 +17,7 @@ import { VehicleDetailsPage } from '../pages/VehicleDetailsPage.tsx'
 import { VerifyEmailPage } from '../pages/VerifyEmailPage.tsx'
 import { WelcomePage } from '../pages/WelcomePage.tsx'
 import { paths } from './paths.ts'
+import { VehicleDocumentsPage } from '../pages/VehicleDocumentsPage.tsx'
 
 /**
  * The route table, deliberately separate from the Router that drives it.
@@ -37,6 +38,7 @@ export function AppRoutes() {
         <Route path={paths.forgotPassword} element={<ForgotPasswordPage />} />
         <Route path={paths.resetPassword} element={<ResetPasswordPage />} />
         <Route path="*" element={<NotFoundPage />} />
+        <Route path={paths.documentsPattern} element={<VehicleDocumentsPage />} />
       </Route>
 
       <Route element={<RequireAuth />}>

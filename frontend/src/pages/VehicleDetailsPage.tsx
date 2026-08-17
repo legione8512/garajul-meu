@@ -98,6 +98,7 @@ export function VehicleDetailsPage() {
 
       <p><Link to={paths.garage}>{t('vehicle.backToGarage')}</Link></p>
       <p><Link to={paths.certificate(vehicleId)}>{t('certificate.open')}</Link></p>
+      <p><Link to={paths.documents(vehicleId)}>{t('documents.open')}</Link></p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 

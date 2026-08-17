@@ -12,9 +12,15 @@ describe('backend error codes', () => {
   })
 
   /**
-   * The contract with the backend for everything Phase 5 can provoke. If one of
-   * these ever resolves to UNKNOWN, a real failure is being shown to somebody
-   * as "something went wrong" while the backend said exactly what happened.
+   * The contract with the backend for everything the application can provoke
+   * today. If one of these ever resolves to UNKNOWN, a real failure is being
+   * shown to somebody as "something went wrong" while the backend said exactly
+   * what happened.
+   *
+   * <p>Five codes in the enum are deliberately absent because nothing throws
+   * them - checked on 2026-08-17 rather than assumed: the two registration
+   * certificate codes, VEHICLE_ACCESS_DENIED, IMAGE_INVALID_TYPE and
+   * STORAGE_PROVIDER_UNAVAILABLE.
    */
   it('has wording for every code the backend can currently send', () => {
     const codes = [
@@ -30,7 +36,18 @@ describe('backend error codes', () => {
       'INVALID_CURRENT_PASSWORD',
       'VEHICLE_NOT_FOUND',
       'VEHICLE_DUPLICATE_VIN',
+      'DOCUMENT_NOT_FOUND',
+      'DOCUMENT_INVALID_DATE_RANGE',
+      'DOCUMENT_TYPE_INVALID',
+      'OCR_FILE_INVALID',
+      'OCR_RATE_LIMITED',
+      'OCR_PROVIDER_UNAVAILABLE',
+      'OCR_PROCESSING_FAILED',
+      'IMAGE_TOO_LARGE',
       'VALIDATION_ERROR',
+      'MALFORMED_REQUEST',
+      'RESOURCE_NOT_FOUND',
+      'METHOD_NOT_ALLOWED',
       'RATE_LIMITED',
       'INTERNAL_ERROR',
     ]
@@ -39,5 +56,14 @@ describe('backend error codes', () => {
       expect(errorMessageKey(code), code).not.toBe('errors.UNKNOWN')
       expect(ro.errors[code as keyof typeof ro.errors]).toBeTruthy()
     }
+
+    // The other direction, and the reason this test exists twice over. Checking
+    // only that listed codes have wording lets a translated code go unlisted,
+    // and a code nobody lists is a code nobody is checking - which is how
+    // Phase 9's five OCR codes sat outside this guard for two whole phases
+    // while appearing, translated, on real screens.
+    expect([...codes].sort()).toEqual(
+      Object.keys(ro.errors).filter(code => code !== 'UNKNOWN').sort(),
+    )
   })
 })

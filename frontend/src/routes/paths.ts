@@ -27,5 +27,7 @@ export const paths = {
   vehicle: (vehicleId: string) => `/garage/${vehicleId}`,
   certificatePattern: '/garage/:vehicleId/certificate',
   certificate: (vehicleId: string) => `/garage/${vehicleId}/certificate`,
+  documentsPattern: '/garage/:vehicleId/documents',
+  documents: (vehicleId: string) => `/garage/${vehicleId}/documents`,
   profile: '/profile',
 } as const
