@@ -131,9 +131,17 @@ export const en: typeof ro = {
       c3EqualsC1: 'The legal user is the holder (C3=C1)',
     },
   },
-    documents: {
+  documents: {
     title: 'Documents and expiry dates',
     open: 'Documents and expiry dates',
+    openOne: 'Open the document',
+    detailsTitle: 'Document',
+    backToList: 'Back to documents',
+    correct: 'Correct this document',
+    saveCorrection: 'Save the correction',
+    renew: 'Renew',
+    renewNote: 'Renewing creates a new record. This one stays in the history, untouched.',
+    saveRenewal: 'Save the renewal',
     backToVehicle: 'Back to the vehicle',
     none: 'No documents recorded for this vehicle.',
     add: 'Add a document',

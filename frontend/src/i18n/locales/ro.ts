@@ -133,9 +133,17 @@ export const ro = {
       c3EqualsC1: 'Utilizatorul este deținătorul (C3=C1)',
     },
   },
-    documents: {
+  documents: {
     title: 'Documente și expirări',
     open: 'Documente și expirări',
+    openOne: 'Deschide documentul',
+    detailsTitle: 'Document',
+    backToList: 'Înapoi la documente',
+    correct: 'Corectează documentul',
+    saveCorrection: 'Salvează corectura',
+    renew: 'Reînnoiește',
+    renewNote: 'Reînnoirea creează o înregistrare nouă. Cea de acum rămâne în istoric, neatinsă.',
+    saveRenewal: 'Salvează reînnoirea',
     backToVehicle: 'Înapoi la vehicul',
     none: 'Niciun document înregistrat pentru acest vehicul.',
     add: 'Adaugă un document',

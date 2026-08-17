@@ -8,46 +8,33 @@ import {
 import { useResource } from '../api/useResource.ts'
 import { FormError } from '../components/FormError.tsx'
 import { SelectField } from '../components/SelectField.tsx'
-import { TextField } from '../components/TextField.tsx'
+import { DocumentFields } from '../documents/DocumentFields.tsx'
+import {
+  EMPTY_PERIOD, periodBody, periodRules, type PeriodField, type PeriodValues,
+} from '../documents/fields.ts'
 import { dateFormatter, stateOf } from '../documents/status.ts'
-import { maxLength, required, type ValidationMessage } from '../forms/rules.ts'
+import type { ValidationMessage } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { validate } from '../forms/validate.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
 
-type Field = 'type' | 'validFrom' | 'validUntil' | 'provider' | 'referenceNumber' | 'notes'
-
-const rules = {
-  validUntil: [required],
-  provider: [maxLength(160)],
-  referenceNumber: [maxLength(64)],
-}
-
-const EMPTY: Record<Field, string> = {
-  type: 'RCA',
-  validFrom: '',
-  validUntil: '',
-  provider: '',
-  referenceNumber: '',
-  notes: '',
-}
-
-/** An empty input means "not given", which the API expects as null rather than "". */
-function orNull(value: string): string | null {
-  const trimmed = value.trim()
-  return trimmed === '' ? null : trimmed
-}
-
 /**
  * Screen 11 in specification section 5.
  *
- * <p>Correcting and renewing are screen 13 and are not here. This screen
- * configures: what documents exist, and adding or removing one.
+ * <p>This screen configures: what documents exist for a vehicle, and adding or
+ * removing one. Correcting and renewing are screen 13, reached from each entry -
+ * they operate on a single record and section 5 gives them a screen of their
+ * own.
+ *
+ * <p>The five period inputs come from DocumentFields rather than being written
+ * here, because three forms need the same ones and the backend makes the same
+ * separation with DocumentPeriod. What differs between adding, correcting and
+ * renewing is the type: this form has it, a renewal does not.
  *
  * <p>Deletion confirms in place rather than through window.confirm, as the
  * vehicle screen does - that dialog is written in the browser's language, not
- * the application's.
+ * the application's, so it would put untranslated text beside translated text.
  */
 export function VehicleDocumentsPage() {
   const { t, i18n } = useTranslation()
@@ -58,20 +45,17 @@ export function VehicleDocumentsPage() {
   const creation = useSubmission()
   const removal = useSubmission()
 
-  const [form, setForm] = useState<Record<Field, string>>(EMPTY)
-  const [messages, setMessages] = useState<Partial<Record<Field, ValidationMessage>>>({})
+  const [type, setType] = useState('RCA')
+  const [values, setValues] = useState<PeriodValues>(EMPTY_PERIOD)
+  const [messages, setMessages] = useState<Partial<Record<PeriodField, ValidationMessage>>>({})
   const [confirming, setConfirming] = useState<string | null>(null)
 
   const formatDate = dateFormatter(i18n.language)
 
-  function set(field: Field, value: string) {
-    setForm(previous => ({ ...previous, [field]: value }))
-  }
-
   async function handleAdd(event: FormEvent) {
     event.preventDefault()
 
-    const broken = validate(form, rules)
+    const broken = validate(values, periodRules)
     setMessages(broken)
 
     if (Object.keys(broken).length > 0) {
@@ -79,18 +63,11 @@ export function VehicleDocumentsPage() {
     }
 
     const failure = await creation.submit(async () => {
-      await addDocument(vehicleId, {
-        type: form.type,
-        validFrom: orNull(form.validFrom),
-        validUntil: form.validUntil,
-        provider: orNull(form.provider),
-        referenceNumber: orNull(form.referenceNumber),
-        notes: orNull(form.notes),
-      })
+      await addDocument(vehicleId, { type, ...periodBody(values) })
     })
 
     if (failure === null) {
-      setForm(EMPTY)
+      setValues(EMPTY_PERIOD)
       reload()
     }
   }
@@ -126,6 +103,12 @@ export function VehicleDocumentsPage() {
             return (
               <li key={document.id} data-tone={state.tone}>
                 <h2>{t(`documents.type.${document.type}`)}</h2>
+
+                <p>
+                  <Link to={paths.document(vehicleId, document.id)}>
+                    {t('documents.openOne')}
+                  </Link>
+                </p>
 
                 <p>
                   {document.validFrom == null
@@ -178,52 +161,20 @@ export function VehicleDocumentsPage() {
 
         <SelectField
           label={t('documents.fields.type')}
-          value={form.type}
-          options={documentTypes.map(type => ({
-            value: type,
-            label: t(`documents.type.${type}`),
+          value={type}
+          options={documentTypes.map(one => ({
+            value: one,
+            label: t(`documents.type.${one}`),
           }))}
-          onChange={(value) => { set('type', value) }}
+          onChange={(value) => { setType(value) }}
         />
 
-        <TextField
-          label={t('documents.fields.validFrom')}
-          type="date"
-          value={form.validFrom}
-          onChange={(value) => { set('validFrom', value) }}
-          message={messages.validFrom}
-        />
-
-        <TextField
-          label={t('documents.fields.validUntil')}
-          type="date"
-          value={form.validUntil}
-          onChange={(value) => { set('validUntil', value) }}
-          message={messages.validUntil}
-        />
-
-        <TextField
-          label={t('documents.fields.provider')}
-          value={form.provider}
-          maxLength={160}
-          onChange={(value) => { set('provider', value) }}
-          message={messages.provider}
-        />
-
-        <TextField
-          label={t('documents.fields.referenceNumber')}
-          value={form.referenceNumber}
-          maxLength={64}
-          onChange={(value) => { set('referenceNumber', value) }}
-          message={messages.referenceNumber}
-        />
-
-        <TextField
-          label={t('documents.fields.notes')}
-          multiline
-          value={form.notes}
-          onChange={(value) => { set('notes', value) }}
-          message={messages.notes}
+        <DocumentFields
+          values={values}
+          messages={messages}
+          onChange={(field, value) => {
+            setValues(previous => ({ ...previous, [field]: value }))
+          }}
         />
 
         <button type="submit" disabled={creation.pending}>{t('documents.save')}</button>

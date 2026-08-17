@@ -52,12 +52,11 @@ export interface DocumentDetails {
 }
 
 /**
- * What the form sends. The type is a plain string because that is what a select
- * yields and what the backend validates; narrowing it here would only move the
- * cast, not remove it.
+ * The period and its details, without the type. Mirrors the backend's
+ * DocumentPeriod, which exists there so section 12's rule about the pair of
+ * dates lives in one method rather than two.
  */
-export interface NewDocument {
-  readonly type: string
+export interface DocumentPeriodBody {
   readonly validFrom: string | null
   readonly validUntil: string
   readonly provider: string | null
@@ -65,10 +64,48 @@ export interface NewDocument {
   readonly notes: string | null
 }
 
+/**
+ * What adding and correcting send. The type is a plain string because that is
+ * what a select yields and what the backend validates by name; narrowing it here
+ * would move the cast rather than remove it.
+ */
+export interface NewDocument extends DocumentPeriodBody {
+  readonly type: string
+}
+
 export function addDocument(vehicleId: string, document: NewDocument): Promise<DocumentDetails> {
   return apiFetch<DocumentDetails>(documentsPath(vehicleId), {
     method: 'POST',
     body: JSON.stringify(document),
+  })
+}
+
+/**
+ * A correction replaces the record rather than patching it, which is why this
+ * sends every field including the ones left empty - an omitted optional means
+ * the user cleared it, and the backend reads it exactly that way.
+ */
+export function correctDocument(
+  vehicleId: string, documentId: string, document: NewDocument,
+): Promise<DocumentDetails> {
+  return apiFetch<DocumentDetails>(documentPath(vehicleId, documentId), {
+    method: 'PATCH',
+    body: JSON.stringify(document),
+  })
+}
+
+/**
+ * A renewal is a new row and answers as one: the returned document has a new
+ * identifier, and the record it supersedes is untouched. No type is sent,
+ * because it is taken from the record being renewed - that is what makes this a
+ * renewal rather than another document.
+ */
+export function renewDocument(
+  vehicleId: string, documentId: string, period: DocumentPeriodBody,
+): Promise<DocumentDetails> {
+  return apiFetch<DocumentDetails>(`${documentPath(vehicleId, documentId)}/renew`, {
+    method: 'POST',
+    body: JSON.stringify(period),
   })
 }
 
