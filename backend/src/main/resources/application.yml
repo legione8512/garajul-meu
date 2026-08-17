@@ -61,6 +61,15 @@ garajul-meu:
   # applications are phases 17 and 18; production overrides this with
   # "firebase" when there is something to deliver to.
     provider: logging
+  reminder:
+  # Section 19: exactly one instance runs this. Scaling the backend horizontally
+  # means turning it off everywhere but one, or designing the distributed lock
+  # that section defers - never simply raising the replica count.
+    scheduler-enabled: true
+    poll-interval-seconds: 60
+    batch-size: 50
+    max-attempts: 3
+    stale-after-minutes: 10
   cors:
     # Exact origins, never a wildcard: a wildcard cannot be combined with
     # credentials, and every request this API answers carries them.

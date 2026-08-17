@@ -34,6 +34,17 @@ garajul-meu:
   jwt:
     secret: "test-only-signing-key-never-used-outside-tests"
 
+  # The one seam here whose absent state is the safe one, and it still has to be
+  # written down. With scheduling enabled, every Spring test in the project would
+  # dispatch real reminders against its own container while it ran - so this is
+  # off, and ReminderDispatcherFlowTest calls runOnce() itself instead.
+  #
+  # The interval is repeated because @Scheduled resolves its placeholder from the
+  # environment like the conditions do, and this file shadows the one that has it.
+  reminder:
+    scheduler-enabled: false
+    poll-interval-seconds: 60
+
     # Needed because CorsTest asserts on a configured origin. Kept here rather
     # than in a @TestPropertySource on that class: per-test properties change the
     # Spring context cache key, which would start a fifth PostgreSQL container.

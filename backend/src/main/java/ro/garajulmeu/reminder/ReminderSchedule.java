@@ -44,8 +44,20 @@ public final class ReminderSchedule {
 	 *
 	 * <p>Zero is "on the day it expires", which is a reminder and not a formality:
 	 * section 11 makes that day the last one still covered.
+	 *
+	 * <p><strong>The account-level switch is answered here, at generation, rather
+	 * than at send time.</strong> Filtering when sending would leave the table
+	 * full of PENDING rows that will never leave - and the reminders view in 11.5
+	 * would show somebody a schedule that is not going to happen. Answered here,
+	 * the rows are honest, and section 12's requirement that a preference change
+	 * reconciles future PENDING reminders is what puts them back when the switch
+	 * is turned on again.
 	 */
 	public static List<Integer> offsetsFrom(NotificationPreferences preferences) {
+		if (!preferences.isNotificationsEnabled()) {
+			return List.of();
+		}
+
 		List<Integer> wanted = new ArrayList<>();
 
 		if (preferences.isRemind30Days()) {

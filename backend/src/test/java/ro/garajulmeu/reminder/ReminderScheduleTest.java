@@ -47,6 +47,23 @@ class ReminderScheduleTest {
 	}
 
 	/**
+	 * The account-level switch outranks all six, and it did not until 11.4a: it
+	 * was stored, returned by the API and read by nothing, so an account that had
+	 * turned notifications off was scheduled exactly like one that had not. The
+	 * six per-offset switches were tested and this one was not, which is how a
+	 * field goes two phases without a reader.
+	 */
+	@Test
+	void theAccountSwitchTurnedOffSchedulesNothingAtAll() {
+		NotificationPreferences preferences = all();
+		preferences.setNotificationsEnabled(false);
+
+		assertThat(ReminderSchedule.offsetsFrom(preferences)).isEmpty();
+		assertThat(ReminderSchedule.futureFor(EXPIRES, preferences, BUCHAREST, longBefore()))
+				.isEmpty();
+	}
+
+	/**
 	 * Nine in the morning where the person is, not where the server is. In
 	 * December Bucharest is UTC+2, so the instant is 07:00 UTC.
 	 */
