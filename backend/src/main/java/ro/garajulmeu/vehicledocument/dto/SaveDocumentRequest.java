@@ -33,5 +33,5 @@ public record SaveDocumentRequest(
 
 		@Size(max = 64) String referenceNumber,
 
-		String notes) {
+		String notes) implements DocumentPeriod {
 }

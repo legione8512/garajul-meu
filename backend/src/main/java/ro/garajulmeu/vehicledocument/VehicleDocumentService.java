@@ -17,6 +17,8 @@ import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 import ro.garajulmeu.vehicle.VehicleRepository;
 import ro.garajulmeu.vehicledocument.dto.DocumentDetails;
+import ro.garajulmeu.vehicledocument.dto.DocumentPeriod;
+import ro.garajulmeu.vehicledocument.dto.RenewDocumentRequest;
 import ro.garajulmeu.vehicledocument.dto.SaveDocumentRequest;
 
 @Service
@@ -81,6 +83,37 @@ public class VehicleDocumentService {
 		return view(document, todayFor(accountId));
 	}
 
+	/**
+	 * The next period of cover, as a new row. Section 12.
+	 *
+	 * <p><strong>The superseded record is not touched at all.</strong> There is no
+	 * {@code is_current} to turn off - section 11 forbids one - and its dates
+	 * remain true of the period it covered. It becomes historical by the passage
+	 * of time rather than by a write, which is also why renewing twice by mistake
+	 * loses nothing.
+	 *
+	 * <p><strong>An overlapping renewal is accepted.</strong> Section 11 sets out
+	 * how to choose between records that overlap - greatest {@code valid_from},
+	 * then newest row - so the model already knows how to read one. Refusing what
+	 * the specification explains how to interpret would be inventing a rule it
+	 * declined to state.
+	 */
+	@Transactional
+	public DocumentDetails renew(UUID accountId, UUID vehicleId, UUID documentId,
+			RenewDocumentRequest request) {
+		VehicleDocument superseded = require(accountId, vehicleId, documentId);
+
+		VehicleDocument renewal =
+				new VehicleDocument(vehicleId, superseded.getType(), request.validUntil());
+		apply(request, renewal);
+		documentRepository.saveAndFlush(renewal);
+
+		log.info("Renewed {} document {} of vehicle {} as {}",
+				superseded.getType(), documentId, vehicleId, renewal.getId());
+
+		return view(renewal, todayFor(accountId));
+	}
+
 	@Transactional
 	public void delete(UUID accountId, UUID vehicleId, UUID documentId) {
 		VehicleDocument document = require(accountId, vehicleId, documentId);
@@ -91,13 +124,17 @@ public class VehicleDocumentService {
 	}
 
 	/**
-	 * Everything a correction replaces wholesale, and the one rule section 12
-	 * states about the pair of dates. The database holds the same rule in a CHECK
-	 * constraint - this is the version that produces a named error rather than a
-	 * violation, and the constraint is what makes the rule true of the data
-	 * however a row arrives.
+	 * Everything a correction replaces wholesale and a renewal starts from, and
+	 * the one rule section 12 states about the pair of dates. The database holds
+	 * the same rule in a CHECK constraint - this is the version that produces a
+	 * named error rather than a violation, and the constraint is what makes the
+	 * rule true of the data however a row arrives.
+	 *
+	 * <p>Taking {@link DocumentPeriod} rather than either record is what keeps
+	 * that rule in one place. It applied to two shapes the moment renewal existed,
+	 * and a rule stated twice is a rule that can drift.
 	 */
-	private static void apply(SaveDocumentRequest request, VehicleDocument document) {
+	private static void apply(DocumentPeriod request, VehicleDocument document) {
 		if (request.validFrom() != null && request.validFrom().isAfter(request.validUntil())) {
 			throw new ApiException(ErrorCode.DOCUMENT_INVALID_DATE_RANGE);
 		}

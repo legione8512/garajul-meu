@@ -2,7 +2,7 @@ package ro.garajulmeu.vehicledocument;
 
 import java.util.List;
 import java.util.UUID;
-
+import ro.garajulmeu.vehicledocument.dto.RenewDocumentRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
@@ -64,6 +64,18 @@ public class VehicleDocumentController {
 			@PathVariable UUID vehicleId, @PathVariable UUID documentId,
 			@Valid @RequestBody SaveDocumentRequest request) {
 		return documentService.correct(accountOf(token), vehicleId, documentId, request);
+	}
+	
+	/**
+	 * A renewal is a new row, so this answers 201 with the new document - not the
+	 * one it supersedes, which is untouched and can still be read at its own path.
+	 */
+	@PostMapping("/{documentId}/renew")
+	@ResponseStatus(HttpStatus.CREATED)
+	public DocumentDetails renew(@AuthenticationPrincipal Jwt token,
+			@PathVariable UUID vehicleId, @PathVariable UUID documentId,
+			@Valid @RequestBody RenewDocumentRequest request) {
+		return documentService.renew(accountOf(token), vehicleId, documentId, request);
 	}
 
 	@DeleteMapping("/{documentId}")

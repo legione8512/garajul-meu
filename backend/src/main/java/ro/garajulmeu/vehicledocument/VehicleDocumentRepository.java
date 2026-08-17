@@ -1,6 +1,5 @@
 package ro.garajulmeu.vehicledocument;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +15,12 @@ import org.springframework.data.repository.query.Param;
  * documents table carries no owner of its own, so ownership is reached by
  * joining to the vehicle - the certificate's denormalised owner exists to serve
  * a uniqueness constraint that has no counterpart here.
+ *
+ * <p><strong>There is deliberately no "which record covers today" query.</strong>
+ * There was one, briefly. Section 11's selection rule now lives in
+ * {@link DocumentCoverage} in Java and only there: the dashboard needs a whole
+ * garage at once, so a per-pair query would be one round trip per vehicle per
+ * type, and keeping both would leave one rule in two languages to drift apart.
  */
 public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument, UUID> {
 
@@ -37,23 +42,15 @@ public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument
 			@Param("vehicleId") UUID vehicleId, @Param("userId") UUID userId);
 
 	/**
-	 * The records covering the vehicle on a given day, best first. Section 11
-	 * defines "covering" as {@code valid_from <= today <= valid_until} with a
-	 * missing start treated as already effective, and resolves an overlap by the
-	 * greatest start date and then the newest row.
-	 *
-	 * <p>Answers a list rather than one row on purpose: overlaps are legal, and a
-	 * finder that returned {@code Optional} would throw on data the specification
-	 * permits. The caller takes the first.
+	 * Every document of every vehicle in one account, in one round trip. This is
+	 * what keeps the dashboard at three queries whatever the garage holds: the
+	 * grouping by vehicle and by type is done in memory, over the few dozen rows
+	 * an account has, rather than asked of the database once per pair.
 	 */
 	@Query("""
 			select d from VehicleDocument d
 			join Vehicle v on v.id = d.vehicleId
-			where d.vehicleId = :vehicleId and v.userId = :userId and d.type = :type
-				and (d.validFrom is null or d.validFrom <= :today)
-				and d.validUntil >= :today
-			order by d.validFrom desc nulls last, d.createdAt desc
+			where v.userId = :userId
 			""")
-	List<VehicleDocument> coveringOn(@Param("vehicleId") UUID vehicleId, @Param("userId") UUID userId,
-			@Param("type") DocumentType type, @Param("today") LocalDate today);
+	List<VehicleDocument> ofGarage(@Param("userId") UUID userId);
 }

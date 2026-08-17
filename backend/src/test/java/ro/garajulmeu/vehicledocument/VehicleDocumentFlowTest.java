@@ -1,6 +1,7 @@
 package ro.garajulmeu.vehicledocument;
 
 import java.time.Clock;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -306,6 +307,129 @@ class VehicleDocumentFlowTest {
 
 		assertThat(documentRepository.count()).isZero();
 	}
+	
+	private String renewBody(LocalDate validFrom, LocalDate validUntil, String extra) {
+		return """
+				{"validFrom":%s,"validUntil":"%s"%s}
+				""".formatted(validFrom == null ? "null" : "\"" + validFrom + "\"", validUntil, extra);
+	}
+
+	/** Section 12: a renewal is a new row, and the old one is left exactly as it was. */
+	@Test
+	void renewingCreatesANewRecordAndLeavesTheOldOneUntouched() throws Exception {
+		Account account = givenAccount("renew@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000012");
+
+		VehicleDocument original = new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10));
+		original.setValidFrom(today().minusDays(355));
+		documentRepository.saveAndFlush(original);
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(today().plusDays(11), today().plusDays(376), "")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.type").value("RCA"))
+				.andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(original.getId().toString())));
+
+		assertThat(documentRepository.count()).isEqualTo(2);
+
+		VehicleDocument stillThere = documentRepository.findById(original.getId()).orElseThrow();
+		assertThat(stillThere.getValidUntil()).isEqualTo(today().plusDays(10));
+		assertThat(stillThere.getValidFrom()).isEqualTo(today().minusDays(355));
+	}
+
+	/**
+	 * The type carries over because that is what makes it a renewal. The policy
+	 * number does not, because a new period has a new one - and two records
+	 * claiming the same policy would be a false history.
+	 */
+	@Test
+	void aRenewalKeepsTheTypeAndInheritsNothingElse() throws Exception {
+		Account account = givenAccount("inherit@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000013");
+
+		VehicleDocument original = new VehicleDocument(vehicleId, DocumentType.CASCO, today().plusDays(10));
+		original.setProvider("Allianz");
+		original.setReferenceNumber("POL-12345");
+		original.setNotes("pe hârtie");
+		documentRepository.saveAndFlush(original);
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(null, today().plusDays(376), "")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.type").value("CASCO"))
+				.andExpect(jsonPath("$.provider").doesNotExist())
+				.andExpect(jsonPath("$.referenceNumber").doesNotExist())
+				.andExpect(jsonPath("$.notes").doesNotExist());
+	}
+
+	/**
+	 * Section 11 sets out how to choose between overlapping records rather than
+	 * forbidding them, so a renewal that overlaps is data the model can already
+	 * read - and refusing it would be inventing a rule the specification declined
+	 * to state.
+	 */
+	@Test
+	void anOverlappingRenewalIsAcceptedBecauseSectionElevenResolvesOverlaps() throws Exception {
+		Account account = givenAccount("overlap@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000014");
+
+		VehicleDocument original = new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(100));
+		original.setValidFrom(today().minusDays(100));
+		documentRepository.saveAndFlush(original);
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(today().minusDays(10), today().plusDays(300), "")))
+				.andExpect(status().isCreated());
+
+		assertThat(documentRepository.count()).isEqualTo(2);
+	}
+
+	/**
+	 * The rule of section 12 applied through the other shape. It lives in one
+	 * method precisely so that adding renewal could not let it drift.
+	 */
+	@Test
+	void renewingRefusesAPeriodThatEndsBeforeItStarts() throws Exception {
+		Account account = givenAccount("renewbackwards@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000015");
+
+		VehicleDocument original = documentRepository.saveAndFlush(
+				new VehicleDocument(vehicleId, DocumentType.ITP, today().plusDays(10)));
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(today().plusDays(400), today().plusDays(300), "")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_INVALID_DATE_RANGE"));
+
+		assertThat(documentRepository.count()).isEqualTo(1);
+	}
+
+	@Test
+	void renewingAnotherAccountsDocumentIsNotFoundAndCreatesNothing() throws Exception {
+		Account owner = givenAccount("renewowner@example.com");
+		Account stranger = givenAccount("renewstranger@example.com");
+		UUID vehicleId = givenVehicle(owner.id(), "VF1AAAAAAAA000016");
+
+		VehicleDocument original = documentRepository.saveAndFlush(
+				new VehicleDocument(vehicleId, DocumentType.RCA, today().plusDays(10)));
+
+		mockMvc.perform(post(path(vehicleId) + "/" + original.getId() + "/renew")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + stranger.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(renewBody(null, today().plusDays(376), "")))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_NOT_FOUND"));
+
+		assertThat(documentRepository.count()).isEqualTo(1);
+	}
 
 	@Test
 	void everyEndpointRefusesACallerWithNoToken() throws Exception {
@@ -317,6 +441,9 @@ class VehicleDocumentFlowTest {
 		mockMvc.perform(post(path(vehicleId)).contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(patch(path(vehicleId) + "/" + documentId)
+						.contentType(MediaType.APPLICATION_JSON).content("{}"))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(post(path(vehicleId) + "/" + documentId + "/renew")
 						.contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(delete(path(vehicleId) + "/" + documentId)).andExpect(status().isUnauthorized());

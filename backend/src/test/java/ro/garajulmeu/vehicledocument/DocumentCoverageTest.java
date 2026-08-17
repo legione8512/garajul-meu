@@ -1,6 +1,8 @@
 package ro.garajulmeu.vehicledocument;
 
 import java.time.Clock;
+import java.util.List;
+import java.util.UUID;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -64,5 +66,49 @@ class DocumentCoverageTest {
 		LocalDate expiresOn = LocalDate.of(2026, 8, 17);
 		assertThat(DocumentCoverage.statusOn(inBucharest, expiresOn)).isEqualTo(DocumentStatus.EXPIRED);
 		assertThat(DocumentCoverage.statusOn(inLondon, expiresOn)).isEqualTo(DocumentStatus.EXPIRES_TODAY);
+	}
+	private static VehicleDocument record(LocalDate validFrom, LocalDate validUntil) {
+		VehicleDocument document = new VehicleDocument(UUID.randomUUID(), DocumentType.RCA, validUntil);
+		document.setValidFrom(validFrom);
+		return document;
+	}
+
+	/**
+	 * Section 11's resolution rule. A missing start means "already effective" and
+	 * so loses to any explicit one - the order {@code desc nulls last} used to
+	 * give in SQL, before the rule was brought here to exist only once.
+	 */
+	@Test
+	void theRecordCoveringTodayIsTheOneWithTheLatestStart() {
+		VehicleDocument undated = record(null, TODAY.plusDays(50));
+		VehicleDocument older = record(TODAY.minusDays(100), TODAY.plusDays(100));
+		VehicleDocument renewal = record(TODAY.minusDays(10), TODAY.plusDays(300));
+
+		assertThat(DocumentCoverage.coveringOn(List.of(undated, older, renewal), TODAY))
+				.contains(renewal);
+		assertThat(DocumentCoverage.coveringOn(List.of(undated, older), TODAY))
+				.contains(older);
+		assertThat(DocumentCoverage.coveringOn(List.of(undated), TODAY))
+				.contains(undated);
+	}
+
+	/** Neither a record that has ended nor one that has not begun covers today. */
+	@Test
+	void nothingCoversTodayWhenEveryRecordIsPastOrFuture() {
+		VehicleDocument lapsed = record(TODAY.minusDays(370), TODAY.minusDays(5));
+		VehicleDocument future = record(TODAY.plusDays(10), TODAY.plusDays(375));
+
+		assertThat(DocumentCoverage.coveringOn(List.of(lapsed, future), TODAY)).isEmpty();
+		assertThat(DocumentCoverage.upcomingAfter(List.of(lapsed, future), TODAY)).contains(future);
+		assertThat(DocumentCoverage.lastToExpire(List.of(lapsed, future), TODAY)).contains(lapsed);
+	}
+
+	/** The soonest one, not merely any: a screen says one date, so it must be the right one. */
+	@Test
+	void theUpcomingRecordIsTheSoonestOneThatHasNotStarted() {
+		VehicleDocument soon = record(TODAY.plusDays(10), TODAY.plusDays(375));
+		VehicleDocument later = record(TODAY.plusDays(40), TODAY.plusDays(400));
+
+		assertThat(DocumentCoverage.upcomingAfter(List.of(later, soon), TODAY)).contains(soon);
 	}
 }
