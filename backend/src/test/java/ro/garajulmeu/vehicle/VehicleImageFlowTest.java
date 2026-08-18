@@ -7,8 +7,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -299,6 +301,12 @@ class VehicleImageFlowTest {
 	 * than trusts. Seventy kilobytes against a limit of sixty-four, and the
 	 * refusal arrives as a code the client can act on rather than as a closed
 	 * connection.
+	 *
+	 * <p>{@code isContentTooLarge} rather than {@code isPayloadTooLarge}: RFC 9110
+	 * renamed 413 and Spring deprecated the old matcher in 7.0. The production
+	 * side was already on the new name - ErrorCode declares
+	 * {@code IMAGE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE)} - and only this test
+	 * had been left behind.
 	 */
 	@Test
 	void aBodyOverTheLimitIsRefusedBeforeItIsAllRead() throws Exception {
@@ -307,7 +315,7 @@ class VehicleImageFlowTest {
 		mockMvc.perform(put(imagePath(garage))
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token())
 						.content(new byte[70 * 1024]))
-				.andExpect(status().isPayloadTooLarge())
+				.andExpect(status().isContentTooLarge())
 				.andExpect(jsonPath("$.code").value("IMAGE_TOO_LARGE"));
 
 		assertThat(storedKeyOf(garage)).isNull();
@@ -370,7 +378,7 @@ class VehicleImageFlowTest {
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"currentPassword\":\"a-long-enough-password\"}"))
-		.andExpect(status().isNoContent());
+				.andExpect(status().isNoContent());
 
 		// The vehicles went by database cascade, which JPA never saw, and this test
 		// loaded the Vehicle earlier through storedKeyOf. Without this line findById

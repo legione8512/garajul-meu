@@ -26,6 +26,8 @@ export const en: typeof ro = {
     email: 'Email address',
     password: 'Password',
     newPassword: 'New password',
+    currentPassword: 'Current password',
+    newEmail: 'New email address',
     fullName: 'Full name',
     code: 'Verification code',
     registrationNumber: 'Registration number',
@@ -33,6 +35,7 @@ export const en: typeof ro = {
     commercialDescription: 'Model',
     vin: 'VIN (chassis number)',
     displayName: 'Nickname (optional)',
+    timezone: 'Time zone',
   },
   register: {
     submit: 'Create account',
@@ -227,6 +230,51 @@ export const en: typeof ro = {
   },
   profile: {
     signOut: 'Sign out',
+    account: 'Account details',
+    save: 'Save changes',
+    saved: 'Your changes have been saved.',
+    emailVerified: '(confirmed)',
+    emailNotVerified: '(not confirmed)',
+    security: 'Security',
+    changePassword: 'Change password',
+    changeEmail: 'Change email address',
+    deleteAccount: 'Delete account',
+    back: 'Back to profile',
+  },
+  changePassword: {
+    warning: 'Changing your password signs you out everywhere, on every device, '
+      + 'including this one. You will need to sign in again.',
+    submit: 'Change password',
+  },
+  changeEmail: {
+    instructions: 'The confirmation code goes to your current address, not the new one. '
+      + 'That is how we know the request is yours.',
+    request: 'Send the code',
+    codeSent: 'We have sent a code to your current address. Enter it below.',
+    confirm: 'Confirm the new address',
+    done: 'Your address has been changed. It is unconfirmed for now: '
+      + 'look for the verification email sent to the new address.',
+  },
+  deleteAccount: {
+    warning: 'Deleting your account is permanent. Your vehicles, certificates, '
+      + 'documents, photographs and history all go with it. There is no way back.',
+    confirm: 'I understand, delete my account',
+    submit: 'Delete my account permanently',
+    cancel: 'Cancel',
+  },
+  notificationPreferences: {
+    title: 'Notification preferences',
+    enabled: 'Send me notifications',
+    leads: 'How far ahead to tell you',
+    remind30Days: '30 days before',
+    remind14Days: '14 days before',
+    remind7Days: '7 days before',
+    remind3Days: '3 days before',
+    remind1Day: 'One day before',
+    remindOnExpiry: 'On the day it expires',
+    time: 'The time you receive them',
+    save: 'Save preferences',
+    saved: 'Your preferences have been saved.',
   },
   forgotPassword: {
     instructions: 'Enter the account address. If an account exists for it, we will send a code.',
@@ -260,6 +308,9 @@ export const en: typeof ro = {
     addVehicle: 'New vehicle',
     vehicleDetails: 'Vehicle details',
     certificate: 'Registration certificate',
+    changePassword: 'Change your password',
+    changeEmail: 'Change your email address',
+    deleteAccount: 'Delete your account',
   },
   validation: {
     required: 'Please fill in this field.',

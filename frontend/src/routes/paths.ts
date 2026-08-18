@@ -35,4 +35,11 @@ export const paths = {
   historyPattern: '/garage/:vehicleId/history',
   history: (vehicleId: string) => `/garage/${vehicleId}/history`,
   profile: '/profile',
+  /**
+   * Screens 16, 17 and 22, nested under the profile they are reached from.
+   * All three are literal segments, so none of them competes with anything.
+   */
+  changePassword: '/profile/password',
+  changeEmail: '/profile/email',
+  deleteAccount: '/profile/delete',
 } as const

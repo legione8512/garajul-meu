@@ -23,20 +23,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const restoreStarted = useRef(false)
 
+  /**
+   * Section 6: the account's preference outranks whatever this device
+   * remembered. That is what makes the language follow a person from their
+   * laptop to their phone instead of being a per-browser setting.
+   *
+   * <p>Extracted when screen 15 arrived, because a profile saved there has to
+   * obey the same rule as one loaded at sign-in. Two copies of this would be one
+   * place that forgets.
+   */
+  const applyLanguageOf = useCallback(async (loaded: UserProfile) => {
+    if (isSupportedLanguage(loaded.preferredLanguage)
+      && i18n.resolvedLanguage !== loaded.preferredLanguage) {
+      await i18n.changeLanguage(loaded.preferredLanguage)
+    }
+  }, [i18n])
+
   const adoptSession = useCallback(async () => {
     const loaded = await getProfile()
 
     setProfile(loaded)
     setStatus('authenticated')
 
-    // Section 6: the account's preference outranks whatever this device
-    // remembered. That is what makes the language follow a person from their
-    // laptop to their phone instead of being a per-browser setting.
-    if (isSupportedLanguage(loaded.preferredLanguage)
-      && i18n.resolvedLanguage !== loaded.preferredLanguage) {
-      await i18n.changeLanguage(loaded.preferredLanguage)
-    }
-  }, [i18n])
+    await applyLanguageOf(loaded)
+  }, [applyLanguageOf])
 
   useEffect(() => {
     // Runs once. StrictMode invokes effects twice in development on purpose,
@@ -85,9 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anonymous')
   }, [])
 
+  /**
+   * The profile the backend has just confirmed. No refetch: the endpoint that
+   * changed it answered with the whole profile, and asking again would be a
+   * second request for something already in hand.
+   */
+  const profileChanged = useCallback((saved: UserProfile) => {
+    setProfile(saved)
+    void applyLanguageOf(saved)
+  }, [applyLanguageOf])
+
   const value = useMemo<AuthValue>(
-    () => ({ status, profile, signIn, signOut }),
-    [status, profile, signIn, signOut],
+    () => ({ status, profile, signIn, signOut, profileChanged }),
+    [status, profile, signIn, signOut, profileChanged],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

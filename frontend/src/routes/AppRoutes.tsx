@@ -5,7 +5,10 @@ import { AppLayout } from '../layouts/AppLayout.tsx'
 import { RootLayout } from '../layouts/RootLayout.tsx'
 import { AddVehiclePage } from '../pages/AddVehiclePage.tsx'
 import { CertificatePage } from '../pages/CertificatePage.tsx'
+import { ChangeEmailPage } from '../pages/ChangeEmailPage.tsx'
+import { ChangePasswordPage } from '../pages/ChangePasswordPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
+import { DeleteAccountPage } from '../pages/DeleteAccountPage.tsx'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.tsx'
 import { GaragePage } from '../pages/GaragePage.tsx'
 import { LoginPage } from '../pages/LoginPage.tsx'
@@ -53,6 +56,9 @@ export function AppRoutes() {
           <Route path={paths.documentPattern} element={<VehicleDocumentDetailsPage />} />
           <Route path={paths.historyPattern} element={<VehicleHistoryPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
+          <Route path={paths.changePassword} element={<ChangePasswordPage />} />
+          <Route path={paths.changeEmail} element={<ChangeEmailPage />} />
+          <Route path={paths.deleteAccount} element={<DeleteAccountPage />} />
         </Route>
       </Route>
     </Routes>

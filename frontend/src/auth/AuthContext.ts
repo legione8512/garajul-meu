@@ -17,6 +17,16 @@ export interface AuthValue {
   profile: UserProfile | null
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  /**
+   * What a screen calls after the backend has confirmed a change to the account.
+   *
+   * <p>Exists so the profile stays in one place. A screen keeping its own saved
+   * copy would leave two profiles free to disagree, and the language would move
+   * in the context while the interface went on rendering the old one - the rule
+   * that the account's preference outranks the device is applied here and
+   * nowhere else.
+   */
+  profileChanged: (profile: UserProfile) => void
 }
 
 /** Null outside a provider, which is what lets useAuth fail loudly. */

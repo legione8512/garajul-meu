@@ -28,6 +28,8 @@ export const ro = {
     email: 'Adresă de email',
     password: 'Parolă',
     newPassword: 'Parolă nouă',
+    currentPassword: 'Parola actuală',
+    newEmail: 'Adresa nouă de email',
     fullName: 'Nume complet',
     code: 'Cod de verificare',
     registrationNumber: 'Număr de înmatriculare',
@@ -35,6 +37,7 @@ export const ro = {
     commercialDescription: 'Model',
     vin: 'VIN (serie de șasiu)',
     displayName: 'Poreclă (opțional)',
+    timezone: 'Fus orar',
   },
   register: {
     submit: 'Creează contul',
@@ -232,6 +235,55 @@ export const ro = {
   },
   profile: {
     signOut: 'Ieși din cont',
+    account: 'Datele contului',
+    save: 'Salvează modificările',
+    saved: 'Modificările au fost salvate.',
+    emailVerified: '(confirmată)',
+    emailNotVerified: '(neconfirmată)',
+    security: 'Securitate',
+    changePassword: 'Schimbă parola',
+    changeEmail: 'Schimbă adresa de email',
+    deleteAccount: 'Șterge contul',
+    back: 'Înapoi la profil',
+  },
+  changePassword: {
+    // Said before the form, not after. Somebody who learns this only once every
+    // device has been signed out has been surprised by their own action.
+    warning: 'Schimbarea parolei închide toate sesiunile, pe toate dispozitivele, '
+      + 'inclusiv aceasta. Va trebui să te autentifici din nou.',
+    submit: 'Schimbă parola',
+  },
+  changeEmail: {
+    // The property the whole design rests on, and the one thing a person will
+    // otherwise get wrong: they will go looking in the new inbox.
+    instructions: 'Codul de confirmare merge la adresa ta actuală, nu la cea nouă. '
+      + 'Așa știm că tu ceri schimbarea.',
+    request: 'Trimite codul',
+    codeSent: 'Am trimis un cod la adresa ta actuală. Introdu-l mai jos.',
+    confirm: 'Confirmă adresa nouă',
+    done: 'Adresa a fost schimbată. Acum e neconfirmată: '
+      + 'caută emailul de verificare trimis la noua adresă.',
+  },
+  deleteAccount: {
+    warning: 'Ștergerea contului este definitivă. Dispar vehiculele, certificatele, '
+      + 'documentele, fotografiile și istoricul. Nu există cale de întoarcere.',
+    confirm: 'Am înțeles, șterge contul',
+    submit: 'Șterge contul definitiv',
+    cancel: 'Renunță',
+  },
+  notificationPreferences: {
+    title: 'Preferințe de notificare',
+    enabled: 'Trimite-mi notificări',
+    leads: 'Cu cât timp înainte să te anunțăm',
+    remind30Days: 'Cu 30 de zile înainte',
+    remind14Days: 'Cu 14 zile înainte',
+    remind7Days: 'Cu 7 zile înainte',
+    remind3Days: 'Cu 3 zile înainte',
+    remind1Day: 'Cu o zi înainte',
+    remindOnExpiry: 'În ziua expirării',
+    time: 'Ora la care le primești',
+    save: 'Salvează preferințele',
+    saved: 'Preferințele au fost salvate.',
   },
   forgotPassword: {
     instructions: 'Scrie adresa contului. Dacă există un cont cu ea, îți trimitem un cod.',
@@ -265,6 +317,9 @@ export const ro = {
     addVehicle: 'Vehicul nou',
     vehicleDetails: 'Detalii vehicul',
     certificate: 'Certificat de înmatriculare',
+    changePassword: 'Schimbarea parolei',
+    changeEmail: 'Schimbarea adresei de email',
+    deleteAccount: 'Ștergerea contului',
   },
   /**
    * Phrased as labels rather than sentences on purpose. Romanian requires "de"
