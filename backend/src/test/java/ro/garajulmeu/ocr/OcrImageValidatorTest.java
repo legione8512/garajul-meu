@@ -3,13 +3,9 @@ package ro.garajulmeu.ocr;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.zip.CRC32;
-
-import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
-
+import javax.imageio.ImageIO;
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
 
@@ -17,13 +13,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * No Spring at all. The validator takes its limits from a record, so it can be
- * built directly and every case runs in microseconds.
+ * What is left after 12.1 moved the checking to {@code ImageInspectionTest}:
+ * that this validator carries the limits from its own properties, and that it
+ * answers one code for everything.
+ *
+ * <p>The second half is the test worth having. Four genuinely different findings
+ * are flattened into OCR_FILE_INVALID on purpose, and a flattening nobody
+ * asserts is indistinguishable from a flattening nobody noticed.
  */
 class OcrImageValidatorTest {
 
-	private final OcrImageValidator validator =
-			new OcrImageValidator(new OcrProperties("stub", 10, 30, 1024 * 1024, 200, 40_000_000, 0.80));
+	private final OcrImageValidator validator = new OcrImageValidator(
+			new OcrProperties("stub", 10, 30, 1024 * 1024, 200, 40_000_000, 0.80));
+
 	private static byte[] image(String format, int width, int height) throws IOException {
 		BufferedImage picture = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -39,7 +41,7 @@ class OcrImageValidatorTest {
 	}
 
 	@Test
-	void aPhotographIsAcceptedAndMeasured() throws IOException {
+	void anAcceptedPhotographKeepsTheTypeAndSizeThatWereMeasured() throws IOException {
 		OcrImage accepted = validator.accept(image("jpeg", 800, 400));
 
 		assertThat(accepted.contentType()).isEqualTo("image/jpeg");
@@ -48,62 +50,29 @@ class OcrImageValidatorTest {
 	}
 
 	/**
-	 * The point of reading the format from the bytes. Nothing here is told what
-	 * the client called the file, and a PNG is a PNG however it was announced.
+	 * Rubbish, an empty part, a picture in a format we do not keep and a thumbnail
+	 * are four findings and one answer. The advice is the same in every case -
+	 * send a photograph of the certificate - and naming which check objected would
+	 * describe our validator rather than their problem.
 	 */
 	@Test
-	void theFormatComesFromTheBytesAndNotFromAnyDeclaration() throws IOException {
-		assertThat(validator.accept(image("png", 800, 400)).contentType()).isEqualTo("image/png");
-	}
-
-	@Test
-	void somethingThatIsNotAnImageIsRefused() {
-		assertRefused("MZ\u0090\u0000\u0003 not a photograph".getBytes(), validator);
-	}
-
-	@Test
-	void anEmptyUploadIsRefused() {
+	void everyKindOfRefusalAnswersTheSameCode() throws IOException {
 		assertRefused(new byte[0], validator);
-	}
-
-	@Test
-	void anUploadOverTheLimitIsRefused() throws IOException {
-		OcrImageValidator tiny =
-				new OcrImageValidator(new OcrProperties("stub", 10, 30, 512, 200, 40_000_000, 0.80));
-		assertRefused(image("png", 800, 400), tiny);
-	}
-
-	/** Below this there is nothing legible, and the request would spend an allowance to learn that. */
-	@Test
-	void anImageTooSmallToReadIsRefused() throws IOException {
+		assertRefused("MZ\u0090\u0000\u0003 not a photograph".getBytes(), validator);
+		assertRefused(image("gif", 800, 400), validator);
 		assertRefused(image("png", 80, 40), validator);
 	}
 
-	/**
-	 * The decompression bomb. This is a valid PNG header declaring a canvas of
-	 * twenty thousand pixels a side in a handful of bytes; the guard reads the
-	 * dimensions from the header and refuses before anything is decoded, which is
-	 * the difference between rejecting a file and allocating 1.6 gigabytes to
-	 * find out we should have.
-	 */
+	/** The limit comes from this validator's own properties and not from a constant. */
 	@Test
-	void aHeaderDeclaringAnEnormousCanvasIsRefusedBeforeDecoding() {
-		byte[] ihdr = ByteBuffer.allocate(17)
-				.put("IHDR".getBytes())
-				.putInt(20_000).putInt(20_000)
-				.put((byte) 8).put((byte) 2).put((byte) 0).put((byte) 0).put((byte) 0)
-				.array();
+	void theSizeLimitIsTheOneTheseParticularPropertiesCarry() throws IOException {
+		byte[] photograph = image("png", 800, 400);
 
-		CRC32 crc = new CRC32();
-		crc.update(ihdr);
+		assertThat(validator.accept(photograph)).isNotNull();
 
-		byte[] png = ByteBuffer.allocate(8 + 4 + 17 + 4)
-				.put(new byte[] { (byte) 137, 80, 78, 71, 13, 10, 26, 10 })
-				.putInt(13)
-				.put(ihdr)
-				.putInt((int) crc.getValue())
-				.array();
+		OcrImageValidator tiny = new OcrImageValidator(
+				new OcrProperties("stub", 10, 30, 512, 200, 40_000_000, 0.80));
 
-		assertRefused(png, validator);
+		assertRefused(photograph, tiny);
 	}
 }

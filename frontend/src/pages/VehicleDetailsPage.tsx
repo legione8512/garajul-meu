@@ -13,6 +13,7 @@ import { useSubmission } from '../forms/useSubmission.ts'
 import { validate } from '../forms/validate.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
+import { VehicleImage } from '../vehicles/VehicleImage.tsx'
 
 const nicknameRules = { displayName: [maxLength(120)] }
 
@@ -28,6 +29,9 @@ const nicknameRules = { displayName: [maxLength(120)] }
  * is written in the browser's language, not the application's, so it would put
  * untranslated text beside translated text on the same screen - the same reason
  * every form here carries noValidate.
+ *
+ * <p>The photograph is mounted with the flag the vehicle arrived with and owns
+ * its own state afterwards, so uploading one does not reload this screen.
  */
 export function VehicleDetailsPage() {
   const { t } = useTranslation()
@@ -116,6 +120,8 @@ export function VehicleDetailsPage() {
             <dt>{t('fields.vin')}</dt>
             <dd>{vehicle.vin}</dd>
           </dl>
+
+          <VehicleImage vehicleId={vehicleId} hasImage={vehicle.hasImage} />
 
           <form onSubmit={(event) => { void handleRename(event) }} noValidate>
             <FormError error={rename.error} />

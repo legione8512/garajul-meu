@@ -1,4 +1,4 @@
-import { apiFetch } from '../client.ts'
+import { apiFetch, apiFetchBlob } from '../client.ts'
 
 /**
  * The vehicle surface of the API.
@@ -14,6 +14,10 @@ export const vehiclesPath = '/api/v1/vehicles'
 
 export function vehiclePath(vehicleId: string): string {
   return `${vehiclesPath}/${vehicleId}`
+}
+
+export function vehicleImagePath(vehicleId: string): string {
+  return `${vehiclePath(vehicleId)}/image`
 }
 
 export interface VehicleSummary {
@@ -34,6 +38,17 @@ export interface VehicleSummary {
 export interface VehicleDetails extends VehicleSummary {
   readonly vin: string
   readonly createdAt: string
+  /**
+   * Whether a photograph exists - not where it is.
+   *
+   * <p>The address is derivable from the vehicle's own identifier, so sending it
+   * would return something the client already has, and it could not be used as
+   * an `<img src>` regardless. The object key is deliberately never sent at all.
+   * When the R2 provider arrives it can produce a genuine signed URL, which
+   * needs no header and would belong in a field of its own; this flag stays
+   * useful either way, being the one thing the client cannot work out itself.
+   */
+  readonly hasImage: boolean
 }
 
 /**
@@ -70,6 +85,35 @@ export function renameVehicle(vehicleId: string, displayName: string): Promise<V
 
 export function deleteVehicle(vehicleId: string): Promise<void> {
   return apiFetch<void>(vehiclePath(vehicleId), { method: 'DELETE' })
+}
+
+/** The bytes, fetched with the token. The caller makes the object URL. */
+export function fetchVehicleImage(vehicleId: string): Promise<Blob> {
+  return apiFetchBlob(vehicleImagePath(vehicleId))
+}
+
+/**
+ * The file itself as the request body, not multipart.
+ *
+ * <p>That is the backend's constraint rather than a preference: Tomcat parses
+ * multipart for POST only, so on a PUT the parts would simply not be there. A
+ * File is a Blob and fetch sends it as-is.
+ *
+ * <p>The Content-Type is set explicitly so the client does not label a
+ * photograph as JSON. The backend ignores what we declare and reads the format
+ * from the bytes - a declaration is an assertion, not evidence - so this header
+ * is honesty rather than instruction.
+ */
+export function uploadVehicleImage(vehicleId: string, file: File): Promise<void> {
+  return apiFetch<void>(vehicleImagePath(vehicleId), {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type === '' ? 'application/octet-stream' : file.type },
+  })
+}
+
+export function deleteVehicleImage(vehicleId: string): Promise<void> {
+  return apiFetch<void>(vehicleImagePath(vehicleId), { method: 'DELETE' })
 }
 
 /**

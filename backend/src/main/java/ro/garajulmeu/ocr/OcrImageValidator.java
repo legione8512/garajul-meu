@@ -1,40 +1,29 @@
 package ro.garajulmeu.ocr;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.Locale;
-
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import ro.garajulmeu.common.ImageInspection;
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
 
 /**
  * Decides whether an upload is an image we are willing to pay to have read.
- * Specification section 22: validate the MIME type, the file size and the
- * decoded image.
  *
- * <p><strong>The client's declared content type is ignored.</strong> A
- * declaration is an assertion, not evidence: anything can claim to be a JPEG.
- * The format is taken from the bytes, and the type carried onwards is the one
- * that was actually found - so a PNG uploaded as {@code image/jpeg} reaches the
- * provider correctly labelled, and an executable uploaded as {@code image/png}
- * does not reach it at all.
+ * <p>The checking itself lives in {@link ImageInspection}, which phase 12 shares
+ * - the rules are about bytes and are the same wherever an image arrives. What
+ * stays here is the part that is about OCR: the limits come from
+ * {@link OcrProperties}, and <strong>every refusal answers the same code</strong>.
  *
- * <p>Dimensions are read from the header <strong>before</strong> the image is
- * decoded. A few kilobytes of PNG can legitimately declare a canvas of tens of
- * thousands of pixels a side, and decoding one to find out how big it is turns
- * the sender's file into our memory problem.
+ * <p>That flattening is deliberate rather than lazy. A caller who sent a PDF, an
+ * empty part, a thumbnail or a decompression bomb gets the same useful advice -
+ * send a photograph of the certificate - and telling them which of the four it
+ * was would describe our checks rather than their problem. Phase 12 makes the
+ * opposite choice for the same findings, because there IMAGE_TOO_LARGE is worth
+ * retrying with a smaller file and IMAGE_INVALID_TYPE is not.
  *
- * <p>Nothing here logs the image or any part of it, per section 24.
+ * <p>The reason is logged, the bytes never are, per section 24.
  */
 @Component
 public class OcrImageValidator {
@@ -48,69 +37,17 @@ public class OcrImageValidator {
 	}
 
 	public OcrImage accept(byte[] bytes) {
-		if (bytes.length == 0 || bytes.length > properties.maxUploadBytes()) {
-			throw refuse("size", bytes.length);
-		}
+		ImageInspection.Limits limits = new ImageInspection.Limits(
+				properties.maxUploadBytes(), properties.maxPixels(), properties.minSide());
 
-		try (ImageInputStream stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-			if (stream == null) {
-				throw refuse("unreadable", bytes.length);
-			}
-
-			Iterator<ImageReader> readers = ImageIO.getImageReaders(stream);
-			if (!readers.hasNext()) {
-				// Not an image at all, whatever the request called it.
-				throw refuse("not an image", bytes.length);
-			}
-
-			ImageReader reader = readers.next();
-			try {
-				reader.setInput(stream);
-				return inspect(reader, bytes);
-			} finally {
-				reader.dispose();
-			}
-		} catch (IOException exception) {
-			throw refuse("unreadable", bytes.length);
-		}
+		return switch (ImageInspection.inspect(bytes, limits)) {
+			case ImageInspection.Refused refused -> throw refuse(refused.reason(), bytes.length);
+			case ImageInspection.Accepted accepted -> new OcrImage(
+					bytes, accepted.contentType(), accepted.width(), accepted.height());
+		};
 	}
 
-	private OcrImage inspect(ImageReader reader, byte[] bytes) throws IOException {
-		String contentType = contentTypeOf(reader.getFormatName());
-
-		int width = reader.getWidth(0);
-		int height = reader.getHeight(0);
-
-		if ((long) width * height > properties.maxPixels()) {
-			throw refuse("too many pixels", bytes.length);
-		}
-		if (width < properties.minSide() || height < properties.minSide()) {
-			throw refuse("too small to read", bytes.length);
-		}
-
-		BufferedImage decoded = reader.read(0);
-		if (decoded == null) {
-			throw refuse("would not decode", bytes.length);
-		}
-
-		return new OcrImage(bytes, contentType, width, height);
-	}
-
-	/** JPEG and PNG only. A certificate is photographed, not typeset. */
-	private String contentTypeOf(String formatName) {
-		String format = formatName.toLowerCase(Locale.ROOT);
-
-		if (format.equals("jpeg") || format.equals("jpg")) {
-			return "image/jpeg";
-		}
-		if (format.equals("png")) {
-			return "image/png";
-		}
-		throw refuse("unsupported format", 0);
-	}
-
-	/** The reason is logged, the bytes never are. */
-	private ApiException refuse(String reason, int size) {
+	private ApiException refuse(ImageInspection.Refusal reason, int size) {
 		log.info("Refused an OCR upload: {} ({} bytes)", reason, size);
 		return new ApiException(ErrorCode.OCR_FILE_INVALID);
 	}

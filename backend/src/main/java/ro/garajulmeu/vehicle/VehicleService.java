@@ -26,11 +26,14 @@ public class VehicleService {
 
 	private final VehicleRepository vehicleRepository;
 	private final RegistrationCertificateRepository certificateRepository;
+	private final VehicleImageService imageService;
 
 	VehicleService(VehicleRepository vehicleRepository,
-			RegistrationCertificateRepository certificateRepository) {
+			RegistrationCertificateRepository certificateRepository,
+			VehicleImageService imageService) {
 		this.vehicleRepository = vehicleRepository;
 		this.certificateRepository = certificateRepository;
+		this.imageService = imageService;
 	}
 
 	@Transactional(readOnly = true)
@@ -101,7 +104,7 @@ public class VehicleService {
 		return new VehicleDetails(vehicle.getId(), vehicle.getDisplayName(),
 				certificate.getRegistrationNumber(), certificate.getMake(),
 				certificate.getCommercialDescription(), certificate.getVin(),
-				vehicle.getCreatedAt());
+				vehicle.getCreatedAt(), false);
 	}
 
 	@Transactional
@@ -123,14 +126,29 @@ public class VehicleService {
 	 * anything here - the same arrangement that carries verification tokens and
 	 * refresh tokens away with a deleted account, and for the same reason: there
 	 * is no mapped association for Hibernate to cascade along.
+	 *
+	 * <p><strong>The photograph does not, and that is why 12.3b exists.</strong> A
+	 * foreign key reaches rows in this database and nothing else; the object lives
+	 * in a bucket that has never heard of PostgreSQL. Deleting the row destroys
+	 * {@code image_object_key}, which is the only record of where the photograph
+	 * is - so the key is read here <strong>before</strong> the delete, and the
+	 * object removed after. Getting that order wrong once would leave the file
+	 * unreachable and undeletable for the life of the bucket.
 	 */
 	@Transactional
 	public void delete(UUID accountId, UUID vehicleId) {
 		Vehicle vehicle = vehicleRepository.findByIdAndUserId(vehicleId, accountId)
 				.orElseThrow(() -> new ApiException(ErrorCode.VEHICLE_NOT_FOUND));
 
+		String objectKey = vehicle.getImageObjectKey();
+
 		vehicleRepository.delete(vehicle);
 		vehicleRepository.flush();
+
+		if (objectKey != null) {
+			imageService.discard(List.of(objectKey));
+		}
+
 		log.info("Deleted vehicle {} of account {}", vehicleId, accountId);
 	}
 }

@@ -17,10 +17,17 @@ describe('backend error codes', () => {
    * shown to somebody as "something went wrong" while the backend said exactly
    * what happened.
    *
-   * <p>Five codes in the enum are deliberately absent because nothing throws
-   * them - checked on 2026-08-17 rather than assumed: the two registration
-   * certificate codes, VEHICLE_ACCESS_DENIED, IMAGE_INVALID_TYPE and
-   * STORAGE_PROVIDER_UNAVAILABLE.
+   * <p>Three codes in the enum are deliberately absent because nothing throws
+   * them - checked rather than assumed: the two registration certificate codes
+   * and VEHICLE_ACCESS_DENIED, which cannot be sent while a vehicle somebody
+   * else owns answers 404.
+   *
+   * <p><strong>IMAGE_INVALID_TYPE and STORAGE_PROVIDER_UNAVAILABLE were on that
+   * absent list until 2026-08-18, and this test is what noticed.</strong> Phase
+   * 12.2 gave VehicleImageValidator the first and FileStorageProvider.put the
+   * second, so the note claiming nothing threw them had quietly become false.
+   * The list was written from what the backend could do on the day it was
+   * written; the guard below is what stops it staying that way.
    */
   it('has wording for every code the backend can currently send', () => {
     const codes = [
@@ -44,6 +51,8 @@ describe('backend error codes', () => {
       'OCR_PROVIDER_UNAVAILABLE',
       'OCR_PROCESSING_FAILED',
       'IMAGE_TOO_LARGE',
+      'IMAGE_INVALID_TYPE',
+      'STORAGE_PROVIDER_UNAVAILABLE',
       'VALIDATION_ERROR',
       'MALFORMED_REQUEST',
       'RESOURCE_NOT_FOUND',

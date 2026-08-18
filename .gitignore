@@ -75,3 +75,8 @@ bin/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# ---------------------------------------------------------------------------
+# Local object storage -- real photographs of real cars, never committed
+# ---------------------------------------------------------------------------
+/backend/storage/

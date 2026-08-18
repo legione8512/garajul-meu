@@ -61,6 +61,16 @@ garajul-meu:
   # applications are phases 17 and 18; production overrides this with
   # "firebase" when there is something to deliver to.
     provider: logging
+  storage:
+    # Section 32's seam, named there as FileStorageProvider →
+    # CloudflareR2FileStorageProvider. "local" writes to the filesystem for
+    # development; "r2" arrives in 12.4 and production must set it. The directory
+    # is gitignored - it holds photographs of real cars.
+    provider: local
+    local-directory: ./storage
+    max-upload-bytes: 5242880
+    min-side: 200
+    max-pixels: 40000000
   reminder:
   # Section 19: exactly one instance runs this. Scaling the backend horizontally
   # means turning it off everywhere but one, or designing the distributed lock

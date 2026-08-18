@@ -1,6 +1,7 @@
 package ro.garajulmeu.user;
 
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import ro.garajulmeu.user.dto.ChangePasswordRequest;
 import ro.garajulmeu.user.dto.DeleteAccountRequest;
 import ro.garajulmeu.user.dto.UpdateProfileRequest;
 import ro.garajulmeu.user.dto.UserProfileResponse;
+import ro.garajulmeu.vehicle.VehicleImageService;
 
 @Service
 public class UserService {
@@ -28,11 +30,14 @@ public class UserService {
 
 	private final RefreshTokenService refreshTokenService;
 
+	private final VehicleImageService vehicleImageService;
+
 	UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-			RefreshTokenService refreshTokenService) {
+			RefreshTokenService refreshTokenService, VehicleImageService vehicleImageService) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.refreshTokenService = refreshTokenService;
+		this.vehicleImageService = vehicleImageService;
 	}
 
 	/**
@@ -103,6 +108,14 @@ public class UserService {
 	 * method would silently leave orphans behind; the test that counts the rows
 	 * afterwards is what makes that impossible to miss.
 	 *
+	 * <p><strong>The photographs are the one thing no foreign key can reach</strong>,
+	 * and 12.3b is where that was noticed. The cascade removes the vehicles and
+	 * their {@code image_object_key} values, after which nothing in the database
+	 * knows where the files are - so the keys are collected first and the objects
+	 * removed once the rows are gone. Section 24 makes deletion mean the data is
+	 * removed, and a photograph of somebody's car outliving the account that owned
+	 * it is exactly what that forbids.
+	 *
 	 * <p>Sessions are not revoked explicitly because there is nothing left to
 	 * revoke: the rows that represent them cease to exist. The access token
 	 * already issued stays cryptographically valid until it expires, and opens
@@ -116,6 +129,10 @@ public class UserService {
 			throw new ApiException(ErrorCode.INVALID_CURRENT_PASSWORD);
 		}
 
+		// Before the delete, and it has to be: the cascade takes the vehicles and
+		// every key they carried, leaving the objects unreachable and undeletable.
+		List<String> objectKeys = vehicleImageService.imageKeysOf(accountId);
+
 		userRepository.delete(user);
 
 		// Flushed here rather than left to commit, so the cascade runs inside this
@@ -123,9 +140,12 @@ public class UserService {
 		// where the cause is obvious, instead of inside Spring's commit machinery.
 		userRepository.flush();
 
-		// The identifier only. Logging the address of an account somebody has just
-		// asked to erase would defeat the request in the log itself.
-		log.info("Deleted account {}", accountId);
+		vehicleImageService.discard(objectKeys);
+
+		// The identifier and a count. Logging the address of an account somebody
+		// has just asked to erase would defeat the request in the log itself; the
+		// count is safe and is the only evidence that the objects were dealt with.
+		log.info("Deleted account {} and {} stored image(s)", accountId, objectKeys.size());
 	}
 
 	private User load(UUID accountId) {

@@ -29,6 +29,17 @@ garajul-meu:
     provider: logging
   push:
     provider: logging
+  storage:
+    provider: local
+    # Under target/, so a stray write lands where `mvn clean` will remove it
+    # rather than in the working tree. Nothing should write here at all - the
+    # provider creates its directory on first use and no test uses the bean -
+    # but "should" is not a guarantee, and this is one line.
+    local-directory: ./target/storage
+    # Sixty-four kilobytes: far above the few-kilobyte test images and far below
+    # anything real, so the bound can be tested by sending seventy kilobytes
+    # instead of five and a bit megabytes.
+    max-upload-bytes: 65536
   ocr:
     provider: stub
   jwt:
