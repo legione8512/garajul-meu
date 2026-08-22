@@ -4,10 +4,31 @@ import '@testing-library/jest-dom/vitest'
 // real translations rather than raw keys.
 import '../i18n/config.ts'
 
+import { configure } from '@testing-library/dom'
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 import i18n from '../i18n/config.ts'
+
+/**
+ * Testing Library waits one second for `findBy*` by default, and that default
+ * was chosen for an unloaded desktop.
+ *
+ * On 2026-08-22 and again on 2026-08-23, three or four tests failed on a busy
+ * run - always the first test in a file, which pays the module-loading cost,
+ * and always still showing `Se încarcă…`. Every one passed on a quiet run. The
+ * second occurrence was under `--coverage`, which instruments every module and
+ * makes every future coverage run slower than the one that already failed. CI
+ * machines are slower and shared, so this would have arrived there next.
+ *
+ * Raising the wait weakens nothing. These assertions say *eventually*, never
+ * *within one second*, and not one of them measures performance - a component
+ * that took four seconds would be a bug no test here is looking for. What the
+ * wait actually buys is the diagnosis: a `findBy*` that gives up prints the DOM
+ * it was searching, and Vitest's own test timeout prints nothing useful at all.
+ * Which is why `testTimeout` in vite.config.ts is set well above this one.
+ */
+configure({ asyncUtilTimeout: 5_000 })
 
 /**
  * jsdom reports en-US, so without pinning the language every component test

@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.0</version>
+		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 
@@ -18,6 +18,23 @@
 	<properties>
 		<java.version>21</java.version>
 		<maven.compiler.proc>full</maven.compiler.proc>
+
+		<!--
+			Pinned, because spring-boot-starter-parent does not manage this
+			plugin - checked, not assumed. Bump freely; nothing here depends on
+			the exact version.
+		-->
+		<jacoco.version>0.8.13</jacoco.version>
+
+		<!--
+			Declared empty on purpose. Surefire's argLine below references
+			@{jacocoArgLine}, and if JaCoCo's prepare-agent has not run - a
+			build with -Djacoco.skip=true, or a goal that skips initialize -
+			the reference would otherwise survive as the literal text
+			"@{jacocoArgLine}" and be handed to the JVM, which fails to start
+			with an unreadable error. An empty default makes that case a no-op.
+		-->
+		<jacocoArgLine></jacocoArgLine>
 	</properties>
 
 	<dependencies>
@@ -157,8 +174,66 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+					<!--
+						Two agents, one argLine, and only one of them can be
+						named by the default arrangement.
+
+						JaCoCo's prepare-agent writes its -javaagent flag into a
+						property called `argLine` unless told otherwise, and
+						this element - being explicit configuration - wins over
+						that property outright. The two ways to get this wrong
+						are both silent: leave it as it was and coverage reports
+						0% everywhere while every test passes, or let JaCoCo have
+						`argLine` and Mockito's agent disappears instead.
+
+						So JaCoCo is redirected to `jacocoArgLine` (see its
+						plugin configuration) and both are named here.
+
+						@{...}, not ${...}, and the difference is the whole
+						trick. ${...} is interpolated when the POM is read,
+						before any plugin has run, so it would resolve to the
+						empty default above and the agent would never attach.
+						@{...} is Surefire's late replacement, evaluated when
+						Surefire itself executes - by which time prepare-agent
+						has run in the initialize phase and set the property.
+					-->
+					<argLine>@{jacocoArgLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
 				</configuration>
+			</plugin>
+			<!--
+				Coverage as a map, not as a gate. There is deliberately no
+				`check` goal and no minimum: a threshold rewards tests written to
+				move a number, and this project's real guards - the ones that
+				assert in both directions, like `errorKey.test.ts` or `CorsTest`
+				reading Spring's own route table - already do more than a
+				percentage can. What the report is for is finding code no test
+				has ever executed.
+
+				Nothing is excluded, for the same reason. Hiding parts of the map
+				is how a map starts lying.
+			-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+						<configuration>
+							<propertyName>jacocoArgLine</propertyName>
+						</configuration>
+					</execution>
+					<execution>
+						<!-- Default phase is verify, which is where we run it. -->
+						<id>report</id>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
