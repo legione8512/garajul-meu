@@ -17,15 +17,20 @@ concurrency:
 # The first four are here. The fifth is half a GitHub setting and half phase 15:
 # these three jobs have to be named as required status checks on the protected
 # branch, and the deploy workflow arrives with Railway.
+#
+# Every action is pinned at v5. The v4 line targets Node 20, which GitHub
+# deprecated in September 2025 and now force-runs on Node 24 - it works, and it
+# warns on every single run. A warning that appears on every run is a warning
+# nobody reads, which is how a real one gets missed.
 jobs:
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -43,7 +48,7 @@ jobs:
 
       - name: Keep the coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: jacoco
           path: backend/target/site/jacoco/
@@ -56,13 +61,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # node-version-file and cache-dependency-path are action inputs, not `run`
       # steps, so the working-directory default above does not apply to them -
       # both paths are resolved from the repository root.
       - name: Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -96,17 +101,17 @@ jobs:
     needs: [backend, frontend]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -167,7 +172,7 @@ jobs:
       # run diagnosable after the machine is gone.
       - name: Keep the evidence when it fails
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-failure
           path: |
