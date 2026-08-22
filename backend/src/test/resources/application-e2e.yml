@@ -1,0 +1,10 @@
+# Only ever active under mvnw spring-boot:test-run, which is the only thing that
+# sets the "e2e" profile. Deliberately a profile-scoped file rather than an
+# addition to application.yml: touching that one would change the email provider
+# for every Spring test in the project.
+garajul-meu:
+  email:
+    # A provider that exists only in src/test/java. Production cannot select it,
+    # because it is not in the jar.
+    provider: recording
+    recording-directory: target/e2e-mail
