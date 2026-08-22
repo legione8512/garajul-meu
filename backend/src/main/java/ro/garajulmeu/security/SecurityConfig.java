@@ -83,6 +83,17 @@ public class SecurityConfig {
 	 * and the request id on an error screen would always be blank - which would
 	 * quietly waste the whole correlation mechanism.
 	 *
+	 * <p><strong>The method list has to cover every method the controllers
+	 * actually serve, and on 2026-08-19 it did not.</strong> PUT was missing, so
+	 * a browser's preflight for {@code PUT /users/me/notification-preferences}
+	 * and for {@code PUT /vehicles/{id}/image} answered 403 and the request was
+	 * never sent - the preferences screen and the entire vehicle image upload
+	 * were broken from 11.1 and 12.3 onwards, in a browser only. Every test
+	 * passed because none of them asked for a PUT preflight. `CorsTest` now
+	 * derives the list from Spring's own route table rather than trusting this
+	 * one, so a new endpoint with a new method fails the build on the day it is
+	 * added instead of on the day somebody opens the application.
+	 *
 	 * <p>Scoped to {@code /api/**}. The health endpoint is not called from a
 	 * browser and has no reason to answer preflights.
 	 */
@@ -90,7 +101,7 @@ public class SecurityConfig {
 	CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(properties.allowedOrigins());
-		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 		configuration.setExposedHeaders(List.of(RequestIdFilter.HEADER));
 		configuration.setAllowCredentials(true);

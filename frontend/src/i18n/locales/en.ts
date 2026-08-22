@@ -12,6 +12,7 @@ export const en: typeof ro = {
     reference: 'Reference: {{requestId}}',
     loading: 'Loading…',
     retry: 'Try again',
+    offline: 'You have no internet connection. The application needs one to save any change.',
   },
   language: {
     label: 'Language',
@@ -294,6 +295,18 @@ export const en: typeof ro = {
     signIn: 'Sign in',
     createAccount: 'Create an account',
   },
+  legal: {
+    terms: 'Terms and conditions',
+    privacy: 'Privacy policy',
+    placeholder: 'PLACEHOLDER TEXT. This document does not yet carry its final legal '
+      + 'wording and has no effect. Section 24 makes it required before public release.',
+    termsScope: 'This will carry the conditions of use: what the application offers, '
+      + 'what it does not guarantee, and what happens to your account.',
+    privacyScope: 'This will carry what data we keep, for how long, and why. What the '
+      + 'application does today: certificate owner details are optional and are never '
+      + 'used for reminders, deleting your account is permanent, and photographs go '
+      + 'with the vehicle they belong to.',
+  },
   screens: {
     welcome: 'Welcome',
     register: 'Create account',
@@ -311,6 +324,8 @@ export const en: typeof ro = {
     changePassword: 'Change your password',
     changeEmail: 'Change your email address',
     deleteAccount: 'Delete your account',
+    terms: 'Terms and conditions',
+    privacy: 'Privacy policy',
   },
   validation: {
     required: 'Please fill in this field.',

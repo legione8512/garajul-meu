@@ -14,6 +14,9 @@ export const ro = {
     reference: 'Referință: {{requestId}}',
     loading: 'Se încarcă…',
     retry: 'Încearcă din nou',
+    // Not in `errors`: that catalogue is keyed by the backend's codes, and this
+    // is a condition the backend never reports because nothing reached it.
+    offline: 'Nu ai conexiune la internet. Aplicația are nevoie de ea ca să salveze orice modificare.',
   },
   language: {
     label: 'Limbă',
@@ -303,6 +306,21 @@ export const ro = {
     signIn: 'Autentifică-te',
     createAccount: 'Creează un cont',
   },
+  legal: {
+    terms: 'Termeni și condiții',
+    privacy: 'Politica de confidențialitate',
+    // Announces itself as unfinished on purpose. Plausible invented wording is
+    // what ships by accident; this cannot be mistaken for a finished document.
+    placeholder: 'TEXT PROVIZORIU. Acest document nu are încă formularea legală '
+      + 'finală și nu produce efecte. Secțiunea 24 îl face obligatoriu înainte de '
+      + 'lansarea publică.',
+    termsScope: 'Aici vor sta condițiile de utilizare a aplicației: ce oferă, ce nu '
+      + 'garantează, și ce se întâmplă cu contul tău.',
+    privacyScope: 'Aici va sta ce date păstrăm, cât timp și de ce. Ce face aplicația '
+      + 'astăzi: datele proprietarului de pe certificat sunt opționale și nu sunt '
+      + 'folosite niciodată pentru memento-uri, ștergerea contului este definitivă, '
+      + 'iar fotografiile dispar odată cu vehiculul lor.',
+  },
   screens: {
     welcome: 'Bun venit',
     register: 'Cont nou',
@@ -320,6 +338,8 @@ export const ro = {
     changePassword: 'Schimbarea parolei',
     changeEmail: 'Schimbarea adresei de email',
     deleteAccount: 'Ștergerea contului',
+    terms: 'Termeni și condiții',
+    privacy: 'Politica de confidențialitate',
   },
   /**
    * Phrased as labels rather than sentences on purpose. Romanian requires "de"

@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet } from 'react-router'
 
+import { SiteFooter } from '../components/SiteFooter.tsx'
 import { SiteHeader } from '../components/SiteHeader.tsx'
+import { OfflineNotice } from '../network/OfflineNotice.tsx'
 import { paths } from '../routes/paths.ts'
 
 /**
@@ -21,6 +23,7 @@ export function AppLayout() {
   return (
     <>
       <SiteHeader />
+      <OfflineNotice />
       <nav aria-label={t('navigation.label')}>
         <NavLink to={paths.dashboard}>{t('navigation.home')}</NavLink>
         {' '}
@@ -31,6 +34,7 @@ export function AppLayout() {
       <main>
         <Outlet />
       </main>
+      <SiteFooter />
     </>
   )
 }

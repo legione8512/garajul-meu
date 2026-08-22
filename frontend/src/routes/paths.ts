@@ -42,4 +42,10 @@ export const paths = {
   changePassword: '/profile/password',
   changeEmail: '/profile/email',
   deleteAccount: '/profile/delete',
+  /**
+   * Screens 19 and 20, public. Somebody deciding whether to create an account
+   * has to be able to read both before they have one.
+   */
+  terms: '/terms',
+  privacy: '/privacy',
 } as const
