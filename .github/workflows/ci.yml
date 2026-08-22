@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push supersedes the first: cancelling the older run keeps the queue
+# honest about what is actually being checked.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Specification section 31 asks for backend tests, frontend tests, a frontend
+# build, Playwright smoke tests, and deploy only when the required checks pass.
+# The first four are here. The fifth is half a GitHub setting and half phase 15:
+# these three jobs have to be named as required status checks on the protected
+# branch, and the deploy workflow arrives with Railway.
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # `verify` rather than `test`: it also produces the JaCoCo report bound to
+      # that phase and repackages the jar, which is the artefact phase 15 will
+      # deploy - so CI builds the thing that ships, not a near relative of it.
+      #
+      # Testcontainers needs a Docker daemon and ubuntu-latest has one running,
+      # with no setup step. That is the whole reason this job is not on Windows.
+      - name: Build, test and measure
+        working-directory: backend
+        run: ./mvnw -B verify
+
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      # node-version-file and cache-dependency-path are action inputs, not `run`
+      # steps, so the working-directory default above does not apply to them -
+      # both paths are resolved from the repository root.
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `ci`, not `install`: it installs exactly the lockfile and fails if
+      # package.json and the lockfile disagree, which is a difference worth
+      # failing on rather than silently resolving.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # `build` is `tsc -b && vite build`, and since 14.2 `tsc -b` also reaches
+      # e2e/ and playwright.config.ts through tsconfig.e2e.json. One step, and
+      # every TypeScript file in the repository is checked.
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test:run
+
+  e2e:
+    name: Playwright smoke tests
+    # Deliberately gated on the other two. This job costs a browser download, a
+    # PostgreSQL container and a Spring Boot start; running it while a unit test
+    # is already red tells nobody anything new. Gated this way, an e2e failure
+    # is always about the seam between the two applications - which is the only
+    # thing it is here to test.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install the browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # Its own step so that a compilation failure is reported here, in the open,
+      # instead of vanishing into the log file of a process started in the
+      # background and surfacing as "the backend never answered".
+      - name: Compile the backend and its tests
+        working-directory: backend
+        run: ./mvnw -B test-compile
+
+      # spring-boot:test-run, never spring-boot:run. It starts the application on
+      # the test classpath, so TestcontainersConfiguration gives it a throwaway
+      # PostgreSQL and the `e2e` profile selects RecordingEmailProvider - the
+      # only way the journey can read a verification code, since codes are
+      # hashed in the database and cannot be queried back.
+      #
+      # Section 26 keeps automated tests off Neon development. On a laptop that
+      # is a habit; here it is enforced by which goal this line names.
+      - name: Start the backend
+        working-directory: backend
+        run: ./mvnw -B spring-boot:test-run > "$RUNNER_TEMP/backend.log" 2>&1 &
+
+      # Three minutes, because a cold runner has to pull the PostgreSQL image
+      # before Flyway can even begin. The failure branch prints the log: without
+      # it this step reports a timeout and not one word about the cause.
+      - name: Wait for it to answer
+        run: |
+          for attempt in $(seq 1 180); do
+            if curl -fsS http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "Backend answered after ${attempt}s."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The backend never answered on 8080. Its log follows."
+          cat "$RUNNER_TEMP/backend.log"
+          exit 1
+
+      # Playwright starts Vite itself: the config sets reuseExistingServer to
+      # false whenever CI is set, which GitHub sets for us.
+      - name: The journey
+        working-directory: frontend
+        run: npm run e2e
+
+      # retries stay at 0 in playwright.config.ts, so a flake fails the build.
+      # That is deliberate - the timeout work in 14.2 was done precisely so that
+      # a red run here means something. These artefacts are what makes such a
+      # run diagnosable after the machine is gone.
+      - name: Keep the evidence when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            ${{ runner.temp }}/backend.log
+          if-no-files-found: ignore
