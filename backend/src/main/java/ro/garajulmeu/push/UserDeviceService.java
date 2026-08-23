@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import ro.garajulmeu.common.Sha256Hex;
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
 import ro.garajulmeu.push.dto.DeviceView;
@@ -39,10 +40,13 @@ public class UserDeviceService {
 	 * <p>Idempotent by design, because the native client calls this on every
 	 * launch: the same token twice updates {@code last_seen_at} and nothing else
 	 * of consequence.
+	 *
+	 * <p>The lookup goes through the token's hash. The column itself is encrypted
+	 * and every write produces different bytes, so there is nothing to match on.
 	 */
 	@Transactional
 	public DeviceView register(UUID accountId, RegisterDeviceRequest request) {
-		UserDevice device = deviceRepository.findByPushToken(request.pushToken())
+		UserDevice device = deviceRepository.findByPushTokenHash(Sha256Hex.of(request.pushToken()))
 				.orElseGet(() -> new UserDevice(accountId, request.platform(), request.pushToken()));
 
 		boolean moved = !accountId.equals(device.getUserId());

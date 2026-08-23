@@ -29,6 +29,10 @@ garajul-meu:
     provider: logging
   push:
     provider: logging
+    # Fixed and obviously fake, like jwt.secret two lines above. Tests encrypt
+    # and decrypt for real; what they must not do is depend on a key somebody
+    # has to set on their machine before the suite will run.
+    token-key: "test-only-push-token-key-never-used-outside-tests"
   storage:
     provider: local
     # Under target/, so a stray write lands where `mvn clean` will remove it

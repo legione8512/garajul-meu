@@ -3,6 +3,9 @@ package ro.garajulmeu.push;
 import java.time.Instant;
 import java.util.UUID;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import ro.garajulmeu.TestcontainersConfiguration;
+import ro.garajulmeu.common.Sha256Hex;
 import ro.garajulmeu.email.EmailProvider;
 import ro.garajulmeu.security.AccessTokenService;
 import ro.garajulmeu.user.User;
@@ -56,6 +60,10 @@ class UserDeviceFlowTest {
 	@Autowired
 	private AccessTokenService accessTokenService;
 
+	/** For reading the column as the database holds it, past the converter. */
+	@PersistenceContext
+	private EntityManager entityManager;
+
 	/** Unused. Present only so this class shares AuthFlowTest's context. */
 	@MockitoBean
 	private EmailProvider emailProvider;
@@ -76,6 +84,11 @@ class UserDeviceFlowTest {
 				""".formatted(platform, pushToken);
 	}
 
+	/** The token's blind index, which is how a row is found now that the column is ciphertext. */
+	private static String hashOf(String pushToken) {
+		return Sha256Hex.of(pushToken);
+	}
+
 	@Test
 	void registeringStoresTheDeviceAndAnswersWithoutTheToken() throws Exception {
 		Account account = givenAccount("device@example.com");
@@ -93,7 +106,43 @@ class UserDeviceFlowTest {
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString(TOKEN))));
 
-		assertThat(deviceRepository.findByPushToken(TOKEN)).isPresent();
+		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN))).isPresent();
+	}
+
+	/**
+	 * <strong>Section 10.7, asserted on the column rather than on the cipher.</strong>
+	 *
+	 * <p>PushTokenCipherTest proves the encryption works. This proves it is
+	 * actually applied - which is a different claim, and the one that would fail
+	 * silently: remove {@code @Convert} from the entity and every other test in
+	 * this file still passes, because the application would go on reading back
+	 * exactly what it wrote. Only a query that bypasses the converter can tell the
+	 * difference between an encrypted column and a plain one.
+	 *
+	 * <p>The token still has to come back out. Section 10.7 is explicit that the
+	 * value must stay retrievable rather than hashed, because FCM needs it to
+	 * send, so both halves are asserted here.
+	 */
+	@Test
+	void theColumnHoldsCiphertextAndTheApplicationStillReadsTheToken() {
+		Account account = givenAccount("encrypted-column@example.com");
+
+		UserDevice saved = deviceRepository.saveAndFlush(
+				new UserDevice(account.id(), DevicePlatform.ANDROID, TOKEN));
+
+		String asStored = (String) entityManager
+				.createNativeQuery("select push_token from user_devices where id = :id")
+				.setParameter("id", saved.getId())
+				.getSingleResult();
+
+		assertThat(asStored)
+				.as("what the database actually holds")
+				.isNotEqualTo(TOKEN)
+				.doesNotContain(TOKEN);
+
+		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN)).orElseThrow().getPushToken())
+				.as("and what the application reads back, because FCM needs the real value")
+				.isEqualTo(TOKEN);
 	}
 
 	/** The native client calls this at every launch; twice must not mean two devices. */
@@ -136,7 +185,7 @@ class UserDeviceFlowTest {
 				.andExpect(status().isOk());
 
 		assertThat(deviceRepository.count()).isEqualTo(1);
-		assertThat(deviceRepository.findByPushToken(TOKEN).orElseThrow().getUserId())
+		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN)).orElseThrow().getUserId())
 				.isEqualTo(second.id());
 	}
 
