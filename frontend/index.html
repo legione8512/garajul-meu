@@ -1,10 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="ro">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- The served default is Romanian, and i18n/config.ts rewrites this
+         attribute the moment the language is decided. Shipping `en` here made
+         screen readers pronounce Romanian with an English voice. -->
+    <title>Garajul Meu</title>
+    <meta
+      name="description"
+      content="Organizează documentele mașinii tale și primește notificări înainte să expire ITP-ul, RCA-ul, rovinieta sau CASCO." />
+    <meta
+      name="theme-color"
+      content="#100c1c"
+/>
+
   </head>
   <body>
     <div id="root"></div>

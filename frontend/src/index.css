@@ -1,11 +1,65 @@
 /*
- * A minimal base, and deliberately not a design system.
+ * The design system, built on the branding decided in section 35.
  *
- * Specification section 35 still lists the product name, logo and colours as
- * open decisions, so tokens built now would be guesses at what they have to
- * support. This is only enough to make forms legible and controls reachable.
- * The design system gets its own step once there is branding to build it from.
+ * Three things about this file are unusual and all three are deliberate.
+ *
+ * There is not a single class selector, because there is not a single
+ * `className` in sixteen pages. The markup is semantic by choice, so the
+ * stylesheet reads the same vocabulary the screen readers do: a heading is
+ * styled because it is a heading, a definition list because it is one. A class
+ * would be a second naming scheme describing the same thing.
+ *
+ * Colour is never the only signal. Five document tones each carry a different
+ * border weight and style as well as a different hue - solid, double, thick,
+ * dashed, dotted - so the difference survives a monochrome screen, a printout
+ * and every kind of colour blindness. `guards/designTokens.test.ts` fails the
+ * build if two tones ever end up looking alike without colour.
+ *
+ * And there is one theme rather than two. The landing page's mark is an opaque
+ * image whose own background is this page's background, so a light scheme would
+ * put a dark rectangle in the middle of a white page. A single committed theme
+ * is more honest than a second one that only half works - and it removes a
+ * palette free to drift out of step with the first.
  */
+
+/* ---------------------------------------------------------------------------
+ * Tokens
+ *
+ * --surface-sunken is measured, not chosen: it is the most common colour on the
+ * border of hero-car.webp, 284 of 3,972 pixels sampled, with the next three
+ * within two points of it. Everything else is that hue at a higher lightness.
+ * Replacing the image means measuring again.
+ * ------------------------------------------------------------------------- */
+:root {
+  /* Dark only, and this is what tells the browser so - scrollbars, date
+   * pickers, autofill and the select popup all follow it. */
+  color-scheme: dark;
+
+  --surface-sunken: #151321;
+  --surface: #1d1a2e;
+  --surface-raised: #272240;
+  --border: #3a3357;
+
+  --text: #e8e6f2;
+  --text-muted: #a39dbd;
+
+  --brand: #7c3aed;
+  --brand-bright: #a855f7;
+  --brand-contrast: #ffffff;
+  --silver: #c8c6d6;
+
+  --tone-ok: #3fcf8e;
+  --tone-soon: #e8b44a;
+  --tone-urgent: #f4676c;
+  --tone-gap: #f4676c;
+  --tone-unset: #8b849f;
+
+  --radius: 10px;
+  --measure: 34rem;
+
+  /* 44 CSS pixels, the smallest comfortable touch target. */
+  --touch: 2.75rem;
+}
 
 *,
 *::before,
@@ -13,73 +67,376 @@
   box-sizing: border-box;
 }
 
+/* ---------------------------------------------------------------------------
+ * Page
+ * ------------------------------------------------------------------------- */
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
-  line-height: 1.5;
-  color: #1a1a1a;
-  background: #fff;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface-sunken);
 }
 
+main {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.75rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2rem;
+}
+
+a {
+  color: var(--brand-bright);
+  text-underline-offset: 0.2em;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+small {
+  color: var(--text-muted);
+}
+
+/*
+ * A vehicle photograph arrives from a phone camera at four thousand pixels
+ * across. Without this it is laid out at its natural size and every screen that
+ * shows one scrolls sideways. The certificate overlay sets its own width
+ * inline; `max-width` leaves that alone and only removes the ceiling problem.
+ */
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+img {
+  display: block;
+  border-radius: var(--radius);
+}
+
+::selection {
+  background: var(--brand);
+  color: var(--brand-contrast);
+}
+
+/* ---------------------------------------------------------------------------
+ * Header
+ *
+ * The first link in the header is the wordmark. The gradient echoes the logo -
+ * silver into violet across "Garajul Meu" - and needs no image file, which
+ * matters because an exported asset would have to be redrawn for every density.
+ * `color` is declared before the clip so a browser that does not support it
+ * still shows silver rather than nothing.
+ * ------------------------------------------------------------------------- */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  padding: 0.875rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
-main {
-  max-width: 32rem;
-  margin: 0 auto;
-  padding: 1rem;
+header > a:first-child {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  color: var(--silver);
+  background: linear-gradient(100deg, var(--silver) 40%, var(--brand-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  padding: 2rem 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Landing
+ *
+ * No shadow and no rounded corner, and both omissions are the point. The export
+ * is opaque, so `drop-shadow` would trace the rectangle rather than the car and
+ * draw a glowing box; the image carries its own glow already. A radius would
+ * cut four notches showing the page behind - invisible here only because the
+ * two colours match, which is a coincidence worth not depending on.
+ * ------------------------------------------------------------------------- */
+[data-hero] {
+  width: min(100%, 30rem);
+  margin: 0 auto 1.5rem;
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Grouping
+ * ------------------------------------------------------------------------- */
+section {
+  margin-bottom: 1.5rem;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+legend {
+  padding: 0 0.5rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0 0 1.5rem;
+}
+
+dt {
+  color: var(--text-muted);
+}
+
+dd {
+  margin: 0;
+}
+
+ul {
+  padding-left: 0;
+  list-style: none;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* One column on a narrow screen: a term and its value side by side at 320px
+ * leaves about eleven characters for the value. */
+@media (max-width: 30rem) {
+  dl {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  dt {
+    margin-top: 0.75rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Forms
+ * ------------------------------------------------------------------------- */
 label {
   display: block;
   font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 
 input,
 select,
-button {
+button,
+textarea {
   font: inherit;
 }
 
-input {
+/*
+ * The exclusions are the whole point. A checkbox given `display: block` and
+ * `width: 100%` becomes a box the width of the page - which is what the first
+ * version of this file did to every switch on the notification preferences
+ * screen.
+ */
+input:not([type='checkbox'], [type='radio']),
+select,
+textarea {
   display: block;
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #767676;
-  border-radius: 4px;
+  min-height: var(--touch);
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.65rem;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
-/* Colour is never the only signal: the message under the field says what is wrong. */
-input[aria-invalid="true"] {
-  border-color: #a4262c;
+input[type='checkbox'],
+input[type='radio'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0 0.5rem 0 0;
+  accent-color: var(--brand);
+  vertical-align: middle;
 }
 
-button {
-  padding: 0.5rem 1rem;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: #1a1a1a;
-  color: #fff;
+/* CheckboxField puts the label after the box, which is the reading order for a
+ * checkbox. It is a label for one control, not a heading for a group. */
+input[type='checkbox'] + label,
+input[type='radio'] + label {
+  display: inline;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+input[type='file'] {
+  padding: 0.45rem;
   cursor: pointer;
 }
 
+/* Colour is never the only signal: the message under the field says what is
+ * wrong, and aria-invalid says it to anything that is not looking. */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--tone-urgent);
+  border-width: 2px;
+}
+
+button {
+  min-height: var(--touch);
+  padding: 0.6rem 1.15rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--brand);
+  color: var(--brand-contrast);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--brand-bright);
+}
+
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: default;
 }
 
-[role="alert"],
-input + p {
-  color: #a4262c;
+/* Every interactive thing, one visible ring, and never `outline: none`. The
+ * keyboard is how this application is tested end to end. */
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--brand-bright);
+  outline-offset: 2px;
 }
 
-input + p {
-  margin: 0.25rem 0 0;
+/* ---------------------------------------------------------------------------
+ * Messages
+ * ------------------------------------------------------------------------- */
+[role='alert'],
+input + p,
+select + p,
+textarea + p {
+  color: var(--tone-urgent);
+}
+
+input + p,
+select + p,
+textarea + p {
+  margin: -0.75rem 0 1rem;
   font-size: 0.875rem;
+}
+
+[role='alert'] {
+  padding: 0.75rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  margin-bottom: 1.5rem;
+}
+
+/* Loading and confirmation both announce through role="status". Quiet rather
+ * than coloured: neither is a result the reader has to act on. */
+[role='status'] {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+ * Document tones
+ *
+ * Five states, five hues, and five different left borders. The border is the
+ * part that survives without colour, and each one is chosen to mean something:
+ * dashed for coverage that is interrupted, dotted for a document that was never
+ * entered, thick for the two that need acting on this week.
+ *
+ * The sentence beside them was always the primary signal and still is. This is
+ * what lets somebody scan a garage of six vehicles without reading all of it.
+ * ------------------------------------------------------------------------- */
+[data-tone] {
+  padding-left: 0.75rem;
+}
+
+[data-tone='ok'] {
+  color: var(--tone-ok);
+  border-left: 3px solid var(--tone-ok);
+}
+
+[data-tone='soon'] {
+  color: var(--tone-soon);
+  border-left: 3px double var(--tone-soon);
+}
+
+[data-tone='urgent'] {
+  color: var(--tone-urgent);
+  border-left: 5px solid var(--tone-urgent);
+}
+
+[data-tone='gap'] {
+  color: var(--tone-gap);
+  border-left: 5px dashed var(--tone-gap);
+}
+
+[data-tone='unset'] {
+  color: var(--tone-unset);
+  border-left: 3px dotted var(--tone-unset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

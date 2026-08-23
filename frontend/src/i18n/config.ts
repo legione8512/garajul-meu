@@ -26,7 +26,17 @@ void i18n.use(initReactI18next).init({
 i18n.on('languageChanged', (language) => {
   if (isSupportedLanguage(language)) {
     rememberLanguage(language)
+    document.documentElement.lang = language
   }
 })
+
+// index.html ships `lang="ro"`, which is right for the served default and wrong
+// the moment the browser asked for English. The event above does not fire for
+// the language `init` started with, so the two are reconciled here.
+//
+// This is not decoration: `lang` is what tells a screen reader which voice to
+// use, what stops the browser offering to translate a page already in the
+// reader's language, and what hyphenation and quotation rules follow.
+document.documentElement.lang = i18n.language
 
 export default i18n

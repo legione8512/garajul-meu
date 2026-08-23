@@ -1,13 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
 import { updateProfile, type UserProfile } from '../api/endpoints/users.ts'
+import { ComboboxField } from '../components/ComboboxField.tsx'
 import { FormError } from '../components/FormError.tsx'
 import { SelectField, type SelectOption } from '../components/SelectField.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { useAuth } from '../auth/useAuth.ts'
-import { maxLength, required, type ValidationMessage } from '../forms/rules.ts'
+import { GENERIC_MESSAGE, maxLength, required, type ValidationMessage } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { validate } from '../forms/validate.ts'
 import { languageNames, supportedLanguages } from '../i18n/language.ts'
@@ -62,11 +63,17 @@ export function ProfilePage() {
   const save = useSubmission()
   const [draft, setDraft] = useState<Partial<UserProfile> | null>(null)
   const [message, setMessage] = useState<ValidationMessage | undefined>(undefined)
+  const [zoneMessage, setZoneMessage] = useState<ValidationMessage | undefined>(undefined)
   const [saved, setSaved] = useState(false)
 
   const fullName = draft?.fullName ?? profile?.fullName ?? ''
   const language = draft?.preferredLanguage ?? profile?.preferredLanguage ?? ''
   const timezone = draft?.timezone ?? profile?.timezone ?? ''
+
+  // Several hundred entries, and `supportedValuesOf` is not free. It used to be
+  // rebuilt on every keystroke in the name field, which nothing noticed while
+  // the control was a select and would be felt now that it filters as you type.
+  const zones = useMemo(() => timezoneOptions(profile?.timezone ?? ''), [profile?.timezone])
 
   function change(patch: Partial<UserProfile>) {
     setDraft({ fullName, preferredLanguage: language, timezone, ...patch })
@@ -79,7 +86,12 @@ export function ProfilePage() {
     const broken = validate({ fullName }, nameRules)
     setMessage(broken.fullName)
 
-    if (broken.fullName !== undefined) {
+    // A datalist suggests and does not constrain, so anything can be typed here.
+    // The backend refuses an unknown zone anyway; this only answers sooner.
+    const unknownZone = !zones.some(zone => zone.value === timezone)
+    setZoneMessage(unknownZone ? GENERIC_MESSAGE : undefined)
+
+    if (broken.fullName !== undefined || unknownZone) {
       return
     }
 
@@ -140,11 +152,12 @@ export function ProfilePage() {
               onChange={(value) => { change({ preferredLanguage: value }) }}
             />
 
-            <SelectField
+            <ComboboxField
               label={t('fields.timezone')}
               value={timezone}
-              options={timezoneOptions(profile.timezone)}
+              options={zones}
               onChange={(value) => { change({ timezone: value }) }}
+              message={zoneMessage}
             />
 
             <button type="submit" disabled={save.pending}>{t('profile.save')}</button>
