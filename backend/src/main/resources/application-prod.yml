@@ -1,0 +1,74 @@
+# Activated with SPRING_PROFILES_ACTIVE=prod, which Railway sets as an
+# environment variable in phase 16. Everything here overrides application.yml;
+# anything absent here keeps the base value on purpose.
+#
+# No secret appears in this file and none ever may. The repository is public.
+# DB_URL, DB_MIGRATION_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET and SENTRY_DSN
+# all arrive from the environment, per section 33.
+
+# Section 27: "human-readable development logs and structured production logs."
+#
+# ECS rather than plain JSON, because it is a published schema with agreed field
+# names - a log line means the same thing to Railway's viewer, to Elastic and to
+# anything else that reads it later, without a mapping nobody maintains.
+#
+# The request id survives the switch. It travels in the MDC, which the base file
+# renders into a `[...]` prefix for a human reading a console; here that pattern
+# is ignored and the MDC becomes structured fields instead. Same value, and
+# still the thing that ties an error screen to a log line to a Sentry event.
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: garajul-meu-backend
+        environment: production
+
+# Railway terminates TLS and forwards the request, so without this every caller
+# appears to arrive from the proxy's address.
+#
+# That is not cosmetic. `AuthRateLimit` keys the login and registration budgets
+# on `request.getRemoteAddr()`, and behind an unconfigured proxy every visitor
+# in the world shares one key - so the tenth failed login anywhere locks out the
+# eleventh person everywhere, and the per-address defence becomes a global
+# denial of service. `framework` installs Spring's ForwardedHeaderFilter, which
+# rewrites the request from X-Forwarded-For before any filter of ours reads it.
+#
+# Trusting that header is only safe because the application is reachable solely
+# through Railway's proxy. If it ever gains a second, direct route, this becomes
+# a header any caller can forge to reset their own rate limit, and the trust has
+# to move to a known proxy list instead.
+server:
+  forward-headers-strategy: framework
+
+sentry:
+  environment: production
+
+garajul-meu:
+  cors:
+    # Section 21's topology: sibling subdomains of one registrable domain, which
+    # is what lets the SameSite=Strict refresh cookie travel at all.
+    allowed-origins:
+      - https://app.cyber-half.com
+
+# ---------------------------------------------------------------------------
+# RELEASE BLOCKERS - three provider seams this file cannot close yet.
+#
+# `email.provider` stays "logging", so verification codes are written to the log
+# and delivered to nobody: registration completes and no one can ever sign in.
+# `storage.provider` stays "local", and a Railway container's filesystem is
+# discarded on every redeploy, so vehicle photographs would vanish without a
+# single error. `ocr.provider` stays "stub", so the certificate scan returns
+# canned data.
+#
+# None of the three can be set here today, because ResendEmailProvider,
+# CloudflareR2FileStorageProvider and a billed Google project do not exist yet -
+# naming a provider with no matching bean fails startup, which is the behaviour
+# LoggingEmailProvider's own warning describes. They belong to 12.4, 9.3 and
+# phase 16.
+#
+# The warnings those three providers log at startup are the working guard:
+# "must never be the case in production" appears in Railway's logs on every boot
+# until each is replaced.
+# ---------------------------------------------------------------------------

@@ -26,9 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * configuration, which shadows the file this is about.
  *
  * <p>Adding a root here is meant to cost a moment's thought, and on 2026-08-23
- * it did: {@code sentry:} arrived with phase 15.1 and this test failed the same
- * minute, which is the only reason anybody looked twice at whether the block was
- * at the right level. That is the guard working, not the guard complaining.
+ * it did so twice in one afternoon: {@code sentry:} arrived with 15.1 and
+ * {@code management:} with 15.2, and each failed this test the same minute,
+ * which is the only reason anybody looked twice at whether the block sat at the
+ * right level. That is the guard working, not the guard complaining.
  */
 class ApplicationConfigurationTest {
 
@@ -38,11 +39,12 @@ class ApplicationConfigurationTest {
 	private static final Pattern ROOT_KEY = Pattern.compile("^([a-z][a-z0-9-]*):.*");
 
 	/**
-	 * Two belong to Spring, one to Sentry's own SDK - which reads {@code sentry.*}
-	 * and would not see a block nested under ours - and the last is every setting
-	 * this application owns.
+	 * Three belong to Spring, one to Sentry's own SDK - which reads
+	 * {@code sentry.*} and would not see a block nested under ours - and the last
+	 * is every setting this application owns.
 	 */
-	private static final Set<String> ROOTS = Set.of("spring", "logging", "sentry", "garajul-meu");
+	private static final Set<String> ROOTS =
+			Set.of("spring", "logging", "management", "sentry", "garajul-meu");
 
 	@Test
 	void everySettingSitsUnderARootSpringOrThisApplicationRecognises() throws Exception {

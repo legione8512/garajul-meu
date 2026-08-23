@@ -44,6 +44,34 @@ logging:
   pattern:
     correlation: "[%X{requestId:-system}] "
 
+# Section 27: "Railway logs/metrics + Spring Boot Actuator health endpoint".
+# Health, and nothing else, ever.
+management:
+  endpoints:
+    web:
+      exposure:
+        # This is already the default, and it is written down because of what
+        # sits underneath it. SecurityConfig permits /actuator/health without a
+        # token and then falls through to `anyRequest().authenticated()` - so a
+        # second exposed endpoint would not be protected by an admin rule, it
+        # would be readable by **every person who has registered an account**.
+        # There is no authorization rule on this chain to stop them; there has
+        # never needed to be one, because only health has ever been exposed.
+        #
+        # ProductionConfigurationTest fails the build if this list ever grows or
+        # gains a wildcard. Growing it safely means adding an authorization rule
+        # first, which is a different piece of work and would finally trigger
+        # the AccessDeniedHandler that section 17 has been waiting for.
+        include: health
+  endpoint:
+    health:
+      # The endpoint is public, so its answer must be a single word. Details
+      # name the database vendor, the host and the validation query; components
+      # name every health indicator registered. Neither is anybody's business
+      # from outside, and both are free reconnaissance.
+      show-details: never
+      show-components: never
+
 # Section 27: unexpected exceptions only. Section 24: PII scrubbing configured
 # at first integration, not postponed.
 sentry:
@@ -53,7 +81,7 @@ sentry:
   # even this much.
   dsn: ${SENTRY_DSN:}
 
-  # Separates a laptop's noise from production's. Railway sets this to
+  # Separates a laptop's noise from production's. The prod profile sets this to
   # "production"; nothing sets it locally, so anything that does arrive from a
   # developer machine is labelled as such rather than mixed in.
   environment: ${SENTRY_ENVIRONMENT:local}
@@ -129,7 +157,7 @@ garajul-meu:
   cors:
     # Exact origins, never a wildcard: a wildcard cannot be combined with
     # credentials, and every request this API answers carries them.
-    # Production overrides this with the real application origin.
+    # The prod profile replaces this with the real application origin.
     allowed-origins:
       - http://localhost:5173
   rate-limit:
