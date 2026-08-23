@@ -27,6 +27,16 @@
 		<jacoco.version>0.8.13</jacoco.version>
 
 		<!--
+			Also unmanaged by the parent, and the artifact name is version-
+			specific: Spring Boot 4 takes `sentry-spring-boot-4`, where 2 and 3
+			took `sentry-spring-boot-starter` and `-starter-jakarta`. Copying a
+			snippet from the wrong tab of Sentry's own documentation is the easy
+			mistake here, and it fails as an unresolvable artifact rather than
+			as anything subtle.
+		-->
+		<sentry.version>8.53.0</sentry.version>
+
+		<!--
 			Declared empty on purpose. Surefire's argLine below references
 			@{jacocoArgLine}, and if JaCoCo's prepare-agent has not run - a
 			build with -Djacoco.skip=true, or a goal that skips initialize -
@@ -81,6 +91,33 @@
 			<artifactId>google-cloud-document-ai</artifactId>
 			<version>2.97.0</version>
 		</dependency>
+
+		<!--
+			Section 27: "Sentry for unexpected exceptions; expected 4xx business
+			errors are not treated as crashes."
+
+			`sentry-logback` is declared explicitly rather than left to arrive
+			transitively, because it is the mechanism the whole design rests on.
+			GlobalExceptionHandler has logged business failures at INFO and
+			unhandled ones at ERROR since phase 3, and its javadoc has said since
+			then that this is what Sentry would pick up. The Logback appender
+			turns ERROR logs into events, so that division of log levels *is* the
+			filter section 27 asks for - and it also catches errors thrown in
+			filters and in the reminder scheduler, which never reach a
+			@ControllerAdvice at all. A dependency that load-bearing should be
+			written down, not hoped for.
+		-->
+		<dependency>
+			<groupId>io.sentry</groupId>
+			<artifactId>sentry-spring-boot-4</artifactId>
+			<version>${sentry.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.sentry</groupId>
+			<artifactId>sentry-logback</artifactId>
+			<version>${sentry.version}</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>

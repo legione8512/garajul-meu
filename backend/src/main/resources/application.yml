@@ -44,6 +44,52 @@ logging:
   pattern:
     correlation: "[%X{requestId:-system}] "
 
+# Section 27: unexpected exceptions only. Section 24: PII scrubbing configured
+# at first integration, not postponed.
+sentry:
+  # Empty locally and absent in tests, which disables the SDK entirely - the
+  # repository is public and a DSN belongs in the environment beside JWT_SECRET.
+  # src/test/resources/application.yml shadows this file, so no test ever sees
+  # even this much.
+  dsn: ${SENTRY_DSN:}
+
+  # Separates a laptop's noise from production's. Railway sets this to
+  # "production"; nothing sets it locally, so anything that does arrive from a
+  # developer machine is labelled as such rather than mixed in.
+  environment: ${SENTRY_ENVIRONMENT:local}
+
+  # Section 24. The default is already false, and it is written here anyway,
+  # because a privacy setting that is merely defaulted looks exactly like one
+  # that was considered - and this project has been bitten by that once already,
+  # with a `strict` flag that was never switched on and never noticed.
+  send-default-pii: false
+
+  # No request body on an event. Bodies here carry passwords, verification codes
+  # and certificate fields; section 27 forbids every one of them reaching a log,
+  # and an exception report is a log with a nicer interface.
+  max-request-body-size: none
+
+  # Tracing off. Section 27 asks for error reporting and says nothing about
+  # performance; spans would add a second surface where URLs and parameters
+  # could travel, for a question nobody has asked yet. Raise it when there is a
+  # latency problem worth measuring.
+  traces-sample-rate: 0
+
+  # The one setting that would otherwise defeat the whole arrangement.
+  #
+  # Sentry installs a HandlerExceptionResolver whose default order is
+  # Integer.MIN_VALUE, so it runs BEFORE @ExceptionHandler and captures every
+  # exception - including every ApiException, which is to say every wrong
+  # password, every failed validation, every 404. That is precisely what section
+  # 27 forbids: "expected 4xx business errors are not treated as crashes".
+  #
+  # Moved to last, it never fires at all: GlobalExceptionHandler declares
+  # @ExceptionHandler(Exception.class), so the resolver chain always stops
+  # before reaching it. Reporting is left entirely to the Logback appender,
+  # which sees exactly what was logged at ERROR - and by design that is only
+  # ever the unhandled case.
+  exception-resolver-order: 2147483647
+
 garajul-meu:
   auth:
     verification-code-validity: 15m
