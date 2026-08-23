@@ -215,3 +215,10 @@ garajul-meu:
       project-id: garajul-meu-505722
       location: eu
       processor-id: 7f0ef1c4beff0c0f
+  # The one value here that is a secret, and therefore the one with no value.
+  # Empty on a developer machine, where `gcloud auth application-default
+  # login` has already left credentials in the user profile and Google's own
+  # lookup finds them. A container has neither that file nor a metadata
+  # server, so there the key arrives as this variable or the application does
+  # not start.
+      credentials-json: ${GOOGLE_CREDENTIALS_JSON:}

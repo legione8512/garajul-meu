@@ -1,8 +1,11 @@
 package ro.garajulmeu.ocr.google;
 
 import java.io.IOException;
+import java.util.Optional;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.documentai.v1.DocumentProcessorServiceClient;
 import com.google.cloud.documentai.v1.DocumentProcessorServiceSettings;
 import com.google.cloud.documentai.v1.ProcessRequest;
@@ -30,6 +33,14 @@ import ro.garajulmeu.ocr.OcrProvider;
  * every scan with a server error - the same choice the provider seam itself
  * makes.
  *
+ * <p><strong>Credentials are supplied only when configured.</strong> Two
+ * environments need two different answers and neither should have to know about
+ * the other: a developer machine has them in the user profile from
+ * {@code gcloud auth application-default login}, and handing the client nothing
+ * lets Google's own lookup find them. A container has no such file, so the key
+ * arrives as a value and is installed here. The fallback is not a convenience -
+ * it is what keeps local development working unchanged.
+ *
  * <p>Nothing here logs the image or the text read from it, per section 24. What
  * is logged when a call fails is the status code and nothing else.
  */
@@ -44,12 +55,25 @@ class GoogleDocumentAiOcrProvider implements OcrProvider, AutoCloseable {
 
 	GoogleDocumentAiOcrProvider(DocumentAiProperties properties) throws IOException {
 		this.processorName = properties.processorName();
-		this.client = DocumentProcessorServiceClient.create(
-				DocumentProcessorServiceSettings.newBuilder()
-						.setEndpoint(properties.endpoint())
-						.build());
 
-		log.info("OCR provider is Document AI at {}", properties.endpoint());
+		DocumentProcessorServiceSettings.Builder settings =
+				DocumentProcessorServiceSettings.newBuilder()
+						.setEndpoint(properties.endpoint());
+
+		Optional<GoogleCredentials> configured = properties.credentials();
+		configured.ifPresent(credentials ->
+				settings.setCredentialsProvider(FixedCredentialsProvider.create(credentials)));
+
+		this.client = DocumentProcessorServiceClient.create(settings.build());
+
+		// Which of the two paths took effect, because "it works on my machine"
+		// and "it works in the container" are different sentences here and the
+		// log is the only place that distinguishes them.
+		log.info("OCR provider is Document AI at {}, authenticating with {}",
+				properties.endpoint(),
+				configured.isPresent()
+						? "the configured service account"
+						: "application default credentials");
 	}
 
 	@Override

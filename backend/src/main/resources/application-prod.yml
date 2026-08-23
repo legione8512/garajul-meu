@@ -3,9 +3,18 @@
 # anything absent here keeps the base value on purpose.
 #
 # No secret appears in this file and none ever may. The repository is public.
-# DB_URL, DB_MIGRATION_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET, SENTRY_DSN,
-# RESEND_API_KEY and the four R2_* variables all arrive from the environment,
-# per section 33.
+# Everything sensitive arrives from the environment, per section 33 - and this
+# is the list, kept complete because a partial one is worse than none:
+#
+#   DB_URL, DB_MIGRATION_URL, DB_USERNAME, DB_PASSWORD
+#   JWT_SECRET, PUSH_TOKEN_KEY
+#   RESEND_API_KEY, SENTRY_DSN
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+#   GOOGLE_CREDENTIALS_JSON
+#
+# Two more are not secrets but are still set in Railway rather than here:
+# PORT, which the platform assigns, and OCR_PROVIDER, which is the switch
+# described in the ocr block below.
 
 # Section 27: "human-readable development logs and structured production logs."
 #
@@ -66,6 +75,22 @@ garajul-meu:
     # photograph at each deploy - silently, with no error anywhere.
     provider: r2
 
+  ocr:
+    # Release blocker closed by 9.3 - but held behind an environment variable
+    # rather than written here as "google", and the difference is a rollback
+    # measured in seconds instead of a git revert, a rebuild and a redeploy.
+    #
+    # GoogleDocumentAiOcrProvider builds its client in the constructor, so a
+    # wrong project, a missing IAM role or an unparseable key does not degrade
+    # the scan - it stops the application from starting, exactly as a missing
+    # EmailProvider did on the first deploy. A variable makes undoing that one
+    # edit and a restart.
+    #
+    # Set OCR_PROVIDER=google in Railway once GOOGLE_CREDENTIALS_JSON is set.
+    # StubOcrProvider announces itself on every boot until then, so the log says
+    # which one is live rather than leaving it to be inferred.
+    provider: ${OCR_PROVIDER:stub}
+
   cors:
     # Section 21's topology: sibling subdomains of one registrable domain, which
     # is what lets the SameSite=Strict refresh cookie travel at all.
@@ -73,14 +98,13 @@ garajul-meu:
       - https://app.cyber-half.com
 
 # ---------------------------------------------------------------------------
-# ONE RELEASE BLOCKER LEFT, and it does not stop a deployment.
+# NO RELEASE BLOCKER LEFT IN CONFIGURATION.
 #
-# `ocr.provider` stays "stub", so the certificate scan returns canned data
-# instead of reading a photograph. It cannot be set here until a Google Cloud
-# project with billing enabled exists - naming a provider with no matching bean
-# fails startup, which is the behaviour LoggingEmailProvider's warning
-# describes. Everything else in the application works without it.
-#
-# The startup warning is the working guard: StubOcrProvider announces itself in
-# Railway's logs on every boot until it is replaced.
+# What remains of section 9 is not a deployment step: 9.5's confidence
+# thresholds are still the provisional 0.80 from application.yml, and section 35
+# says they are calibrated against representative photographs rather than
+# guessed. Two documents exist and neither is representative. Until then the
+# scan proposes with a threshold nobody has measured, which is visible in the
+# interface as a field marked for review rather than as a wrong value saved
+# silently.
 # ---------------------------------------------------------------------------
