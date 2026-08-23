@@ -128,13 +128,26 @@ garajul-meu:
     access-token-validity: 10m
     issuer: garajul-meu
   email:
-    # Production must override this with "resend".
+  # Production must override this with "resend".
     provider: logging
+  # Absent in development, where the logging provider needs neither. An unset
+  # variable arrives here as an empty string, which ResendEmailProvider treats
+  # as missing and refuses to start on - loudly, at boot, naming the property.
+    api-key: ${RESEND_API_KEY:}
+  # Section 21 puts sending on its own subdomain: a code marked as spam then
+  # damages the reputation of mail nobody reads, rather than of the address a
+  # person actually writes to. Resend verifies this domain by DNS.
+    from: "${EMAIL_FROM:Garajul Meu <noreply@mail.cyber-half.com>}"
   push:
   # The only provider that exists. Section 18 makes push native-only and the
   # applications are phases 17 and 18; production overrides this with
   # "firebase" when there is something to deliver to.
     provider: logging
+  # Section 10.7: the token is kept retrievable and encrypted, not hashed.
+  # No default, exactly like jwt.secret - a missing key must be a refusal to
+  # start, never a silently weak one. Local development reads it from
+  # application-local.yml, which is gitignored.
+    token-key: ${PUSH_TOKEN_KEY}
   storage:
     # Section 32's seam, named there as FileStorageProvider →
     # CloudflareR2FileStorageProvider. "local" writes to the filesystem for
