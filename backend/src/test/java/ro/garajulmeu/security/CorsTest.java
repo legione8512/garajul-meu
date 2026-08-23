@@ -4,14 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+
+import jakarta.servlet.http.Cookie;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,11 +28,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import ro.garajulmeu.TestcontainersConfiguration;
+import ro.garajulmeu.auth.RefreshCookies;
 import ro.garajulmeu.common.RequestIdFilter;
 import ro.garajulmeu.email.EmailProvider;
 
@@ -44,6 +53,16 @@ import ro.garajulmeu.email.EmailProvider;
 class CorsTest {
 
 	private static final String ALLOWED_ORIGIN = "http://localhost:5173";
+
+	/**
+	 * A sibling subdomain of the production domain, and the reason the origin
+	 * check is not redundant with {@code SameSite=Strict}. SameSite reasons about
+	 * <em>sites</em> - the registrable domain - so a browser considers
+	 * www.cyber-half.com and api.cyber-half.com the same site and attaches the
+	 * refresh cookie to a request from one to the other. www is on shared hosting
+	 * this project does not control.
+	 */
+	private static final String SIBLING_SUBDOMAIN = "https://www.cyber-half.com";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -141,6 +160,125 @@ class CorsTest {
 				.isEmpty();
 	}
 
+	/**
+	 * <strong>This is the CSRF defence section 14 asks for, and until now nobody
+	 * had checked that it exists.</strong>
+	 *
+	 * <p>Section 14: "Web cookie-sensitive endpoints use strict allowed-origin
+	 * checks and Spring CSRF protection appropriate for the selected cookie
+	 * flow." The check is Spring's own CORS processor, which refuses an
+	 * <em>actual</em> request from an unlisted origin and not merely its
+	 * preflight - the handler is never reached. Every test above this one
+	 * asserted only preflights, so the behaviour the whole design rests on was
+	 * assumed rather than verified.
+	 *
+	 * <p>The forged request carries a refresh cookie on purpose. A cross-site
+	 * attacker cannot read a response, but they do not need to: making the
+	 * refresh succeed rotates the token, so the legitimate client's next refresh
+	 * presents a spent one, {@code RefreshTokenService} treats that as theft, and
+	 * the whole family is revoked. The victim is signed out of every device
+	 * without anyone stealing anything.
+	 *
+	 * <p>{@code SameSite=Strict} does not close this. It reasons about sites, and
+	 * a request from www.cyber-half.com to api.cyber-half.com is same-site, so
+	 * the cookie is attached. The origin check is what distinguishes them.
+	 */
+	@Test
+	void aForgedRefreshFromASiblingSubdomainIsRefusedBeforeItReachesTheHandler() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/refresh")
+						.header(HttpHeaders.ORIGIN, SIBLING_SUBDOMAIN)
+						.cookie(new Cookie(RefreshCookies.NAME, "a-stolen-ride-on-somebody-elses-session"))
+						.contentType("application/json")
+						.content("{}"))
+				.andExpect(status().isForbidden());
+	}
+
+	/**
+	 * The control for the test above, and the reason its 403 means what it
+	 * claims. Byte for byte the same forged request, changing only the origin:
+	 * this one gets past CORS and is refused by the token instead, with 401.
+	 *
+	 * <p>Without this, a 403 from any cause at all - a security rule, a filter,
+	 * a typo in the path - would read as proof the origin check worked.
+	 */
+	@Test
+	void theSameRequestFromTheApplicationOriginIsRefusedByTheTokenAndNotByTheOrigin() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/refresh")
+						.header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+						.cookie(new Cookie(RefreshCookies.NAME, "a-stolen-ride-on-somebody-elses-session"))
+						.contentType("application/json")
+						.content("{}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	/**
+	 * <strong>The origin check only works on methods that carry an origin.</strong>
+	 *
+	 * <p>Browsers send {@code Origin} on every POST, which is what lets CORS
+	 * refuse a forged one. They send none on a GET triggered by an {@code <img>},
+	 * a stylesheet or a plain link - and a request with no origin is not a CORS
+	 * request at all, so the processor passes it through untouched. Combined with
+	 * SameSite's site-level blindness, a GET endpoint that read the refresh
+	 * cookie would be forgeable from any subdomain with nothing in the way.
+	 *
+	 * <p>Both endpoints are POST today and neither is likely to change. This
+	 * exists because the consequence of changing one is silent: no test would
+	 * fail, no warning would appear, and the CSRF protection this file documents
+	 * would simply stop applying to that route.
+	 */
+	@Test
+	void nothingReadsTheRefreshCookieOnAMethodThatCarriesNoOrigin() {
+		List<String> unsafe = new ArrayList<>();
+
+		handlerMapping.getHandlerMethods().forEach((info, handler) -> {
+			if (!readsTheRefreshCookie(handler)) {
+				return;
+			}
+
+			Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
+
+			if (methods.isEmpty() || !methods.stream().allMatch(RequestMethod.POST::equals)) {
+				unsafe.add(patternsOf(info) + " serves " + (methods.isEmpty() ? "ANY METHOD" : methods.toString()));
+			}
+		});
+
+		assertThat(unsafe)
+				.as("routes reading the refresh cookie on a method a browser sends without an Origin header")
+				.isEmpty();
+	}
+
+	/**
+	 * The CORS configuration is registered for {@code /api/**} and nowhere else,
+	 * so a cookie endpoint outside that prefix would have no origin check at all.
+	 */
+	@Test
+	void everyRouteReadingTheRefreshCookieSitsUnderTheCorsConfiguration() {
+		List<String> outside = new ArrayList<>();
+
+		handlerMapping.getHandlerMethods().forEach((info, handler) -> {
+			if (readsTheRefreshCookie(handler) && !underApi(info)) {
+				outside.add(patternsOf(info).toString());
+			}
+		});
+
+		assertThat(outside)
+				.as("routes reading the refresh cookie from outside the /api/** the CORS filter covers")
+				.isEmpty();
+	}
+
+	private static boolean readsTheRefreshCookie(HandlerMethod handler) {
+		return Arrays.stream(handler.getMethodParameters())
+				.map(parameter -> parameter.getParameterAnnotation(CookieValue.class))
+				.filter(Objects::nonNull)
+				.anyMatch(cookie -> RefreshCookies.NAME.equals(cookie.name())
+						|| RefreshCookies.NAME.equals(cookie.value()));
+	}
+
+	private static Set<String> patternsOf(RequestMappingInfo info) {
+		PathPatternsRequestCondition patterns = info.getPathPatternsCondition();
+		return patterns == null ? Set.of() : patterns.getPatternValues();
+	}
+
 	private Set<String> methodsServedUnderApi() {
 		return handlerMapping.getHandlerMethods().keySet().stream()
 				.filter(CorsTest::underApi)
@@ -150,9 +288,6 @@ class CorsTest {
 	}
 
 	private static boolean underApi(RequestMappingInfo info) {
-		PathPatternsRequestCondition patterns = info.getPathPatternsCondition();
-
-		return patterns != null && patterns.getPatternValues().stream()
-				.anyMatch(pattern -> pattern.startsWith("/api/"));
+		return patternsOf(info).stream().anyMatch(pattern -> pattern.startsWith("/api/"));
 	}
 }

@@ -94,6 +94,10 @@ public class SecurityConfig {
 	 * one, so a new endpoint with a new method fails the build on the day it is
 	 * added instead of on the day somebody opens the application.
 	 *
+	 * <p><strong>This allowlist is also the CSRF defence</strong>, which is why
+	 * an entry added here casually is not a convenience - see the CSRF note on
+	 * the filter chain below.
+	 *
 	 * <p>Scoped to {@code /api/**}. The health endpoint is not called from a
 	 * browser and has no reason to answer preflights.
 	 */
@@ -124,7 +128,42 @@ public class SecurityConfig {
 				// refused with a 401 the browser would report as a CORS failure.
 				.cors(Customizer.withDefaults())
 
+				// Disabled, and section 14 requires a reason rather than a habit:
+				// "Web cookie-sensitive endpoints use strict allowed-origin checks
+				// and Spring CSRF protection appropriate for the selected cookie
+				// flow."
+				//
+				// Almost every endpoint here is authenticated by a bearer token held
+				// in JavaScript memory. A browser attaches no such header to a forged
+				// request, so those endpoints have nothing for CSRF to protect.
+				//
+				// Exactly two are authenticated by a cookie - /auth/refresh and
+				// /auth/logout - and three things stand in front of them:
+				//
+				//   1. SameSite=Strict, which stops another *site* from attaching the
+				//      cookie at all. Note "site": www.cyber-half.com counts as the
+				//      same site as api.cyber-half.com, so this is not sufficient.
+				//   2. The allowlist above. Spring's CorsProcessor refuses an actual
+				//      request from an unlisted origin, not merely its preflight, and
+				//      the handler is never reached. This is the strict allowed-origin
+				//      check section 14 names, and it is the one that distinguishes a
+				//      sibling subdomain from the real application.
+				//   3. Both endpoints being POST, which is what guarantees a browser
+				//      sends the Origin header that (2) reads.
+				//
+				// A double-submit token was considered and rejected. The frontend and
+				// the API are separate origins, so the token cookie would need
+				// Domain=.cyber-half.com to be readable by the application - handing
+				// it to every subdomain, including the shared-hosting one that (2)
+				// exists to exclude. It would weaken the defence it was meant to add.
+				//
+				// CorsTest holds all three: it forges a refresh from a sibling
+				// subdomain and expects 403, proves the same request from the real
+				// origin gets through to a 401 instead, and reads the route table to
+				// check that nothing has started reading the cookie on a method
+				// browsers send without an Origin.
 				.csrf(AbstractHttpConfigurer::disable)
+
 				.formLogin(AbstractHttpConfigurer::disable)
 				.httpBasic(AbstractHttpConfigurer::disable)
 				.logout(AbstractHttpConfigurer::disable)

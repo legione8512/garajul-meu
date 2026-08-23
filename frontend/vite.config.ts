@@ -5,17 +5,21 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   test: {
-    // Unit tests live in `src`, and only there. Vitest's default pattern
-    // sweeps the whole project for `*.spec.*`, which since 14.1 means it also
-    // collects `e2e/journey.spec.ts` and fails it with "Playwright Test did not
-    // expect test() to be called here" - two test runners fighting over one
-    // file. Naming the directory settles it once, rather than excluding each
-    // Playwright file as it is written.
+    // Unit tests live in `src`; repository guards live in `guards`, because
+    // they read files and `src` is deliberately typed as browser-only.
     //
-    // Both suffixes, so a `.spec.ts` written inside `src` by habit still runs.
-    // The failure mode being avoided here is the quiet one: a test file that
+    // Naming both rather than letting Vitest sweep the project is what keeps it
+    // off `e2e/`: its default pattern collects `*.spec.*` anywhere, which since
+    // 14.1 means Playwright's journey, failed with "Playwright Test did not
+    // expect test() to be called here" - two runners fighting over one file.
+    //
+    // Both suffixes under `src`, so a `.spec.ts` written there by habit still
+    // runs. The failure mode being avoided is the quiet one: a test file that
     // matches no pattern does not fail, it simply never runs.
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'guards/**/*.test.ts',
+    ],
 
     // Comfortably above the 5s `asyncUtilTimeout` set in src/test/setup.ts, and
     // that ordering is the point rather than the number. Whichever limit trips

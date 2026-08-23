@@ -1,0 +1,12 @@
+# Cloudflare Pages serves files; React Router owns paths.
+#
+# Without this, /garage works when reached by clicking a link - the router
+# handles it in the browser and no request is made - and returns 404 when the
+# same URL is typed, refreshed, or opened from a bookmark, because no file of
+# that name exists. Every deep link in the application is affected, and none of
+# it can be reproduced locally: `vite dev` answers index.html for unknown paths
+# by default, so the bug appears for the first time in production.
+#
+# 200 rather than 301: the browser must keep the URL it asked for, so the router
+# can read it. A redirect would rewrite the address bar to / and lose it.
+/*    /index.html   200

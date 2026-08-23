@@ -6,6 +6,15 @@
 .env
 .env.*
 !.env.example
+
+# The one deliberate exception, added 2026-08-23 with phase 16.1. It holds the
+# production API origin and nothing else. Vite inlines every VITE_-prefixed
+# value into the public bundle, so anything in that file is served to every
+# visitor whether or not it is committed here - keeping it out would hide it
+# from developers and from nobody else, while letting an unset variable fall
+# back to localhost in a build nobody would notice was broken.
+!frontend/.env.production
+
 application-local.properties
 application-local.yml
 application-local.yaml

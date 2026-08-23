@@ -1,0 +1,18 @@
+# Build output - the image builds its own, and copying a stale local target/
+# would both bloat the context and risk shipping a jar nobody just compiled.
+target/
+
+# Real photographs of real cars, written by the local storage provider. Also
+# gitignored, which protects a Railway build from the repository - but not a
+# `docker build` run on this machine, where the context is the working
+# directory and these files are right there.
+storage/
+
+# Neon credentials and the JWT signing key. The single most important line in
+# this file: application.yml imports it with `optional:file:`, so an image that
+# accidentally contained it would start with production reading a developer's
+# database, and nothing would say so.
+application-local.yml
+
+*.log
+.git/

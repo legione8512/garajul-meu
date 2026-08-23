@@ -26,5 +26,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["e2e", "playwright.config.ts"]
+  /* Everything on the frontend's Node side: the Playwright suite, its config,
+     and the repository guards. What they have in common is a filesystem and a
+     process - which is exactly what `tsconfig.app.json` withholds from `src`,
+     so that no browser file can reach for either. */
+  "include": ["e2e", "guards", "playwright.config.ts"]
 }
