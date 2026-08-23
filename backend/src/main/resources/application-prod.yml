@@ -3,8 +3,9 @@
 # anything absent here keeps the base value on purpose.
 #
 # No secret appears in this file and none ever may. The repository is public.
-# DB_URL, DB_MIGRATION_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET and SENTRY_DSN
-# all arrive from the environment, per section 33.
+# DB_URL, DB_MIGRATION_URL, DB_USERNAME, DB_PASSWORD, JWT_SECRET, SENTRY_DSN,
+# RESEND_API_KEY and the four R2_* variables all arrive from the environment,
+# per section 33.
 
 # Section 27: "human-readable development logs and structured production logs."
 #
@@ -53,6 +54,18 @@ sentry:
   environment: production
 
 garajul-meu:
+  email:
+    # Release blocker closed by 16.3. Startup now requires RESEND_API_KEY;
+    # without it the application refuses to boot rather than accepting
+    # registrations nobody can ever complete.
+    provider: resend
+
+  storage:
+    # Release blocker closed by 16.4. A Railway container's filesystem is
+    # discarded on every redeploy, so "local" here would lose every vehicle
+    # photograph at each deploy - silently, with no error anywhere.
+    provider: r2
+
   cors:
     # Section 21's topology: sibling subdomains of one registrable domain, which
     # is what lets the SameSite=Strict refresh cookie travel at all.
@@ -60,22 +73,14 @@ garajul-meu:
       - https://app.cyber-half.com
 
 # ---------------------------------------------------------------------------
-# RELEASE BLOCKERS - three provider seams this file cannot close yet.
+# ONE RELEASE BLOCKER LEFT, and it does not stop a deployment.
 #
-# `email.provider` stays "logging", so verification codes are written to the log
-# and delivered to nobody: registration completes and no one can ever sign in.
-# `storage.provider` stays "local", and a Railway container's filesystem is
-# discarded on every redeploy, so vehicle photographs would vanish without a
-# single error. `ocr.provider` stays "stub", so the certificate scan returns
-# canned data.
+# `ocr.provider` stays "stub", so the certificate scan returns canned data
+# instead of reading a photograph. It cannot be set here until a Google Cloud
+# project with billing enabled exists - naming a provider with no matching bean
+# fails startup, which is the behaviour LoggingEmailProvider's warning
+# describes. Everything else in the application works without it.
 #
-# None of the three can be set here today, because ResendEmailProvider,
-# CloudflareR2FileStorageProvider and a billed Google project do not exist yet -
-# naming a provider with no matching bean fails startup, which is the behaviour
-# LoggingEmailProvider's own warning describes. They belong to 12.4, 9.3 and
-# the remainder of phase 16.
-#
-# The warnings those three providers log at startup are the working guard:
-# "must never be the case in production" appears in Railway's logs on every boot
-# until each is replaced.
+# The startup warning is the working guard: StubOcrProvider announces itself in
+# Railway's logs on every boot until it is replaced.
 # ---------------------------------------------------------------------------

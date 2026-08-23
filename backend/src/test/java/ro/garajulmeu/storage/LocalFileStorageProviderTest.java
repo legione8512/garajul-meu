@@ -18,9 +18,10 @@ class LocalFileStorageProviderTest {
 
 	private static final byte[] BYTES = { 1, 2, 3, 4, 5 };
 
+	/** Null R2: this provider never reads it, and the record turns it into an empty one. */
 	private LocalFileStorageProvider provider() {
 		return new LocalFileStorageProvider(
-				new StorageProperties("local", directory.toString(), 0, 0, 0));
+				new StorageProperties("local", directory.toString(), 0, 0, 0, null));
 	}
 
 	/** The shape section 22 requires: UUIDs and nothing else in the path. */

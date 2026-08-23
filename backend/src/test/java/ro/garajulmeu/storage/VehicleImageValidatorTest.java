@@ -18,8 +18,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** No Spring. The checking is ImageInspectionTest's; what is tested here is the answer. */
 class VehicleImageValidatorTest {
 
+	/** Null R2: the validator never reads it, and the record turns it into an empty one. */
 	private final VehicleImageValidator validator = new VehicleImageValidator(
-			new StorageProperties("local", "./storage", 1024 * 1024, 200, 40_000_000));
+			new StorageProperties("local", "./storage", 1024 * 1024, 200, 40_000_000, null));
 
 	private static byte[] image(String format, int width, int height) throws IOException {
 		BufferedImage picture = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -71,7 +72,7 @@ class VehicleImageValidatorTest {
 	@Test
 	void tooBigAndNotAPhotographAreDifferentAnswers() throws IOException {
 		VehicleImageValidator tiny = new VehicleImageValidator(
-				new StorageProperties("local", "./storage", 512, 200, 40_000_000));
+				new StorageProperties("local", "./storage", 512, 200, 40_000_000, null));
 
 		assertThat(codeThrownBy(tiny, image("png", 800, 400)))
 				.isEqualTo(ErrorCode.IMAGE_TOO_LARGE);

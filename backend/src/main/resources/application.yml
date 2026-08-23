@@ -138,13 +138,21 @@ garajul-meu:
   storage:
     # Section 32's seam, named there as FileStorageProvider →
     # CloudflareR2FileStorageProvider. "local" writes to the filesystem for
-    # development; "r2" arrives in 12.4 and production must set it. The directory
-    # is gitignored - it holds photographs of real cars.
+    # development; production sets "r2". The local directory is gitignored - it
+    # holds photographs of real cars.
     provider: local
     local-directory: ./storage
     max-upload-bytes: 5242880
     min-side: 200
     max-pixels: 40000000
+    # Empty in development, where the local provider reads none of it. An unset
+    # variable arrives as an empty string, which the R2 provider treats as
+    # missing and refuses to start on - loudly, at boot, naming the property.
+    r2:
+      account-id: ${R2_ACCOUNT_ID:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      bucket: ${R2_BUCKET:}
   reminder:
   # Section 19: exactly one instance runs this. Scaling the backend horizontally
   # means turning it off everywhere but one, or designing the distributed lock

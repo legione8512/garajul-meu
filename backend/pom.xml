@@ -45,6 +45,13 @@
 			with an unreadable error. An empty default makes that case a no-op.
 		-->
 		<jacocoArgLine></jacocoArgLine>
+				<!--
+			Not managed by the Spring Boot parent. R2 speaks the S3 API, so this
+			is the client for it - section 32 names the pair
+			FileStorageProvider → CloudflareR2FileStorageProvider, and the SDK
+			never appears above that seam.
+		-->
+		<aws.sdk.version>2.54.2</aws.sdk.version>
 	</properties>
 
 	<dependencies>
@@ -116,6 +123,12 @@
 			<groupId>io.sentry</groupId>
 			<artifactId>sentry-logback</artifactId>
 			<version>${sentry.version}</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+			<version>${aws.sdk.version}</version>
 		</dependency>
 
 		<dependency>
