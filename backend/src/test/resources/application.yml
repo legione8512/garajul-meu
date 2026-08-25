@@ -74,13 +74,12 @@ garajul-meu:
   # exactly how this was discovered. AuthRateLimitTest overrides these with
   # real-looking numbers inside its own Spring context, which is the only place
   # the limits are the thing under test.
+  #
+  # token-refresh is absent because the policy itself is, since 2026-08-25.
   rate-limit:
     credential-check:
       limit: 10000
       window: 15m
     email-dispatch:
-      limit: 10000
-      window: 1h
-    token-refresh:
       limit: 10000
       window: 1h

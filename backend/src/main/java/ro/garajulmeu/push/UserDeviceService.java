@@ -54,6 +54,15 @@ public class UserDeviceService {
 		device.setUserId(accountId);
 		device.setPlatform(request.platform());
 		device.setDeviceName(trimmedOrNull(request.deviceName()));
+
+		// Taken from the client on every launch rather than only at first
+		// registration, because the operating system's permission can be revoked
+		// long afterwards and nothing else would ever tell us. Without this the
+		// dispatcher goes on marking reminders SENT for a phone that has been
+		// showing nothing for months - FCM accepts a message for a valid token
+		// whether or not the handset will display it.
+		device.setNotificationsEnabled(request.notificationsEnabled());
+
 		device.setLastSeenAt(clock.instant());
 
 		deviceRepository.saveAndFlush(device);

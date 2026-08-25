@@ -79,9 +79,20 @@ class UserDeviceFlowTest {
 	}
 
 	private String body(String pushToken, String platform) {
+		return body(pushToken, platform, true);
+	}
+
+	/**
+	 * {@code notificationsEnabled} is what the operating system currently permits,
+	 * reported by the client at every launch. The two-argument form says "granted"
+	 * because that is the ordinary case; a test about a revoked permission says so
+	 * where it is read.
+	 */
+	private String body(String pushToken, String platform, boolean notificationsEnabled) {
 		return """
-				{"platform":"%s","pushToken":"%s","deviceName":"Telefonul lui Marius"}
-				""".formatted(platform, pushToken);
+				{"platform":"%s","pushToken":"%s","deviceName":"Telefonul lui Marius",\
+				"notificationsEnabled":%s}
+				""".formatted(platform, pushToken, notificationsEnabled);
 	}
 
 	/** The token's blind index, which is how a row is found now that the column is ciphertext. */
@@ -187,6 +198,107 @@ class UserDeviceFlowTest {
 		assertThat(deviceRepository.count()).isEqualTo(1);
 		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN)).orElseThrow().getUserId())
 				.isEqualTo(second.id());
+	}
+
+	/**
+	 * A phone that cannot show a notification is registered all the same, and
+	 * silenced.
+	 *
+	 * <p>Keeping the row rather than refusing it is what lets the next launch say
+	 * the permission came back. Deleting on refusal would mean the account has no
+	 * device at all, which reads identically to never having installed the
+	 * application - and would throw away the name and the history for a state the
+	 * person may undo in the operating system's settings a minute later.
+	 */
+	@Test
+	void aDeviceThatCannotShowNotificationsIsStoredSilencedRatherThanRefused() throws Exception {
+		Account account = givenAccount("denied-permission@example.com");
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(TOKEN, "ANDROID", false)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.notificationsEnabled").value(false));
+
+		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN)).orElseThrow()
+				.isNotificationsEnabled()).isFalse();
+	}
+
+	/**
+	 * The failure this whole field exists to close, run in the direction that
+	 * actually bites.
+	 *
+	 * <p>A permission revoked in Android's settings months after registration
+	 * leaves the token perfectly valid, so FCM would accept every message and the
+	 * dispatcher would go on recording reminders as SENT while the person sees
+	 * nothing. The only thing that can tell us is the client, at its next launch -
+	 * and the launch is a plain re-registration, which is why the flag had to live
+	 * on this endpoint rather than on one of its own.
+	 */
+	@Test
+	void aLaterLaunchReportingARevokedPermissionSilencesAnAlreadyRegisteredDevice() throws Exception {
+		Account account = givenAccount("revoked-later@example.com");
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(TOKEN, "ANDROID", true)))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(TOKEN, "ANDROID", false)))
+				.andExpect(status().isOk());
+
+		assertThat(deviceRepository.count()).isEqualTo(1);
+		assertThat(deviceRepository.findByUserIdAndNotificationsEnabledTrue(account.id()))
+				.as("devices the dispatcher would still try to reach")
+				.isEmpty();
+	}
+
+	/** And back again, because a permission granted afresh must be believed too. */
+	@Test
+	void aPermissionGrantedAgainMakesTheDeviceReachable() throws Exception {
+		Account account = givenAccount("granted-again@example.com");
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(TOKEN, "ANDROID", false)))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body(TOKEN, "ANDROID", true)))
+				.andExpect(status().isOk());
+
+		assertThat(deviceRepository.findByUserIdAndNotificationsEnabledTrue(account.id()))
+				.singleElement()
+				.matches(device -> device.isNotificationsEnabled());
+	}
+
+	/**
+	 * Required rather than defaulted, and this is the assertion that keeps it so.
+	 * An optional field falling back to true would report every forgetful client's
+	 * phone as reachable, which is the silent wrong answer the field was added to
+	 * prevent.
+	 */
+	@Test
+	void aRegistrationThatDoesNotSayWhetherItCanShowNotificationsIsRefused() throws Exception {
+		Account account = givenAccount("silent-about-it@example.com");
+
+		mockMvc.perform(post(PATH)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"platform":"ANDROID","pushToken":"%s","deviceName":"Telefon"}
+								""".formatted(TOKEN)))
+				.andExpect(status().isBadRequest());
+
+		assertThat(deviceRepository.findByPushTokenHash(hashOf(TOKEN))).isEmpty();
 	}
 
 	@Test

@@ -183,14 +183,18 @@ garajul-meu:
       - http://localhost:5173
   rate-limit:
     # Grouped by what a request costs, not by endpoint.
+    #
+    # There is no token-refresh policy, and its absence is a decision taken on
+    # 2026-08-25 rather than an omission. Rotation was limited by network address
+    # alone - the only key available before the token is looked up - and a mobile
+    # client makes that a fault: a carrier's users share a handful of CGNAT
+    # addresses and every launch refreshes. The reasoning is on AuthRateLimit and
+    # the absence is asserted by AuthRateLimitTest.
     credential-check:
       limit: 10
       window: 15m
     email-dispatch:
       limit: 5
-      window: 1h
-    token-refresh:
-      limit: 60
       window: 1h
   ocr:
   # Section 13's initial defaults. Production may raise or lower them; the
