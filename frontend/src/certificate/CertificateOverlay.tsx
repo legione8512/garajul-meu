@@ -34,6 +34,29 @@ const MIN_SCALE = 0.5
 const MAX_SCALE = 3
 const STEP = 0.25
 
+/**
+ * Ink on the template, and <strong>deliberately not `--text`</strong>.
+ *
+ * <p>Every other colour in this application is a token in `index.css`, because
+ * every other colour paints a surface the palette controls. This one paints a
+ * photograph of a real document - pale, printed, and no more themeable than a
+ * scan of a passport. A local constant says that out loud; a token in `:root`
+ * would sit among the theme's colours and invite somebody to make it match them.
+ *
+ * <p><strong>Found by measurement on 2026-08-25, and it was a release
+ * blocker.</strong> This style set `font: inherit` and no colour, which was
+ * right while the application was light-themed: the field inherited dark text
+ * onto a pale document. Phase 13.5 inverted the palette, the field inherited
+ * `--text` at `rgb(232,230,242)`, the template behind it measures
+ * `rgb(219,234,230)`, and the contrast was **1.01:1** - the registration number,
+ * the make, the model and the VIN were all rendered and none of them was
+ * visible. The value below measures about 14:1 against the same template.
+ *
+ * <p>It also restores the scan outlines, which are drawn in `currentColor` and
+ * had gone invisible with the text. One property, both failures.
+ */
+const DOCUMENT_INK = '#151321'
+
 const percent = (fraction: number) => `${(fraction * 100).toFixed(4)}%`
 
 /**
@@ -98,6 +121,12 @@ function specOf(name: CertificateField): FieldSpec | undefined {
  *
  * <p>Positioning is inline because it is data. The coordinates are fractions in
  * a table, so a stylesheet could only restate them less accurately.
+ *
+ * <p><strong>Colour is inline for a different reason, and it is worth not
+ * confusing the two.</strong> The coordinates are inline because a stylesheet
+ * would say them worse; the ink is inline because this component draws on an
+ * image rather than on a themed surface, and must not inherit the palette. See
+ * {@link DOCUMENT_INK}.
  *
  * <p>The image is decorative - {@code alt=""} - because everything it says is
  * also said by the labelled fields on top of it. Describing it as well would
@@ -169,6 +198,8 @@ export function CertificateOverlay({ form, messages, statuses, onChange }: Certi
               height: '100%',
               boxSizing: 'border-box',
               background: 'transparent',
+              // Both the typed value and, through currentColor, the scan outline.
+              color: DOCUMENT_INK,
               border: outlineFor(message !== undefined, status),
               font: 'inherit',
             }

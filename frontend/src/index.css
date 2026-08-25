@@ -110,8 +110,8 @@ a {
  * A link that stands on its own is an action, and an action has to be reachable
  * with a thumb. `--touch` reached inputs and buttons the day it was written and
  * never reached anchors, so every navigational link in the application was 21
- * pixels tall - measured on 2026-08-25 across the welcome, login, register and
- * legal screens, and identical in both languages.
+ * pixels tall - measured on 2026-08-25, first across the public screens and
+ * then, when the walkthrough finally signed in, across the authenticated ones.
  *
  * Real height, not an invisible overlay. The usual trick - an absolutely
  * positioned ::after stretched to 44px - was measured here and rejected: on the
@@ -128,18 +128,29 @@ a {
  * translation wrapping rather than overflowing, which is the one thing an
  * inline-flex box does differently from the inline box it replaces.
  *
- * The header's wordmark is deliberately absent: it already measures 57 pixels
- * because it carries the mark, and a rule that changes nothing is a rule
- * somebody later has to read and dismiss.
+ * `nav a` was added hours after the rest, and the gap is worth recording. The
+ * first version excluded the header on the reasoning that its wordmark already
+ * measured 57 pixels - true, and drawn entirely from the public screens, where
+ * the header holds nothing else. The primary navigation exists only when signed
+ * in, so it was 41x25 on every authenticated screen and no measurement had ever
+ * reached it. A rule written from half the application fits half the
+ * application.
  *
- * `main p > a` is the only selector here that can misfire, and it cannot today
- * because no prose in the application contains a link - checked on every public
- * screen, not assumed. TRIGGER: the first link written inside a sentence. From
- * then on this inflates a word mid-paragraph and must narrow, most likely to
- * `p > a:only-child` plus whatever the welcome screen has become by then.
+ * The wordmark itself is still absent, and now for a checked reason rather than
+ * an assumed one: it sits in `header`, not in `nav`, and measures 57 pixels.
+ *
+ * `main p > a`, `main li > a` and `main h2 > a` are the selectors that could
+ * misfire, and they cannot today because no prose in the application contains a
+ * link - checked on every screen, not assumed. TRIGGER: the first link written
+ * inside a sentence. From then on this inflates a word mid-paragraph and must
+ * narrow, most likely to `:only-child` variants plus whatever the welcome
+ * screen has become by then.
  */
 footer > a,
-main p > a {
+nav a,
+main p > a,
+main li > a,
+main h2 > a {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
@@ -216,6 +227,22 @@ nav {
   padding: 0.75rem 1rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+/*
+ * The navigation states its own colour, and the reason is a pretty one worth
+ * keeping: `--brand-bright` on the page background is 5.3:1 and passes, while
+ * the same colour on `--surface` - which is what `nav` and `header` raise
+ * themselves with - is 4.28:1 and fails. One token, two backgrounds, and only
+ * the passing one had ever been measured, because the authenticated walkthrough
+ * that would have shown the other had not been done until 2026-08-25.
+ *
+ * `--text` rather than a brighter violet, because these are structural
+ * destinations rather than links inside a sentence, and the underline is what
+ * says they are links. It measures about 13:1 on the raised surface.
+ */
+nav a {
+  color: var(--text);
 }
 
 footer {
@@ -337,20 +364,34 @@ textarea {
   border-radius: var(--radius);
 }
 
+/*
+ * Twenty-four pixels rather than the eighteen this was, which is the smallest
+ * a control may be under WCAG 2.2. The comfortable forty-four comes from the
+ * label beside it rather than from the box: a checkbox stretched to 44x44 is
+ * a strange-looking thing, while a label that tall is simply a row.
+ */
 input[type='checkbox'],
 input[type='radio'] {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.5rem;
+  height: 1.5rem;
   margin: 0 0.5rem 0 0;
   accent-color: var(--brand);
   vertical-align: middle;
 }
 
 /* CheckboxField puts the label after the box, which is the reading order for a
- * checkbox. It is a label for one control, not a heading for a group. */
+ * checkbox. It is a label for one control, not a heading for a group.
+ *
+ * `inline-flex` keeps it inline-level, so that reading order is unchanged - and
+ * gives it the touch height. Clicking a label activates its control, so this is
+ * the real target: the seven notification switches measured 18x18 on
+ * 2026-08-25, with a 21-pixel label beside them that nobody had measured
+ * either. */
 input[type='checkbox'] + label,
 input[type='radio'] + label {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
   font-weight: 400;
   vertical-align: middle;
 }
