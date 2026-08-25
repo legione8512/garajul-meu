@@ -1,4 +1,5 @@
 import { apiFetch } from '../client.ts'
+import { sessionChannel } from '../session/channel.ts'
 import { setAccessToken } from '../tokenStore.ts'
 
 interface LoginResponse {
@@ -11,8 +12,20 @@ interface LoginResponse {
 export async function login(email: string, password: string): Promise<void> {
   const result = await apiFetch<LoginResponse>('/api/v1/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    // The one request that has to say which client this is. At login nothing
+    // has been presented yet, so the backend cannot infer the channel from the
+    // request the way it can on /refresh and /logout. False and absent mean the
+    // same thing to `LoginRequest.wantsRefreshTokenInBody`, so the web request
+    // is unchanged in everything but a field the server already ignored.
+    body: JSON.stringify({
+      email,
+      password,
+      refreshTokenInBody: sessionChannel.carriesTokenItself,
+    }),
   })
+
+  // Before the access token, for the reason given on SessionChannel.remember.
+  await sessionChannel.remember(result.refreshToken)
 
   setAccessToken(result.accessToken)
 }
@@ -21,11 +34,26 @@ export async function login(email: string, password: string): Promise<void> {
  * The token is cleared whether or not the server answered. Someone who asked to
  * sign out must end up signed out locally even if the network refused - the
  * server side is idempotent and the cookie expires on its own.
+ *
+ * <p>On a native client the stored token is cleared too, and its own failure is
+ * swallowed for the same reason: a store that will not clear must not be able to
+ * keep somebody signed in.
  */
 export async function logout(): Promise<void> {
   try {
-    await apiFetch<void>('/api/v1/auth/logout', { method: 'POST', body: '{}' })
+    const presented = await sessionChannel.present()
+
+    await apiFetch<void>('/api/v1/auth/logout', {
+      method: 'POST',
+      body: presented === null ? '{}' : JSON.stringify({ refreshToken: presented }),
+    })
   } finally {
+    try {
+      await sessionChannel.forget()
+    } catch {
+      // Deliberately silent: see above.
+    }
+
     setAccessToken(null)
   }
 }

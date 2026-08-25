@@ -92,10 +92,39 @@ garajul-meu:
     provider: ${OCR_PROVIDER:stub}
 
   cors:
-    # Section 21's topology: sibling subdomains of one registrable domain, which
-    # is what lets the SameSite=Strict refresh cookie travel at all.
+  # Section 21's topology: sibling subdomains of one registrable domain, which
+  # is what lets the SameSite=Strict refresh cookie travel at all.
+  #
+  # The second entry is the Android application, and it is an intention rather
+  # than a development leftover. ProductionConfigurationTest used to fail the
+  # build on the mere presence of "localhost" in this file; it now permits
+  # exactly this one value and nothing else localhost-shaped, because a test
+  # that bans a substring cannot tell a decision from a mistake.
+  #
+  # A Capacitor WebView serves the bundle from its own local server, so every
+  # call to this API is cross-origin and arrives with Origin: https://localhost.
+  # Without this entry the preflight is refused and the application is dead on
+  # first launch, with the only evidence in a console nobody is watching.
+  #
+  # WHAT THIS DOES NOT OPEN, and the argument is the same SameSite fact the
+  # native session model rests on. A page served from https://localhost in a
+  # real browser may now call this API and read the answers - but it can
+  # present nothing. The refresh cookie is SameSite=Strict, and localhost is a
+  # different *site* from cyber-half.com, so a browser never attaches it. The
+  # access token lives in a module variable inside the real application's
+  # origin and is unreadable from anywhere else. What remains is calling
+  # unauthenticated endpoints and reading the reply, which any HTTP client can
+  # already do without a browser at all. Serving https://localhost on 443 with
+  # a certificate the browser trusts requires local code execution first, and
+  # anyone holding that has better attacks available.
+  #
+  # iOS arrives at phase 18 with capacitor://localhost, and that is a separate
+  # question rather than a second line here: it is a non-http scheme, and
+  # whether Spring's CorsConfiguration accepts one at all must be checked
+  # rather than assumed.
     allowed-origins:
       - https://app.cyber-half.com
+      - https://localhost
 
 # ---------------------------------------------------------------------------
 # NO RELEASE BLOCKER LEFT IN CONFIGURATION.

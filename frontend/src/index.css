@@ -106,6 +106,46 @@ a {
   text-underline-offset: 0.2em;
 }
 
+/*
+ * A link that stands on its own is an action, and an action has to be reachable
+ * with a thumb. `--touch` reached inputs and buttons the day it was written and
+ * never reached anchors, so every navigational link in the application was 21
+ * pixels tall - measured on 2026-08-25 across the welcome, login, register and
+ * legal screens, and identical in both languages.
+ *
+ * Real height, not an invisible overlay. The usual trick - an absolutely
+ * positioned ::after stretched to 44px - was measured here and rejected: on the
+ * login screen "Ai uitat parola?" and "Nu ai cont? Creează unul." sit 19 pixels
+ * apart, so two overlays centred on 21-pixel text would each reach 11.5 pixels
+ * into that gap and OVERLAP by four. Overlapping hit areas never fail visibly;
+ * they hand the tap to whichever element paints last. Real boxes cannot
+ * overlap, and the 19-pixel gap survives untouched because it comes from the
+ * paragraph margins, which this rule does not move.
+ *
+ * inline-flex rather than block, so the welcome screen's
+ * "Autentifică-te · Creează un cont" stays one line with its separator between
+ * two links instead of becoming three stacked rows. max-width keeps a long
+ * translation wrapping rather than overflowing, which is the one thing an
+ * inline-flex box does differently from the inline box it replaces.
+ *
+ * The header's wordmark is deliberately absent: it already measures 57 pixels
+ * because it carries the mark, and a rule that changes nothing is a rule
+ * somebody later has to read and dismiss.
+ *
+ * `main p > a` is the only selector here that can misfire, and it cannot today
+ * because no prose in the application contains a link - checked on every public
+ * screen, not assumed. TRIGGER: the first link written inside a sentence. From
+ * then on this inflates a word mid-paragraph and must narrow, most likely to
+ * `p > a:only-child` plus whatever the welcome screen has become by then.
+ */
+footer > a,
+main p > a {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--touch);
+}
+
 hr {
   border: none;
   border-top: 1px solid var(--border);

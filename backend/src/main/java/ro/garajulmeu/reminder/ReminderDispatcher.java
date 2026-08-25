@@ -21,6 +21,7 @@ import ro.garajulmeu.notification.NotificationDelivery;
 import ro.garajulmeu.notification.NotificationDeliveryRepository;
 import ro.garajulmeu.push.PushNotification;
 import ro.garajulmeu.push.PushNotificationProvider;
+import ro.garajulmeu.push.PushTokenRejectedException;
 import ro.garajulmeu.push.UserDevice;
 import ro.garajulmeu.push.UserDeviceRepository;
 
@@ -51,6 +52,16 @@ public class ReminderDispatcher {
 
 	/** What a provider that threw something other than an ApiException gets. */
 	private static final String PROVIDER_ERROR = "PROVIDER_ERROR";
+
+	/**
+	 * The one failure that is about the device rather than the moment.
+	 *
+	 * <p>A string rather than an {@code ErrorCode}, for the reason given on
+	 * {@link PushTokenRejectedException}: that enum's contract is that every
+	 * failed API response carries one of its members and the frontend translates
+	 * it, and this is never sent to anybody.
+	 */
+	private static final String TOKEN_REJECTED = "PUSH_TOKEN_REJECTED";
 
 	private final ReminderRepository reminderRepository;
 	private final NotificationDeliveryRepository deliveryRepository;
@@ -149,6 +160,15 @@ public class ReminderDispatcher {
 	 * claim it was superseded, which it was not. The reminder's status describes
 	 * the work, and the work is finished - what actually went out is the delivery
 	 * rows, and there are none.
+	 *
+	 * <p><strong>A device whose token the platform rejected is removed here, and
+	 * the order of the two writes is load-bearing.</strong> V10 declares
+	 * {@code ON DELETE CASCADE} from {@code notification_deliveries} to
+	 * {@code user_devices}, so deleting a device takes its delivery rows with it -
+	 * including the row just written to record why. The deliveries are therefore
+	 * written first and read into {@code results} before anything is deleted; what
+	 * survives the removal is this log line and the reminder's own code, which
+	 * lives on a different table.
 	 */
 	@Transactional
 	public void dispatch(DueReminder due) {
@@ -172,33 +192,61 @@ public class ReminderDispatcher {
 				due.offsetDays(), due.language());
 
 		List<NotificationDelivery> results = new ArrayList<>();
+		List<UserDevice> rejected = new ArrayList<>();
 
 		for (UserDevice device : devices) {
-			results.add(deliver(reminder, device, notification, now));
+			NotificationDelivery result = deliver(reminder, device, notification, now);
+			results.add(result);
+
+			if (TOKEN_REJECTED.equals(result.getLastErrorCode())) {
+				rejected.add(device);
+			}
 		}
 
-		long failed = results.stream()
-				.filter(delivery -> delivery.getStatus() != DeliveryStatus.SENT)
+		long delivered = results.stream()
+				.filter(delivery -> delivery.getStatus() == DeliveryStatus.SENT)
 				.count();
 
-		if (failed == 0) {
-			reminder.setStatus(ReminderStatus.SENT);
-			reminder.setSentAt(now);
-			reminder.setLastErrorCode(null);
-		} else if (reminder.getAttemptCount() < properties.maxAttempts()) {
+		// Everything that failed for a reason another attempt could survive. A
+		// rejected token is excluded on purpose: the handset is gone, and the row
+		// is about to be gone too, so counting it as retryable would buy three
+		// more passes against nothing.
+		long retryable = results.size() - delivered - rejected.size();
+
+		if (!rejected.isEmpty()) {
+			deviceRepository.deleteAll(rejected);
+			deviceRepository.flush();
+
+			log.info("Removed {} device(s) the provider rejected permanently for account {}",
+					rejected.size(), due.userId());
+		}
+
+		if (retryable > 0 && reminder.getAttemptCount() < properties.maxAttempts()) {
 			// Back to PENDING with scheduled_at untouched, so it stays overdue and
 			// the next pass takes it. Only the failed devices are attempted again -
-			// the delivery rows remember which those are.
+			// the delivery rows remember which those are, and the rejected devices
+			// are no longer in the query's answer at all.
 			reminder.setStatus(ReminderStatus.PENDING);
 			reminder.setLastErrorCode(DELIVERY_FAILED);
-		} else if (failed < results.size()) {
+		} else if (delivered > 0) {
 			// Somebody was told. A reminder that reached one of two phones did its
-			// job, and the code stays on so the partial is visible.
+			// job, and the code stays on when it did not reach all of them.
 			reminder.setStatus(ReminderStatus.SENT);
 			reminder.setSentAt(now);
+			reminder.setLastErrorCode(delivered == results.size() ? null : DELIVERY_FAILED);
+		} else if (retryable > 0) {
+			reminder.setStatus(ReminderStatus.FAILED);
 			reminder.setLastErrorCode(DELIVERY_FAILED);
 		} else {
-			reminder.setStatus(ReminderStatus.FAILED);
+			// Nothing was delivered and nothing is worth retrying, because every
+			// device this account had has just been removed. That is the "no
+			// device" case above arriving one pass late, and section 18's answer
+			// has to be the same one: the work is finished, there was simply
+			// nobody left to deliver to. The code stays on so that a reminder
+			// which ended this way is distinguishable from one whose account
+			// never had a phone.
+			reminder.setStatus(ReminderStatus.SENT);
+			reminder.setSentAt(now);
 			reminder.setLastErrorCode(DELIVERY_FAILED);
 		}
 		reminderRepository.saveAndFlush(reminder);
@@ -231,6 +279,16 @@ public class ReminderDispatcher {
 			delivery.setStatus(DeliveryStatus.SENT);
 			delivery.setSentAt(now);
 			delivery.setLastErrorCode(null);
+		} catch (PushTokenRejectedException rejection) {
+			// Caught before the general clause below, and that ordering is the
+			// whole feature: this subclass would otherwise be swallowed as
+			// PROVIDER_ERROR and retried like an outage. The caller reads this
+			// code to decide the device is gone, so it must not be generic.
+			delivery.setStatus(DeliveryStatus.FAILED);
+			delivery.setLastErrorCode(TOKEN_REJECTED);
+
+			log.info("Reminder {} found device {} permanently rejected; it will be removed",
+					reminder.getId(), device.getId());
 		} catch (RuntimeException exception) {
 			// Broader than the ApiException the interface documents, on purpose: a
 			// provider that throws something unexpected must cost one device, not

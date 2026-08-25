@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,6 +31,7 @@ import ro.garajulmeu.notification.NotificationDeliveryRepository;
 import ro.garajulmeu.push.DevicePlatform;
 import ro.garajulmeu.push.PushNotification;
 import ro.garajulmeu.push.PushNotificationProvider;
+import ro.garajulmeu.push.PushTokenRejectedException;
 import ro.garajulmeu.push.UserDevice;
 import ro.garajulmeu.push.UserDeviceRepository;
 import ro.garajulmeu.registrationcertificate.RegistrationCertificate;
@@ -96,23 +100,54 @@ class ReminderDispatcherFlowTest {
 	@Autowired
 	private Clock clock;
 
+	/**
+	 * Needed only to clear it. A device removed by {@code deleteAll} takes its
+	 * delivery rows with it through V10's cascade, and rows the database removes
+	 * are invisible to a persistence context still holding them.
+	 */
+	@PersistenceContext
+	private EntityManager entityManager;
+
 	/** Unused. Present only so this class shares AuthFlowTest's context. */
 	@MockitoBean
 	private EmailProvider emailProvider;
 
-	/** Remembers what it was asked to send, and refuses the tokens it was given. */
+	/**
+	 * Remembers what it was asked to send, and fails the tokens it was given -
+	 * <strong>in the two different ways a real provider fails.</strong>
+	 *
+	 * <p>{@code refused} is an outage, a throttle, a payload the platform would
+	 * not take: it may work next time, so the dispatcher retries. {@code rejected}
+	 * is FCM's {@code UNREGISTERED} - a fact about the handset rather than about
+	 * the moment - and retrying it is waste. A test provider that could only
+	 * express one of them could not tell the two behaviours apart.
+	 */
 	private static final class Recorder implements PushNotificationProvider {
 
 		private final List<String> reached = new ArrayList<>();
 		private final List<PushNotification> notifications = new ArrayList<>();
 		private final Set<String> refused;
+		private final Set<String> rejected;
 
 		Recorder(String... refused) {
-			this.refused = Set.of(refused);
+			this(Set.of(refused), Set.of());
+		}
+
+		private Recorder(Set<String> refused, Set<String> rejected) {
+			this.refused = refused;
+			this.rejected = rejected;
+		}
+
+		/** Reports these tokens as permanently dead, the way FCM reports an uninstall. */
+		static Recorder rejecting(String... tokens) {
+			return new Recorder(Set.of(), Set.of(tokens));
 		}
 
 		@Override
 		public void send(String pushToken, PushNotification notification) {
+			if (rejected.contains(pushToken)) {
+				throw new PushTokenRejectedException("token is no longer registered");
+			}
 			if (refused.contains(pushToken)) {
 				throw new ApiException(ErrorCode.INTERNAL_ERROR);
 			}
@@ -342,6 +377,103 @@ class ReminderDispatcherFlowTest {
 				.singleElement()
 				.matches(delivery -> delivery.getAttemptCount() == 1,
 						"reached once and never disturbed again");
+	}
+
+	/**
+	 * The distinction the whole of decision 3 rests on: a dead handset is not a
+	 * slow one.
+	 *
+	 * <p>The attempt count is the assertion that matters. Before the rejection was
+	 * given its own meaning, this account's only phone would have been attempted
+	 * three times, once a minute, for every reminder it ever received - and the
+	 * reminder would have ended FAILED, which is not true either. Nobody was
+	 * reachable, which is the "no device" case arriving one pass late, and section
+	 * 18's answer to that is that the work is finished.
+	 */
+	@Test
+	void aPermanentlyRejectedTokenRemovesTheDeviceInsteadOfRetryingIt() {
+		Fixture fixture = givenDueReminder("uninstalled@example.com", "VIN000UNINSTALLED0");
+		givenDevice(fixture.userId(), "token-dead", true);
+
+		ReminderDispatcher dispatcher = dispatcherWith(Recorder.rejecting("token-dead"));
+
+		dispatcher.dispatch(claimOwn(dispatcher, fixture));
+
+		Reminder reminder = reload(fixture);
+		assertThat(reminder.getStatus()).isEqualTo(ReminderStatus.SENT);
+		assertThat(reminder.getAttemptCount()).isEqualTo(1);
+		assertThat(reminder.getSentAt()).isNotNull();
+		assertThat(reminder.getLastErrorCode()).isEqualTo("PUSH_DELIVERY_FAILED");
+
+		// Cleared before reading, because a row removed by the database is
+		// invisible to a persistence context that still holds it - the mistake
+		// 12.3b paid for, where findById answered out of the first-level cache and
+		// reported a vehicle that was already gone.
+		entityManager.clear();
+
+		assertThat(deviceRepository.findByUserIdAndNotificationsEnabledTrue(fixture.userId()))
+				.as("devices left after the provider rejected the only one")
+				.isEmpty();
+	}
+
+	/**
+	 * The consequence of that removal, asserted rather than left in a comment.
+	 *
+	 * <p>V10 declares {@code ON DELETE CASCADE} from {@code notification_deliveries}
+	 * to {@code user_devices}, so deleting the device takes the very row that
+	 * recorded why it was deleted. That was weighed and accepted - it is history
+	 * about a handset that no longer exists, and the reminder's own code and the
+	 * dispatcher's log line both survive - but somebody will one day go looking
+	 * for that row, and this test is what tells them it was a decision.
+	 */
+	@Test
+	void removingARejectedDeviceTakesItsDeliveryRowsWithIt() {
+		Fixture fixture = givenDueReminder("cascade@example.com", "VIN00000000CASCADE");
+		givenDevice(fixture.userId(), "token-dead", true);
+
+		ReminderDispatcher dispatcher = dispatcherWith(Recorder.rejecting("token-dead"));
+
+		dispatcher.dispatch(claimOwn(dispatcher, fixture));
+		entityManager.clear();
+
+		assertThat(deliveryRepository.findByReminderId(fixture.reminderId()))
+				.as("delivery rows surviving the device they belonged to")
+				.isEmpty();
+	}
+
+	/**
+	 * One dead phone must not hold back a reminder that reached a living one.
+	 *
+	 * <p>Under the old rule this ended PENDING and was retried twice more, each
+	 * pass reaching nobody new: the good device was already SENT and skipped by the
+	 * unique index, and the dead one was never coming back. The reminder now
+	 * finishes on the first pass, and the garage keeps the phone that works.
+	 */
+	@Test
+	void aRejectedDeviceDoesNotHoldBackAReminderThatReachedAnother() {
+		Fixture fixture = givenDueReminder("mixed@example.com", "VIN0000000000MIXED");
+		givenDevice(fixture.userId(), "token-good", true);
+		givenDevice(fixture.userId(), "token-dead", true);
+
+		Recorder provider = Recorder.rejecting("token-dead");
+		ReminderDispatcher dispatcher = dispatcherWith(provider);
+
+		dispatcher.dispatch(claimOwn(dispatcher, fixture));
+
+		assertThat(provider.reached).containsExactly("token-good");
+
+		Reminder reminder = reload(fixture);
+		assertThat(reminder.getStatus()).isEqualTo(ReminderStatus.SENT);
+		assertThat(reminder.getAttemptCount()).isEqualTo(1);
+		assertThat(reminder.getLastErrorCode()).isEqualTo("PUSH_DELIVERY_FAILED");
+
+		entityManager.clear();
+
+		assertThat(deviceRepository.findByUserIdAndNotificationsEnabledTrue(fixture.userId()))
+				.as("devices left after one of two was rejected")
+				.singleElement()
+				.matches(device -> device.getPushToken().equals("token-good"),
+						"the phone that answered is still registered");
 	}
 
 	/** Tomorrow's reminder is not today's work. */
