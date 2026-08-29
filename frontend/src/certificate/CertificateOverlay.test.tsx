@@ -105,4 +105,40 @@ describe('CertificateOverlay', () => {
     expect(field).toHaveAccessibleDescription(ro.validation.required)
     expect(field).toHaveAttribute('aria-invalid', 'true')
   })
+
+  /**
+   * The release blocker of 2026-08-25, and the only part of it a test can hold.
+   *
+   * <p>The overlay draws on a photograph of a printed document, so it must state
+   * its own ink rather than inherit the application's. It did not, and when 13.5
+   * inverted the palette every value on this screen went to 1.01:1 against the
+   * template - rendered, and invisible - for two days in production.
+   *
+   * <p><strong>This cannot measure contrast and does not pretend to.</strong>
+   * jsdom has no layout and never loads the template, so the real check is the
+   * browser walkthrough that found it. What this holds is the one thing a unit
+   * test can: that a concrete, dark colour is declared here at all. Deleting the
+   * line, or "tidying" it to `var(--text)` so it matches the palette, fails
+   * here - and that tidy is exactly the edit that caused the defect.
+   */
+  it('a field states its own ink rather than inheriting the page palette', () => {
+    show()
+
+    const declared = screen.getByLabelText(ro.certificate.fields.make).style.color
+
+    expect(declared, 'the field declares no colour and will inherit --text').not.toBe('')
+
+    const channels = declared.match(/\d+/g)
+    expect(channels, `the colour is "${declared}", which is not a concrete value`).not.toBeNull()
+
+    // Crude brightness rather than a contrast ratio, and deliberately so: the
+    // template is pale everywhere it holds a field, so "is the ink dark" is the
+    // whole question a test without pixels can ask. --text lands near 0.91 and
+    // the ink near 0.08, so the threshold separates them with room to spare.
+    const [red, green, blue] = (channels ?? []).map(Number)
+    const brightness = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255
+
+    expect(brightness, `the ink is light at ${brightness.toFixed(2)}, and the template is pale`)
+      .toBeLessThan(0.3)
+  })
 })

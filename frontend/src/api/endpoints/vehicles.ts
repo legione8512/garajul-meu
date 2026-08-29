@@ -1,5 +1,5 @@
+import { VEHICLE_IMAGE_CEILING, withinCeiling } from '../../images/shrink.ts'
 import { apiFetch, apiFetchBlob } from '../client.ts'
-
 /**
  * The vehicle surface of the API.
  *
@@ -103,12 +103,21 @@ export function fetchVehicleImage(vehicleId: string): Promise<Blob> {
  * photograph as JSON. The backend ignores what we declare and reads the format
  * from the bytes - a declaration is an assertion, not evidence - so this header
  * is honesty rather than instruction.
+ *
+ * <p><strong>Shrunk first when it would not fit.</strong> Five megabytes is
+ * reachable by an ordinary photograph taken on an ordinary phone, and until
+ * 2026-08-29 nothing on this side did anything about it: the browser sent
+ * whatever was chosen and the person met IMAGE_TOO_LARGE. It does not bite
+ * often only because people pick existing pictures, which are usually already
+ * compressed.
  */
-export function uploadVehicleImage(vehicleId: string, file: File): Promise<void> {
-  return apiFetch<void>(vehicleImagePath(vehicleId), {
+export async function uploadVehicleImage(vehicleId: string, file: File): Promise<void> {
+  const upload = await withinCeiling(file, VEHICLE_IMAGE_CEILING)
+
+  return await apiFetch<void>(vehicleImagePath(vehicleId), {
     method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type === '' ? 'application/octet-stream' : file.type },
+    body: upload,
+    headers: { 'Content-Type': upload.type === '' ? 'application/octet-stream' : upload.type },
   })
 }
 

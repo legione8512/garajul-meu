@@ -1,3 +1,4 @@
+import { CERTIFICATE_SCAN_CEILING, withinCeiling } from '../../images/shrink.ts'
 import { apiFetch } from '../client.ts'
 
 /** The three states section 7 puts on the overlay. */
@@ -36,10 +37,16 @@ export const ocrCertificatePath = '/api/v1/ocr/registration-certificate'
  * screen's own PATCH remains the only thing that stores anything.
  *
  * <p>The Content-Type is deliberately not set. See `send` in the client.
+ *
+ * <p><strong>The photograph is shrunk only if it exceeds what the server will
+ * take.</strong> Every pixel matters here more than anywhere else in the
+ * application - the `I` family is unreadable to Document AI and the recorded
+ * trigger for revisiting that is a higher-resolution photograph - so a scan
+ * within the limit is sent exactly as it was taken.
  */
-export function scanCertificate(image: File): Promise<OcrScan> {
+export async function scanCertificate(image: File): Promise<OcrScan> {
   const body = new FormData()
-  body.append('image', image)
+  body.append('image', await withinCeiling(image, CERTIFICATE_SCAN_CEILING))
 
-  return apiFetch<OcrScan>(ocrCertificatePath, { method: 'POST', body })
+  return await apiFetch<OcrScan>(ocrCertificatePath, { method: 'POST', body })
 }
