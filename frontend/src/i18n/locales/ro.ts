@@ -14,6 +14,10 @@ export const ro = {
     reference: 'Referință: {{requestId}}',
     loading: 'Se încarcă…',
     retry: 'Încearcă din nou',
+    // A way out for somebody who arrived by mistake. A link to a fixed place
+    // rather than history.back(): a person who followed a link straight here has
+    // no history to go back to, and that is exactly the person this is for.
+    backToStart: 'Înapoi la pagina principală',
     // Not in `errors`: that catalogue is keyed by the backend's codes, and this
     // is a condition the backend never reports because nothing reached it.
     offline: 'Nu ai conexiune la internet. Aplicația are nevoie de ea ca să salveze orice modificare.',
@@ -303,9 +307,77 @@ export const ro = {
     noAccount: 'Nu ai cont? Creează unul.',
   },
   welcome: {
+    headline: 'Știi mereu ce expiră și când',
+    lead: 'Garajul Meu ține evidența documentelor pentru fiecare mașină și îți arată '
+      + 'dintr-o privire ce urmează.',
+    features: {
+      scanTitle: 'Fotografiezi talonul',
+      scanBody: 'Certificatul de înmatriculare se citește automat și câmpurile se '
+        + 'completează singure. Verifici și corectezi înainte de salvare — nimic nu '
+        + 'se scrie fără acordul tău.',
+      documentsTitle: 'Patru documente, o singură privire',
+      documentsBody: 'RCA, ITP, CASCO și rovinieta, fiecare cu data lui. Tabloul de '
+        + 'bord arată ce e valabil, ce se apropie de expirare și ce n-a fost '
+        + 'configurat încă.',
+      remindersTitle: 'Din timp, nu în ultima zi',
+      remindersBody: 'Pentru fiecare document se pregătesc memento-uri cu 30, 14 și '
+        + '7 zile înainte. Alegi tu care dintre ele.',
+    },
     signIn: 'Autentifică-te',
     createAccount: 'Creează un cont',
   },
+
+  features: {
+    lead: 'Fiecare lucru pe care îl face aplicația, explicat. Nimic din ce scrie '
+      + 'aici nu e în lucru sau promis — toate funcționează azi.',
+    readMore: 'Vezi tot ce face aplicația',
+    garage: {
+      title: 'Garajul',
+      body: 'Adaugi oricâte vehicule. Fiecare are datele lui de identificare — număr '
+        + 'de înmatriculare, marcă, model, serie de șasiu — și o poreclă opțională, '
+        + 'ca să le deosebești când ai două de același fel. Poți pune și o fotografie.',
+    },
+    certificate: {
+      title: 'Talonul, citit din fotografie',
+      body: 'Fotografiezi certificatul de înmatriculare, iar aplicația citește ce '
+        + 'poate din el și completează câmpurile. Nimic nu se salvează automat: vezi '
+        + 'ce a fost citit sigur, ce ar trebui verificat și ce n-a putut fi găsit, '
+        + 'corectezi, și abia apoi salvezi. Fotografia nu se păstrează.',
+    },
+    documents: {
+      title: 'Documentele și expirările',
+      body: 'RCA, ITP, CASCO și rovinieta, fiecare cu perioada lui de valabilitate. '
+        + 'Când reînnoiești, înregistrarea veche nu se pierde — se adaugă una nouă, '
+        + 'iar aplicația știe care e cea care acoperă ziua de azi.',
+    },
+    dashboard: {
+      title: 'Ce urmează, dintr-o privire',
+      body: 'Pentru fiecare mașină și fiecare tip de document vezi în ce stare e: '
+        + 'valabil, se apropie de expirare, expirat, sau neconfigurat niciodată. '
+        + 'Starea se vede și după culoare, și după forma liniei — ca să fie citibilă '
+        + 'și pe un ecran alb-negru, și de cineva care nu distinge culorile.',
+    },
+    history: {
+      title: 'Istoricul',
+      body: 'Fiecare document păstrat, nu doar cel curent. Poți vedea ce polițe ai '
+        + 'avut și pe ce perioade, filtrat pe tip.',
+    },
+    reminders: {
+      title: 'Memento-uri',
+      body: 'Pentru fiecare document se pregătesc memento-uri cu 30, 14 și 7 zile '
+        + 'înainte de expirare, iar tu alegi care dintre ele vrei și la ce oră. '
+        + 'Deocamdată le vezi în aplicație; notificările pe telefon vin odată cu '
+        + 'aplicația de Android.',
+    },
+    account: {
+      title: 'Contul și datele tale',
+      body: 'Aplicația e în română și în engleză, iar limba te urmează de pe un '
+        + 'dispozitiv pe altul. Îți poți schimba adresa de email și parola, și îți '
+        + 'poți șterge contul în întregime — cu tot ce ține de el, inclusiv '
+        + 'fotografiile.',
+    },
+  },
+
   legal: {
     terms: 'Termeni și condiții',
     privacy: 'Politica de confidențialitate',
@@ -329,6 +401,7 @@ export const ro = {
     forgotPassword: 'Ai uitat parola',
     resetPassword: 'Parolă nouă',
     notFound: 'Pagina nu există',
+    features: 'Ce face aplicația',
     dashboard: 'Acasă',
     garage: 'Garajul meu',
     profile: 'Profil',

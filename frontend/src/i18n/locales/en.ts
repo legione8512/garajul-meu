@@ -12,6 +12,7 @@ export const en: typeof ro = {
     reference: 'Reference: {{requestId}}',
     loading: 'Loading…',
     retry: 'Try again',
+    backToStart: 'Back to the home page',
     offline: 'You have no internet connection. The application needs one to save any change.',
   },
   language: {
@@ -292,9 +293,78 @@ export const en: typeof ro = {
     noAccount: 'No account yet? Create one.',
   },
   welcome: {
+    headline: 'Always know what expires, and when',
+    lead: 'Garajul Meu keeps track of the paperwork for every car you own, and shows '
+      + 'you at a glance what is coming.',
+    features: {
+      scanTitle: 'Photograph the certificate',
+      scanBody: 'The registration certificate is read for you and the fields fill '
+        + 'themselves in. You check and correct before saving - nothing is stored '
+        + 'without your say-so.',
+      documentsTitle: 'Four documents, one glance',
+      documentsBody: 'Liability insurance, roadworthiness, comprehensive cover and '
+        + 'road tax, each with its own date. The dashboard shows what is valid, what '
+        + 'is running out, and what has never been set up.',
+      remindersTitle: 'Early, not on the last day',
+      remindersBody: 'Reminders are prepared for every document at thirty, fourteen '
+        + 'and seven days before it expires. You choose which of them you want.',
+    },
     signIn: 'Sign in',
     createAccount: 'Create an account',
   },
+
+  features: {
+    lead: 'Everything the application does, explained. Nothing here is planned or '
+      + 'promised - all of it works today.',
+    readMore: 'See everything the application does',
+    garage: {
+      title: 'The garage',
+      body: 'Add as many vehicles as you own. Each keeps its own identity - plate, '
+        + 'make, model, chassis number - and an optional nickname, so two of the same '
+        + 'kind stay apart. You can add a photograph too.',
+    },
+    certificate: {
+      title: 'The registration certificate, read from a photograph',
+      body: 'Photograph the certificate and the application reads what it can, '
+        + 'filling the fields for you. Nothing is saved on its own: you see what was '
+        + 'read confidently, what should be checked and what could not be found, you '
+        + 'correct it, and only then do you save. The photograph is not kept.',
+    },
+    documents: {
+      title: 'Documents and expiry dates',
+      body: 'Liability insurance, roadworthiness, comprehensive cover and road tax, '
+        + 'each with its own period of validity. Renewing does not lose the old '
+        + 'record - a new one is added, and the application knows which of them '
+        + 'covers today.',
+    },
+    dashboard: {
+      title: 'What is coming, at a glance',
+      body: 'For every car and every kind of document you see the state it is in: '
+        + 'valid, running out, expired, or never set up. The state is carried by the '
+        + 'shape of a line as well as by colour, so it survives a monochrome screen '
+        + 'and every kind of colour blindness.',
+    },
+    history: {
+      title: 'History',
+      body: 'Every document you have kept, not only the current one. You can see '
+        + 'which policies you held and over which periods, filtered by kind.',
+    },
+    reminders: {
+      title: 'Reminders',
+      body: 'Reminders are prepared for every document at thirty, fourteen and seven '
+        + 'days before it expires, and you choose which of them you want and at what '
+        + 'time of day. For now you see them in the application; notifications on '
+        + 'your phone arrive with the Android app.',
+    },
+    account: {
+      title: 'Your account and your data',
+      body: 'The application speaks Romanian and English, and the language follows '
+        + 'you from one device to another. You can change your email address and your '
+        + 'password, and you can delete your account entirely - with everything '
+        + 'belonging to it, photographs included.',
+    },
+  },
+
   legal: {
     terms: 'Terms and conditions',
     privacy: 'Privacy policy',
@@ -315,6 +385,7 @@ export const en: typeof ro = {
     forgotPassword: 'Forgot your password',
     resetPassword: 'New password',
     notFound: 'Page not found',
+    features: 'What the application does',
     dashboard: 'Home',
     garage: 'My garage',
     profile: 'Profile',

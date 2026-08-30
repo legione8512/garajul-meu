@@ -77,7 +77,7 @@ export function VerifyEmailPage() {
       <h1>{t('screens.verifyEmail')}</h1>
       <p>{t('verifyEmail.instructions')}</p>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={confirmation.error} />
 
         <TextField

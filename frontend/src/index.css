@@ -150,7 +150,8 @@ footer > a,
 nav a,
 main p > a,
 main li > a,
-main h2 > a {
+main h2 > a 
+[data-form-links] > a {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
@@ -212,6 +213,9 @@ header > a:first-child {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+    /* Two words, one line. The bar shrinks the select instead, which has an
+   * obvious minimum where a name has none. */
+  white-space: nowrap;
   text-decoration: none;
   color: var(--silver);
   background: linear-gradient(100deg, var(--silver) 40%, var(--brand-bright));
@@ -262,13 +266,119 @@ footer {
  * No shadow and no rounded corner, and both omissions are the point. The export
  * is opaque, so `drop-shadow` would trace the rectangle rather than the car and
  * draw a glowing box; the image carries its own glow already. A radius would
- * cut four notches showing the page behind - invisible here only because the
- * two colours match, which is a coincidence worth not depending on.
+ * cut four notches showing the page behind. That was written as "invisible only
+ * because the two colours match"; measured on 2026-08-29, they do not. The
+ * image carries a vignette - its edges run rgb(13,13,25) to rgb(17,16,30) and
+ * its corners rgb(8,6,16), against a page at rgb(21,19,33) - so it read as a
+ * dark rectangle laid on a lighter field. 13.5 measured the border *ring* and
+ * got the average; the extremes are darker than the average, and no flat colour
+ * can match a gradient.
  * ------------------------------------------------------------------------- */
 [data-hero] {
   width: min(100%, 30rem);
   margin: 0 auto 1.5rem;
   border-radius: 0;
+
+  /*
+   * The edges are dissolved rather than matched, which is the only thing that
+   * can work against a vignette: the image fades out exactly where it is
+   * darkest, so the page shows through and there is no seam left to notice.
+   *
+   * `closest-side` is the part that matters, and the first attempt got it
+   * wrong. A radial gradient is sized to the *corners* by default, so the side
+   * midpoints sit at only 71% of that radius: when the corners had faded out
+   * completely, the left and right edges were still about 40% opaque and read
+   * as a thin line down each side. Sizing the ellipse to the nearest sides puts
+   * all four edge midpoints at exactly 100%, so every edge finishes together
+   * and the corners are simply past the end.
+   *
+   * 78% is where the fade begins, and it was found by looking rather than by
+   * calculating: at 55% the wordmark inside the picture lost its G and its U,
+   * and the strapline under it very nearly vanished.
+   *
+   * The prefixed property first, for Safari, which still wants it.
+   */
+  -webkit-mask-image: radial-gradient(ellipse closest-side at center, #000 78%, transparent 100%);
+  mask-image: radial-gradient(ellipse closest-side at center, #000 78%, transparent 100%);
+}
+
+/*
+ * The sentence under the heading. Muted rather than full strength, so the eye
+ * reaches the heading first and the actions second - it measures 7.3:1 on the
+ * page background, well clear of AA.
+ */
+[data-lead] {
+  font-size: 1.125rem;
+  color: var(--text-muted);
+  margin: 0 0 1.5rem;
+}
+
+/*
+ * A link that is an action rather than a reference. Buttons are for things that
+ * happen here; these navigate, so they stay anchors and only borrow the shape -
+ * which is why this is an attribute on a link and not a <button> pretending.
+ */
+[data-actions] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0 0 2.5rem;
+}
+
+a[data-action] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  padding: 0.6rem 1.15rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* 7.1:1, the same pairing every button in the application already uses. */
+a[data-action='primary'] {
+  background: var(--brand);
+  color: var(--brand-contrast);
+}
+
+a[data-action='primary']:hover {
+  background: var(--brand-bright);
+}
+
+a[data-action='secondary'] {
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/*
+ * Three claims, each in its own raised card. A grid rather than margins so the
+ * gap is stated once and cannot drift between the first pair and the second.
+ */
+ul[data-features] {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0;
+}
+
+ul[data-features] > li {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The h2 rule adds 2rem above every heading, which is right between sections of
+ * prose and wrong at the top of a card. */
+ul[data-features] h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+ul[data-features] p {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 /* ---------------------------------------------------------------------------
@@ -401,6 +511,33 @@ input[type='file'] {
   cursor: pointer;
 }
 
+/*
+ * A control that lives in a bar rather than in a form.
+ *
+ * The rule above gives every select, input and textarea the shape of a form
+ * field - block, full width, a margin beneath - which is correct in a form and
+ * wrong anywhere else. It has no way to tell the two apart, because a select is
+ * a select. `data-inline` is that difference, and it states what the control is
+ * rather than what it should look like.
+ *
+ * Found on 2026-08-29 by finally seeing the page rather than measuring it: the
+ * language select stretched 1150 pixels across the header and squeezed the
+ * wordmark onto two lines.
+ */
+label[data-inline],
+select[data-inline] {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+}
+
+/* A label and its control travelling as one thing. */
+[data-inline-group] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Colour is never the only signal: the message under the field says what is
  * wrong, and aria-invalid says it to anything that is not looking. */
 input[aria-invalid='true'],
@@ -408,6 +545,43 @@ select[aria-invalid='true'],
 textarea[aria-invalid='true'] {
   border-color: var(--tone-urgent);
   border-width: 2px;
+}
+
+/*
+ * A form that is the whole point of its screen - sign in, register, change a
+ * password - rather than one part among several. Sixteen screens are shaped
+ * like this, so the grouping is stated once and they all inherit it.
+ *
+ * Not `form` on its own: the certificate lays a form over an image and the
+ * profile holds three of them inside fieldsets. Only a form that *is* the task
+ * gets the panel, which is why this is an attribute rather than an element.
+ */
+form[data-panel] {
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The last field's own margin is enough; the panel's padding does the rest. */
+form[data-panel] > :last-child {
+  margin-bottom: 0;
+}
+
+/* The one action the screen exists for, at the width of the fields above it.
+ * A content-width button under two full-width inputs reads as an afterthought. */
+form[data-panel] button[type='submit'] {
+  width: 100%;
+}
+
+/* Two related choices, kept together under the panel rather than spread by the
+ * margins of two paragraphs. */
+[data-form-links] {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
 }
 
 button {

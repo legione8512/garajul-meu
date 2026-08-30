@@ -152,7 +152,7 @@ export function AddVehiclePage() {
       <h1>{t('screens.addVehicle')}</h1>
       <p>{t('addVehicle.instructions')}</p>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
         <div>

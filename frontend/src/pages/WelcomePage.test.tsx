@@ -69,7 +69,7 @@ describe('welcome', () => {
 
     renderApp(paths.welcome)
 
-    await screen.findByRole('heading', { level: 1, name: ro.screens.welcome })
+    await screen.findByRole('heading', { level: 1, name: ro.welcome.headline })
     expect(screen.queryByRole('link', { name: ro.welcome.signIn })).not.toBeInTheDocument()
 
     release?.(jsonResponse(401, { code: 'REFRESH_TOKEN_INVALID' }))

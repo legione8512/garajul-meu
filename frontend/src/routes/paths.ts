@@ -48,4 +48,11 @@ export const paths = {
    */
   terms: '/terms',
   privacy: '/privacy',
+  /**
+   * Not one of section 5's twenty-two screens. Added on 2026-08-29 with the
+   * owner's approval, for the same reason the legal pages are public: somebody
+   * deciding whether to create an account needs to be able to read what the
+   * application does before they have one, and to send that as a link.
+   */
+  features: '/features',
 } as const

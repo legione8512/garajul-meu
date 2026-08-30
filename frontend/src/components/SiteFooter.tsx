@@ -16,6 +16,8 @@ export function SiteFooter() {
 
   return (
     <footer>
+      <Link to={paths.features}>{t('screens.features')}</Link>
+      {' '}
       <Link to={paths.terms}>{t('legal.terms')}</Link>
       {' '}
       <Link to={paths.privacy}>{t('legal.privacy')}</Link>

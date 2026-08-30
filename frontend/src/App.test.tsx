@@ -12,12 +12,13 @@ describe('routing', () => {
    * only question they exist to answer: did the right page render.
    */
   it.each([
-    [paths.welcome, ro.screens.welcome],
+    [paths.welcome, ro.welcome.headline],
     [paths.register, ro.screens.register],
     [paths.verifyEmail, ro.screens.verifyEmail],
     [paths.login, ro.screens.login],
     [paths.forgotPassword, ro.screens.forgotPassword],
     [paths.resetPassword, ro.screens.resetPassword],
+    [paths.features, ro.screens.features],
   ])('renders the page registered for %s', async (path, heading) => {
     renderApp(path)
 

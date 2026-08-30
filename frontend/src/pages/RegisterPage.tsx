@@ -62,7 +62,9 @@ export function RegisterPage() {
     <>
       <h1>{t('screens.register')}</h1>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
+
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
         <TextField
@@ -94,7 +96,9 @@ export function RegisterPage() {
         <button type="submit" disabled={pending}>{t('register.submit')}</button>
       </form>
 
-      <p><Link to={paths.login}>{t('register.haveAccount')}</Link></p>
+      <div data-form-links>
+        <Link to={paths.login}>{t('register.haveAccount')}</Link>
+      </div>
     </>
   )
 }

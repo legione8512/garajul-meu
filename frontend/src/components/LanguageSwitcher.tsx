@@ -15,9 +15,10 @@ export function LanguageSwitcher() {
   const selectId = useId()
 
   return (
-    <>
-      <label htmlFor={selectId}>{t('language.label')}</label>
+    <div data-inline-group>
+      <label data-inline htmlFor={selectId}>{t('language.label')}</label>
       <select
+        data-inline
         id={selectId}
         value={i18n.resolvedLanguage ?? 'ro'}
         onChange={(event) => {
@@ -30,6 +31,6 @@ export function LanguageSwitcher() {
           </option>
         ))}
       </select>
-    </>
+    </div>
   )
 }

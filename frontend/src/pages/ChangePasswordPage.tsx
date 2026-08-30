@@ -79,7 +79,7 @@ export function ChangePasswordPage() {
 
       <p>{t('changePassword.warning')}</p>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={submission.error} />
 
         <TextField

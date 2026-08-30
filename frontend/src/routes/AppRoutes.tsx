@@ -10,6 +10,7 @@ import { ChangePasswordPage } from '../pages/ChangePasswordPage.tsx'
 import { DashboardPage } from '../pages/DashboardPage.tsx'
 import { DeleteAccountPage } from '../pages/DeleteAccountPage.tsx'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.tsx'
+import { FeaturesPage } from '../pages/FeaturesPage.tsx'
 import { GaragePage } from '../pages/GaragePage.tsx'
 import { LoginPage } from '../pages/LoginPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
@@ -52,6 +53,7 @@ export function AppRoutes() {
         <Route path={paths.resetPassword} element={<ResetPasswordPage />} />
         <Route path={paths.terms} element={<TermsPage />} />
         <Route path={paths.privacy} element={<PrivacyPage />} />
+        <Route path={paths.features} element={<FeaturesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 

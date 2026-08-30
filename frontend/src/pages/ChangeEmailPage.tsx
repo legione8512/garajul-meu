@@ -119,7 +119,7 @@ export function ChangeEmailPage() {
           <>
             <p>{t('changeEmail.instructions')}</p>
 
-            <form onSubmit={(event) => { void handleRequest(event) }} noValidate>
+            <form data-panel onSubmit={(event) => { void handleRequest(event) }} noValidate>
               <FormError error={request.error} />
 
               <TextField
@@ -146,7 +146,7 @@ export function ChangeEmailPage() {
             </form>
 
             {codeSent && (
-              <form onSubmit={(event) => { void handleConfirm(event) }} noValidate>
+              <form data-panel onSubmit={(event) => { void handleConfirm(event) }} noValidate>
                 <p role="status">{t('changeEmail.codeSent')}</p>
 
                 <FormError error={confirm.error} />

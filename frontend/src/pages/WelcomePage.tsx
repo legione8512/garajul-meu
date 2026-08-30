@@ -43,15 +43,42 @@ export function WelcomePage() {
     <>
       <img data-hero src={heroCar} alt="" width={1254} height={732} />
 
-      <h1>{t('screens.welcome')}</h1>
+      <h1>{t('welcome.headline')}</h1>
+      <p data-lead>{t('welcome.lead')}</p>
 
       {status === 'anonymous' ? (
-        <p>
-          <Link to={paths.login}>{t('welcome.signIn')}</Link>
-          {' · '}
-          <Link to={paths.register}>{t('welcome.createAccount')}</Link>
+        <p data-actions>
+          <Link data-action="primary" to={paths.register}>
+            {t('welcome.createAccount')}
+          </Link>
+          <Link data-action="secondary" to={paths.login}>
+            {t('welcome.signIn')}
+          </Link>
         </p>
       ) : null}
+
+      {/*
+        A list because it is one: three independent claims in no particular
+        order. Each carries its own heading so the page can be skimmed by
+        somebody reading it with their eyes and traversed by somebody reading it
+        with anything else.
+      */}
+      <p><Link to={paths.features}>{t('features.readMore')}</Link></p>
+
+      <ul data-features>
+        <li>
+          <h2>{t('welcome.features.scanTitle')}</h2>
+          <p>{t('welcome.features.scanBody')}</p>
+        </li>
+        <li>
+          <h2>{t('welcome.features.documentsTitle')}</h2>
+          <p>{t('welcome.features.documentsBody')}</p>
+        </li>
+        <li>
+          <h2>{t('welcome.features.remindersTitle')}</h2>
+          <p>{t('welcome.features.remindersBody')}</p>
+        </li>
+      </ul>
     </>
   )
 }

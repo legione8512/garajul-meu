@@ -73,12 +73,14 @@ export function LoginPage() {
     <>
       <h1>{t('screens.login')}</h1>
 
+      <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
+
       {/*
         noValidate on purpose. The browser's own validation messages are written
         in the browser's language, not the application's, so leaving them on
         would put untranslated text beside translated text on the same form.
       */}
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+        <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
         <TextField
@@ -102,8 +104,15 @@ export function LoginPage() {
         <button type="submit" disabled={pending}>{t('login.submit')}</button>
       </form>
 
-      <p><Link to={paths.forgotPassword}>{t('login.forgotPassword')}</Link></p>
-      <p><Link to={paths.register}>{t('login.noAccount')}</Link></p>
+      {/*
+        One container rather than two paragraphs. Each paragraph carried its own
+        margin and each link its own 44-pixel box, which pushed two related
+        choices a third of a screen apart.
+      */}
+      <div data-form-links>
+        <Link to={paths.forgotPassword}>{t('login.forgotPassword')}</Link>
+        <Link to={paths.register}>{t('login.noAccount')}</Link>
+      </div>
     </>
   )
 }

@@ -63,7 +63,7 @@ export function ForgotPasswordPage() {
       <h1>{t('screens.forgotPassword')}</h1>
       <p>{t('forgotPassword.instructions')}</p>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
         <TextField

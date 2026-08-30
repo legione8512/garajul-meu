@@ -65,7 +65,7 @@ export function ResetPasswordPage() {
       <h1>{t('screens.resetPassword')}</h1>
       <p>{t('resetPassword.instructions')}</p>
 
-      <form onSubmit={(event) => { void handleSubmit(event) }} noValidate>
+      <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>
         <FormError error={error} />
 
         <TextField
