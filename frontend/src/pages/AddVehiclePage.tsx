@@ -156,14 +156,21 @@ export function AddVehiclePage() {
         <FormError error={error} />
 
         <div>
-          <label htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
+          {/*
+            The input comes first so the label can be styled from it with a
+            sibling selector. `htmlFor` binds them whichever way round they sit,
+            and the input is invisible, so the only order a reader perceives is
+            the label's.
+          */}
           <input
+            data-file
             id={photoInputId}
             type="file"
             accept="image/jpeg,image/png"
             onChange={(event) => { void handlePhotograph(event) }}
             disabled={scan.pending}
           />
+          <label data-file htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
 
           {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
 

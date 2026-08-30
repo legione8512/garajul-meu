@@ -21,7 +21,7 @@ export function GaragePage() {
     <>
       <h1>{t('screens.garage')}</h1>
 
-      <p><Link to={paths.addVehicle}>{t('garage.add')}</Link></p>
+      <p><Link data-action="primary" to={paths.addVehicle}>{t('garage.add')}</Link></p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 
@@ -34,12 +34,20 @@ export function GaragePage() {
 
       {data !== null && data.length === 0 && <p>{t('garage.empty')}</p>}
 
+      {/*
+        The name and the plate were adjacent JSX elements, which produce no
+        whitespace between them - the garage read "Chevrolet AveoCT 10 DOC" from
+        the day the screen was written. A heading and a subtitle say what each of
+        them is, and cannot run together.
+      */}
       {data !== null && data.length > 0 && (
         <ul>
           {data.map(vehicle => (
-            <li key={vehicle.id}>
-              <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
-              <span>{vehicle.registrationNumber}</span>
+            <li data-card key={vehicle.id}>
+              <h2>
+                <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
+              </h2>
+              <p data-subtitle>{vehicle.registrationNumber}</p>
             </li>
           ))}
         </ul>

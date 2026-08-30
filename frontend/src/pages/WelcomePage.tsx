@@ -66,15 +66,15 @@ export function WelcomePage() {
       <p><Link to={paths.features}>{t('features.readMore')}</Link></p>
 
       <ul data-features>
-        <li>
+        <li data-card>
           <h2>{t('welcome.features.scanTitle')}</h2>
           <p>{t('welcome.features.scanBody')}</p>
         </li>
-        <li>
+        <li data-card>
           <h2>{t('welcome.features.documentsTitle')}</h2>
           <p>{t('welcome.features.documentsBody')}</p>
         </li>
-        <li>
+        <li data-card>
           <h2>{t('welcome.features.remindersTitle')}</h2>
           <p>{t('welcome.features.remindersBody')}</p>
         </li>

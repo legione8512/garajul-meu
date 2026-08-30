@@ -314,6 +314,16 @@ footer {
 }
 
 /*
+ * The line under a heading that identifies the thing further - a registration
+ * plate beneath a vehicle's name. Quieter than the heading it belongs to, and
+ * deliberately not `small`: this is identification, not fine print.
+ */
+[data-subtitle] {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+}
+
+/*
  * A link that is an action rather than a reference. Buttons are for things that
  * happen here; these navigate, so they stay anchors and only borrow the shape -
  * which is why this is an attribute on a link and not a <button> pretending.
@@ -322,7 +332,13 @@ footer {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin: 0 0 2.5rem;
+  margin: 0 0 1.5rem;
+}
+
+/* The landing page is the one screen where the actions carry the whole weight
+ * of the page, and it earns the extra room beneath them. */
+main > [data-hero] ~ [data-actions] {
+  margin-bottom: 2.5rem;
 }
 
 a[data-action] {
@@ -361,12 +377,49 @@ ul[data-features] {
   margin: 0;
 }
 
-ul[data-features] > li {
-  margin: 0;
+/*
+ * A block of related content on a page made of several. The dashboard shows one
+ * per vehicle and the landing page one per claim - with six cars, an ungrouped
+ * dashboard is a wall of forty lines with nothing saying where one ends.
+ *
+ * No margin of its own: `section` already carries one and the features grid has
+ * a gap, so a third source of spacing would only fight them.
+ */
+[data-card] {
   padding: 1rem 1.15rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+/* A card's own padding is the space at its edges; the first and last children
+ * should not add to it. */
+[data-card] > :first-child {
+  margin-top: 0;
+}
+
+[data-card] > :last-child {
+  margin-bottom: 0;
+}
+
+/*
+ * A heading that happens to be a link, which is what a vehicle's name is on the
+ * dashboard. It keeps a heading's weight and colour, because that is what it
+ * is; the underline arrives on hover and on focus, so the affordance is still
+ * stated rather than left to colour alone.
+ */
+[data-card] h2 > a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+[data-card] h2 > a:hover,
+[data-card] h2 > a:focus-visible {
+  text-decoration: underline;
+}
+
+ul[data-features] > li {
+  margin: 0;
 }
 
 /* The h2 rule adds 2rem above every heading, which is right between sections of
@@ -406,6 +459,11 @@ dl {
   grid-template-columns: minmax(8rem, auto) 1fr;
   gap: 0.4rem 1rem;
   margin: 0 0 1.5rem;
+}
+
+/* Inside a card the padding is the spacing; the list adds none of its own. */
+[data-card] > dl {
+  margin: 0;
 }
 
 dt {
@@ -506,9 +564,69 @@ input[type='radio'] + label {
   vertical-align: middle;
 }
 
-input[type='file'] {
-  padding: 0.45rem;
+/*
+ * A file chooser that speaks the application's language.
+ *
+ * The native control renders "Choose file" and "No file chosen" in the
+ * *browser's* language rather than the page's, so a Romanian application said it
+ * in English on all three screens that take a photograph - including the one the
+ * whole certificate scan starts from. That text cannot be translated by anyone.
+ * The only way to control it is to stop showing it.
+ *
+ * The input is hidden from sight and kept in the tab order. `display: none`
+ * would take it out of the keyboard's reach entirely, which trades a cosmetic
+ * problem for one that stops people using the screen at all. Clicking a label
+ * activates its input, so the visible control needs no script.
+ *
+ * <strong>Nothing is lost by hiding the filename.</strong> That was the risk
+ * worth checking: on all three screens the application answers for itself - the
+ * scan reports what it read, and the photograph appears - so the native
+ * control's only unique contribution was saying it in the wrong language.
+ *
+ * Two shapes, because the application has both. The scan screens put the label
+ * beside the input, so the input is written first and the label is styled from
+ * it with `+`, which every browser has. The vehicle photograph wraps its input,
+ * and `:focus-within` covers that. `:has()` appears once, for the disabled look
+ * of the wrapped form only, where losing it costs nothing but a shade.
+ */
+input[type='file'][data-file] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+label[data-file] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  margin: 0;
+  padding: 0.6rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
   cursor: pointer;
+}
+
+/* The ring has to reach the label, or the keyboard loses sight of where it is. */
+input[type='file'][data-file]:focus-visible + label[data-file],
+label[data-file]:focus-within {
+  outline: 3px solid var(--brand-bright);
+  outline-offset: 2px;
+}
+
+input[type='file'][data-file]:disabled + label[data-file],
+label[data-file]:has(input[type='file']:disabled) {
+  opacity: 0.55;
+  cursor: default;
 }
 
 /*
@@ -602,6 +720,37 @@ button:hover:not(:disabled) {
 button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+/*
+ * Not every button is the thing the screen is for. Deleting a document is rare
+ * and irreversible, and it was painted in the brand colour - the most prominent
+ * thing inside every record on the list, which is exactly backwards.
+ */
+button[data-quiet] {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+button[data-quiet]:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+/*
+ * The one that actually destroys something, after a confirmation. Loud on
+ * purpose and only ever reached deliberately - never the resting state of a
+ * screen. Dark text on the urgent tone measures 6.1:1.
+ */
+button[data-destructive] {
+  background: var(--tone-urgent);
+  color: var(--surface-sunken);
+}
+
+button[data-destructive]:hover:not(:disabled) {
+  background: var(--tone-gap);
 }
 
 /* Every interactive thing, one visible ring, and never `outline: none`. The

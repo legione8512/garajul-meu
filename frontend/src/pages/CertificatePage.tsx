@@ -180,14 +180,15 @@ export function CertificatePage() {
           <p>{t('certificate.sensitiveNote')}</p>
 
           <div>
-            <label htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
             <input
+              data-file
               id={photoInputId}
               type="file"
               accept="image/jpeg,image/png"
               onChange={(event) => { void handlePhotograph(event) }}
               disabled={scan.pending}
             />
+            <label data-file htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
 
             {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
 

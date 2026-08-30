@@ -76,7 +76,7 @@ export function VehicleImage({ vehicleId, hasImage }: Props) {
   }
 
   return (
-    <section>
+    <section data-card>
       <h2>{t('vehicleImage.title')}</h2>
 
       {loading && <p role="status">{t('common.loading')}</p>}
@@ -90,9 +90,10 @@ export function VehicleImage({ vehicleId, hasImage }: Props) {
       <FormError error={upload.error} />
 
       <p>
-        <label>
+        <label data-file>
           {present ? t('vehicleImage.replace') : t('vehicleImage.choose')}
           <input
+            data-file
             ref={inputRef}
             type="file"
             accept="image/jpeg,image/png"

@@ -40,7 +40,7 @@ export function DashboardPage() {
       )}
 
       {data !== null && data.vehicles.map(vehicle => (
-        <section key={vehicle.vehicleId}>
+        <section data-card key={vehicle.vehicleId}>
           <h2>
             <Link to={paths.vehicle(vehicle.vehicleId)}>{vehicleLabel(vehicle)}</Link>
           </h2>

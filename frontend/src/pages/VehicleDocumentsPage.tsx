@@ -89,7 +89,11 @@ export function VehicleDocumentsPage() {
 
       <p><Link to={paths.vehicle(vehicleId)}>{t('documents.backToVehicle')}</Link></p>
 
-      <p><Link to={paths.history(vehicleId)}>{t('history.open')}</Link></p>
+      <p data-actions>
+        <Link data-action="secondary" to={paths.history(vehicleId)}>
+          {t('history.open')}
+        </Link>
+      </p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 
@@ -102,17 +106,20 @@ export function VehicleDocumentsPage() {
           {data.map((document) => {
             const state = stateOf(document, formatDate)
 
+            // The tone moved off the item and onto the sentence it describes,
+            // which is where VehicleDocumentDetailsPage already had it. On the
+            // dashboard a toned item is one line; here it is a whole block, and
+            // colouring all of it made a document with an expired date read as
+            // an error rather than as a record.
             return (
-              <li key={document.id} data-tone={state.tone}>
-                <h2>{t(`documents.type.${document.type}`)}</h2>
-
-                <p>
+              <li data-card key={document.id}>
+                <h2>
                   <Link to={paths.document(vehicleId, document.id)}>
-                    {t('documents.openOne')}
+                    {t(`documents.type.${document.type}`)}
                   </Link>
-                </p>
+                </h2>
 
-                <p>
+                <p data-subtitle>
                   {document.validFrom == null
                     ? t('documents.period', { until: formatDate(document.validUntil) })
                     : t('documents.periodFrom', {
@@ -121,30 +128,57 @@ export function VehicleDocumentsPage() {
                       })}
                 </p>
 
-                <p>{t(state.key, state.values)}</p>
+                <p data-tone={state.tone}>{t(state.key, state.values)}</p>
 
-                {document.provider != null && <p>{document.provider}</p>}
-                {document.referenceNumber != null && <p>{document.referenceNumber}</p>}
-                {document.notes != null && <p>{document.notes}</p>}
+                {/*
+                  Labelled, because a bare string tells nobody what it is: an
+                  insurer's name, a policy number and a note all looked like
+                  three anonymous lines under the date.
+                */}
+                {(document.provider != null
+                  || document.referenceNumber != null
+                  || document.notes != null) && (
+                  <dl>
+                    {document.provider != null && (
+                      <>
+                        <dt>{t('documents.fields.provider')}</dt>
+                        <dd>{document.provider}</dd>
+                      </>
+                    )}
+                    {document.referenceNumber != null && (
+                      <>
+                        <dt>{t('documents.fields.referenceNumber')}</dt>
+                        <dd>{document.referenceNumber}</dd>
+                      </>
+                    )}
+                    {document.notes != null && (
+                      <>
+                        <dt>{t('documents.fields.notes')}</dt>
+                        <dd>{document.notes}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
 
                 {confirming === document.id
                   ? (
                     <>
                       <p>{t('documents.confirmDelete')}</p>
                       <button
+                        data-destructive
                         type="button"
                         onClick={() => { void handleDelete(document.id) }}
                         disabled={removal.pending}
                       >
                         {t('documents.confirmDeleteYes')}
                       </button>
-                      <button type="button" onClick={() => { setConfirming(null) }}>
+                      <button data-quiet type="button" onClick={() => { setConfirming(null) }}>
                         {t('documents.cancel')}
                       </button>
                     </>
                     )
                   : (
-                    <button type="button" onClick={() => { setConfirming(document.id) }}>
+                    <button data-quiet type="button" onClick={() => { setConfirming(document.id) }}>
                       {t('documents.delete')}
                     </button>
                     )}

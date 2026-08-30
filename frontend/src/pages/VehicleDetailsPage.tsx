@@ -100,9 +100,22 @@ export function VehicleDetailsPage() {
     <>
       <h1>{vehicle === null ? t('screens.vehicleDetails') : vehicleLabel(vehicle)}</h1>
 
+      {/*
+        Two different things that had been stacked as three identical links.
+        Going back is one move and going deeper is another, so they are stated
+        separately: the way out stays where every other screen keeps it, and the
+        two ways in read as the choices they are rather than as a list.
+      */}
       <p><Link to={paths.garage}>{t('vehicle.backToGarage')}</Link></p>
-      <p><Link to={paths.certificate(vehicleId)}>{t('certificate.open')}</Link></p>
-      <p><Link to={paths.documents(vehicleId)}>{t('documents.open')}</Link></p>
+
+      <p data-actions>
+        <Link data-action="secondary" to={paths.certificate(vehicleId)}>
+          {t('certificate.open')}
+        </Link>
+        <Link data-action="secondary" to={paths.documents(vehicleId)}>
+          {t('documents.open')}
+        </Link>
+      </p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
 
@@ -110,7 +123,7 @@ export function VehicleDetailsPage() {
 
       {vehicle !== null && (
         <>
-          <dl>
+          <dl data-card>
             <dt>{t('fields.registrationNumber')}</dt>
             <dd>{vehicle.registrationNumber}</dd>
             <dt>{t('fields.make')}</dt>
@@ -123,7 +136,7 @@ export function VehicleDetailsPage() {
 
           <VehicleImage vehicleId={vehicleId} hasImage={vehicle.hasImage} />
 
-          <form onSubmit={(event) => { void handleRename(event) }} noValidate>
+          <form data-card onSubmit={(event) => { void handleRename(event) }} noValidate>
             <FormError error={rename.error} />
 
             <TextField
