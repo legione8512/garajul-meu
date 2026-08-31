@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 
 import { resetPassword } from '../api/endpoints/auth.ts'
 import { FormError } from '../components/FormError.tsx'
@@ -63,6 +63,8 @@ export function ResetPasswordPage() {
   return (
     <>
       <h1>{t('screens.resetPassword')}</h1>
+      
+      <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
       <p>{t('resetPassword.instructions')}</p>
 
       <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>

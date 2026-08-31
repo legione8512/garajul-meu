@@ -38,6 +38,8 @@ export const en: typeof ro = {
     vin: 'VIN (chassis number)',
     displayName: 'Nickname (optional)',
     timezone: 'Time zone',
+    showPassword: 'Show',
+    hidePassword: 'Hide',
   },
   register: {
     submit: 'Create account',
@@ -197,7 +199,7 @@ export const en: typeof ro = {
       notConfigured: 'Not configured.',
     },
   },
-    history: {
+  history: {
     title: 'History',
     open: 'Document history',
     filter: 'Show only',

@@ -76,7 +76,8 @@ describe('create account', () => {
     renderApp(paths.register)
     await screen.findByRole('heading', { level: 1, name: ro.screens.register })
 
-    await userEvent.selectOptions(screen.getByLabelText(ro.language.label), 'en')
+    await userEvent.click(screen.getByLabelText(new RegExp(ro.language.label)))
+    await userEvent.click(screen.getByRole('button', { name: 'English' }))
 
     const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 201 })))
     vi.stubGlobal('fetch', fetchMock)

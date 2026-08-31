@@ -61,6 +61,8 @@ export function ForgotPasswordPage() {
   return (
     <>
       <h1>{t('screens.forgotPassword')}</h1>
+      
+      <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
       <p>{t('forgotPassword.instructions')}</p>
 
       <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>

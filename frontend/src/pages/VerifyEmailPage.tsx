@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 
 import { resendVerification, verifyEmail } from '../api/endpoints/auth.ts'
 import { FormError } from '../components/FormError.tsx'
@@ -75,6 +75,8 @@ export function VerifyEmailPage() {
   return (
     <>
       <h1>{t('screens.verifyEmail')}</h1>
+      
+      <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
       <p>{t('verifyEmail.instructions')}</p>
 
       <form data-panel onSubmit={(event) => { void handleSubmit(event) }} noValidate>

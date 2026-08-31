@@ -694,11 +694,122 @@ select[data-inline] {
   margin: 0;
 }
 
-/* A label and its control travelling as one thing. */
-[data-inline-group] {
+/* ---------------------------------------------------------------------------
+ * Language switcher
+ *
+ * A flag beside each language name, which a `select` cannot do: an `option`
+ * holds text and nothing else. The emoji route is closed too - measured on
+ * Windows, the regional indicator pair renders as two letters rather than as a
+ * flag.
+ * ------------------------------------------------------------------------- */
+[data-language-switch] {
+  position: relative;
+}
+
+[data-language-trigger] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--touch);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  /* Both, because the triangle is drawn by a pseudo-element in WebKit and by
+   * the list marker everywhere else. */
+  list-style: none;
+}
+
+[data-language-trigger]::-webkit-details-marker {
+  display: none;
+}
+
+[data-language-trigger]:focus-visible {
+  outline: 3px solid var(--brand-bright);
+  outline-offset: 2px;
+}
+
+[data-chevron] {
+  width: 0.7rem;
+  height: auto;
+  flex: none;
+  transition: transform 0.15s;
+}
+
+[data-language-switch][open] [data-chevron] {
+  transform: rotate(180deg);
+}
+
+/*
+ * Above the page rather than in it, so opening the menu never moves the header
+ * or anything under it. Right-aligned because the switcher sits at the right
+ * edge of the bar and a left-aligned panel would hang off the screen.
+ */
+[data-language-menu] {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.25rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+[data-language-option] {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: var(--touch);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+[data-language-option]:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* The one in force, said with weight and colour rather than with a tick that
+ * would need its own explanation. */
+[data-language-option][aria-current='true'] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+[data-flag] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  border-radius: 50%;
+}
+
+/*
+ * A field with a control beside it, which today means a password and the button
+ * that reveals it. The input keeps the field's bottom margin off itself and the
+ * row carries it, or the two would stack.
+ */
+[data-field-row] {
+  display: flex;
+  align-items: start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+[data-field-row] > input {
+  margin-bottom: 0;
 }
 
 /* Colour is never the only signal: the message under the field says what is

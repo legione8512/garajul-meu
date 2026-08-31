@@ -45,6 +45,8 @@ export const ro = {
     vin: 'VIN (serie de șasiu)',
     displayName: 'Poreclă (opțional)',
     timezone: 'Fus orar',
+    showPassword: 'Arată',
+    hidePassword: 'Ascunde',
   },
   register: {
     submit: 'Creează contul',
@@ -204,7 +206,7 @@ export const ro = {
       notConfigured: 'Neconfigurat.',
     },
   },
-    history: {
+  history: {
     title: 'Istoric',
     open: 'Istoricul documentelor',
     filter: 'Arată doar',
