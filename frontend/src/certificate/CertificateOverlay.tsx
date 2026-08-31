@@ -146,14 +146,19 @@ export function CertificateOverlay({ form, messages, statuses, onChange }: Certi
 
   return (
     <>
-      <div>
-        <button type="button" onClick={() => { step(-STEP) }} disabled={scale <= MIN_SCALE}>
+      {/*
+        A toolbar, not three primary actions. Painted in the brand colour and
+        touching one another, the zoom controls read as the most important thing
+        on a screen whose whole point is the document underneath them.
+      */}
+      <div data-actions>
+        <button data-quiet type="button" onClick={() => { step(-STEP) }} disabled={scale <= MIN_SCALE}>
           {t('certificate.zoomOut')}
         </button>
-        <button type="button" onClick={() => { setScale(1) }} disabled={scale === 1}>
+        <button data-quiet type="button" onClick={() => { setScale(1) }} disabled={scale === 1}>
           {t('certificate.zoomReset')}
         </button>
-        <button type="button" onClick={() => { step(STEP) }} disabled={scale >= MAX_SCALE}>
+        <button data-quiet type="button" onClick={() => { step(STEP) }} disabled={scale >= MAX_SCALE}>
           {t('certificate.zoomIn')}
         </button>
         <span role="status">{t('certificate.zoomLevel', { percent: Math.round(scale * 100) })}</span>

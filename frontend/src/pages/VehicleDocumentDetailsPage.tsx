@@ -157,25 +157,32 @@ function DocumentScreen() {
 
       {document !== null && (
         <>
-          <p>
-            {document.validFrom == null
-              ? t('documents.period', { until: formatDate(document.validUntil) })
-              : t('documents.periodFrom', {
-                  from: formatDate(document.validFrom),
-                  until: formatDate(document.validUntil),
-                })}
-          </p>
+          {/*
+            The period and the state answer the same question - what does this
+            record cover, and where does that leave you today - so they are one
+            block rather than two paragraphs adrift on the page.
+          */}
+          <div data-card>
+            <p data-subtitle>
+              {document.validFrom == null
+                ? t('documents.period', { until: formatDate(document.validUntil) })
+                : t('documents.periodFrom', {
+                    from: formatDate(document.validFrom),
+                    until: formatDate(document.validUntil),
+                  })}
+            </p>
 
-          {(() => {
-            const state = stateOf(document, formatDate)
-            return <p data-tone={state.tone}>{t(state.key, state.values)}</p>
-          })()}
+            {(() => {
+              const state = stateOf(document, formatDate)
+              return <p data-tone={state.tone}>{t(state.key, state.values)}</p>
+            })()}
+          </div>
 
           <DocumentReminders vehicleId={vehicleId} documentId={documentId} />
 
-          <h2>{t('documents.correct')}</h2>
+          <form data-card onSubmit={(event) => { void handleCorrect(event) }} noValidate>
+            <h2>{t('documents.correct')}</h2>
 
-          <form onSubmit={(event) => { void handleCorrect(event) }} noValidate>
             <FormError error={correction.error} />
 
             <SelectField
@@ -199,10 +206,10 @@ function DocumentScreen() {
             </button>
           </form>
 
-          <h2>{t('documents.renew')}</h2>
-          <p>{t('documents.renewNote')}</p>
+          <form data-card onSubmit={(event) => { void handleRenew(event) }} noValidate>
+            <h2>{t('documents.renew')}</h2>
+            <p data-subtitle>{t('documents.renewNote')}</p>
 
-          <form onSubmit={(event) => { void handleRenew(event) }} noValidate>
             <FormError error={renewal.error} />
 
             <DocumentFields

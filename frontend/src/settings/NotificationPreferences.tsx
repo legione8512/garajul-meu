@@ -85,7 +85,7 @@ export function NotificationPreferences() {
   }
 
   return (
-    <section>
+    <section data-card>
       <h2>{t('notificationPreferences.title')}</h2>
 
       <p>{t('reminders.nativeOnly')}</p>

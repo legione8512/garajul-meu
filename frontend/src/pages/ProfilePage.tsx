@@ -120,19 +120,25 @@ export function ProfilePage() {
 
       {profile === null ? null : (
         <>
-          <dl>
-            <dt>{t('fields.email')}</dt>
-            <dd>
-              {profile.email}
-              {' '}
-              {profile.emailVerified
-                ? t('profile.emailVerified')
-                : t('profile.emailNotVerified')}
-            </dd>
-          </dl>
-
-          <form onSubmit={(event) => { void handleSave(event) }} noValidate>
+          <form data-card onSubmit={(event) => { void handleSave(event) }} noValidate>
             <h2>{t('profile.account')}</h2>
+
+            {/*
+              The address was sitting above the heading of the section it belongs
+              to, which read as a stray fact about nobody in particular. It is
+              shown rather than edited here because changing it needs its own
+              screen and a password.
+            */}
+            <dl>
+              <dt>{t('fields.email')}</dt>
+              <dd>
+                {profile.email}
+                {' '}
+                {profile.emailVerified
+                  ? t('profile.emailVerified')
+                  : t('profile.emailNotVerified')}
+              </dd>
+            </dl>
 
             <FormError error={save.error} />
 
@@ -167,16 +173,35 @@ export function ProfilePage() {
 
           <NotificationPreferences />
 
-          <section>
+          <section data-card>
             <h2>{t('profile.security')}</h2>
-            <p><Link to={paths.changePassword}>{t('profile.changePassword')}</Link></p>
-            <p><Link to={paths.changeEmail}>{t('profile.changeEmail')}</Link></p>
-            <p><Link to={paths.deleteAccount}>{t('profile.deleteAccount')}</Link></p>
+            <p data-actions>
+              <Link data-action="secondary" to={paths.changePassword}>
+                {t('profile.changePassword')}
+              </Link>
+              <Link data-action="secondary" to={paths.changeEmail}>
+                {t('profile.changeEmail')}
+              </Link>
+            </p>
+            {/*
+              Deleting an account is not one of three equal choices. It keeps its
+              own line and the quiet treatment the document list already gives a
+              destructive action - reachable, never inviting.
+            */}
+            <p><Link data-action="quiet" to={paths.deleteAccount}>
+              {t('profile.deleteAccount')}
+            </Link></p>
           </section>
         </>
       )}
 
-      <button type="button" onClick={() => { void signOut() }}>{t('profile.signOut')}</button>
+      {/*
+        Signing out is not what somebody came to the profile to do. Quiet, like
+        the other things on this page that are reachable without being invited.
+      */}
+      <button data-quiet type="button" onClick={() => { void signOut() }}>
+        {t('profile.signOut')}
+      </button>
     </>
   )
 }

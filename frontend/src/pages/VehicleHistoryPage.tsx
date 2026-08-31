@@ -79,14 +79,14 @@ export function VehicleHistoryPage() {
               const state = stateOf(document, formatDate)
 
               return (
-                <li key={document.id} data-tone={state.tone}>
+                <li data-card key={document.id}>
                   <h2>
                     <Link to={paths.document(vehicleId, document.id)}>
                       {t(`documents.type.${document.type}`)}
                     </Link>
                   </h2>
 
-                  <p>
+                  <p data-subtitle>
                     {document.validFrom == null
                       ? t('documents.period', { until: formatDate(document.validUntil) })
                       : t('documents.periodFrom', {
@@ -95,30 +95,42 @@ export function VehicleHistoryPage() {
                         })}
                   </p>
 
-                  <p>{t(state.key, state.values)}</p>
+                  <p data-tone={state.tone}>{t(state.key, state.values)}</p>
                 </li>
               )
             })}
           </ul>
 
-          <p>{t('history.page', { page: data.page + 1, pages: data.totalPages })}</p>
-          <p>{t('history.total', { total: data.totalElements })}</p>
+          {/*
+            One row rather than four stacked blocks. The position and the total
+            answer the same question - where am I in how much - and the two
+            controls that change it belong beside the answer, not underneath it.
+          */}
+          <div data-pagination>
+            <button
+              data-quiet
+              type="button"
+              disabled={data.page === 0}
+              onClick={() => { setPage(previous => previous - 1) }}
+            >
+              {t('history.previous')}
+            </button>
 
           <button
             type="button"
-            disabled={data.page === 0}
-            onClick={() => { setPage(previous => previous - 1) }}
-          >
-            {t('history.previous')}
-          </button>
-
-          <button
-            type="button"
+            data-quiet
             disabled={data.page + 1 >= data.totalPages}
             onClick={() => { setPage(previous => previous + 1) }}
           >
             {t('history.next')}
           </button>
+            <p data-subtitle>
+              {t('history.page', { page: data.page + 1, pages: data.totalPages })}
+            </p>
+            <p data-subtitle>
+              {t('history.total', { total: data.totalElements })}
+            </p>
+          </div>
         </>
       )}
     </>

@@ -324,6 +324,24 @@ footer {
 }
 
 /*
+ * Where you are, in how much, and the two controls that change it - on one line
+ * rather than as four stacked blocks. The position was a paragraph, the total
+ * was a second paragraph, and the buttons came after both, so the answer and
+ * the way to change it were nowhere near each other.
+ */
+[data-pagination] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+[data-pagination] > [data-subtitle] {
+  margin: 0;
+}
+
+/*
  * A link that is an action rather than a reference. Buttons are for things that
  * happen here; these navigate, so they stay anchors and only borrow the shape -
  * which is why this is an attribute on a link and not a <button> pretending.
@@ -368,6 +386,25 @@ a[data-action='secondary'] {
 }
 
 /*
+ * A way to somewhere consequential, offered without inviting. Same reasoning as
+ * `button[data-quiet]`: deleting an account is reachable from the profile and
+ * must not sit there looking like one of three equal choices.
+ */
+a[data-action='quiet'] {
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-weight: 400;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+a[data-action='quiet']:hover,
+a[data-action='quiet']:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/*
  * Three claims, each in its own raised card. A grid rather than margins so the
  * gap is stated once and cannot drift between the first pair and the second.
  */
@@ -390,6 +427,23 @@ ul[data-features] {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  margin-bottom: 1.5rem;
+}
+
+/*
+ * The first version left the spacing to whatever contained the card, on the
+ * reasoning that `section` already carries a margin and the features grid has a
+ * gap. True of both, and false of everything else: a `div` and a `form` have no
+ * margin at all, so the document's summary sat flush against the notifications
+ * beneath it. The card states its own spacing now, and the two places that
+ * genuinely own it say so below.
+ */
+ul > li[data-card] {
+  margin-bottom: 0.5rem;
+}
+
+ul[data-features] > li[data-card] {
+  margin-bottom: 0;
 }
 
 /* A card's own padding is the space at its edges; the first and last children
@@ -416,10 +470,6 @@ ul[data-features] {
 [data-card] h2 > a:hover,
 [data-card] h2 > a:focus-visible {
   text-decoration: underline;
-}
-
-ul[data-features] > li {
-  margin: 0;
 }
 
 /* The h2 rule adds 2rem above every heading, which is right between sections of
@@ -459,11 +509,6 @@ dl {
   grid-template-columns: minmax(8rem, auto) 1fr;
   gap: 0.4rem 1rem;
   margin: 0 0 1.5rem;
-}
-
-/* Inside a card the padding is the spacing; the list adds none of its own. */
-[data-card] > dl {
-  margin: 0;
 }
 
 dt {

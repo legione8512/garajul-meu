@@ -40,7 +40,7 @@ export function DocumentReminders({ vehicleId, documentId }: Props) {
   const formatDateTime = dateTimeFormatter(i18n.language)
 
   return (
-    <section>
+    <section data-card>
       <h2>{t('reminders.title')}</h2>
 
       <p>{t('reminders.nativeOnly')}</p>
