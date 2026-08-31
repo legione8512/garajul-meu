@@ -82,23 +82,33 @@ export function DeleteAccountPage() {
           message={messages.currentPassword}
         />
 
+        {/*
+          The most irreversible action in the application, and until now the one
+          painted most invitingly. Both buttons carry `data-destructive`, the
+          first as well as the confirmation: this screen exists to do one thing,
+          and there is no competing primary action for the brand colour to mean.
+          The warning above says what goes; the colour should not disagree with it.
+        */}
         {confirming
           ? (
             <div>
               <p>{t('deleteAccount.confirm')}</p>
-              <button
-                type="button"
-                onClick={() => { void handleConfirm() }}
-                disabled={submission.pending}
-              >
-                {t('deleteAccount.submit')}
-              </button>
-              <button type="button" onClick={() => { setConfirming(false) }}>
-                {t('deleteAccount.cancel')}
-              </button>
+              <p data-actions>
+                <button
+                  data-destructive
+                  type="button"
+                  onClick={() => { void handleConfirm() }}
+                  disabled={submission.pending}
+                >
+                  {t('deleteAccount.submit')}
+                </button>
+                <button data-quiet type="button" onClick={() => { setConfirming(false) }}>
+                  {t('deleteAccount.cancel')}
+                </button>
+              </p>
             </div>
             )
-          : <button type="submit">{t('deleteAccount.submit')}</button>}
+          : <button data-destructive type="submit">{t('deleteAccount.submit')}</button>}
       </form>
     </>
   )

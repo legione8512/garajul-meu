@@ -75,7 +75,7 @@ export function VerifyEmailPage() {
   return (
     <>
       <h1>{t('screens.verifyEmail')}</h1>
-      
+
       <p><Link to={paths.welcome}>{t('common.backToStart')}</Link></p>
       <p>{t('verifyEmail.instructions')}</p>
 
@@ -107,9 +107,23 @@ export function VerifyEmailPage() {
       <FormError error={resend.error} />
       {resent ? <p role="status">{t('verifyEmail.resent')}</p> : null}
 
-      <button type="button" disabled={resend.pending} onClick={() => { void handleResend() }}>
-        {t('verifyEmail.resend')}
-      </button>
+      {/*
+        Quiet, and set apart from the panel. This is what you reach for when the
+        code never arrived - not a second way to submit the form. Painted in the
+        brand colour and flush against the panel's bottom edge, it was measured
+        as byte-identical to "Confirm address": same fill, same weight, same
+        height, zero gap.
+      */}
+      <p data-actions>
+        <button
+          data-quiet
+          type="button"
+          disabled={resend.pending}
+          onClick={() => { void handleResend() }}
+        >
+          {t('verifyEmail.resend')}
+        </button>
+      </p>
     </>
   )
 }

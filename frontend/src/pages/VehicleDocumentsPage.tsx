@@ -164,17 +164,19 @@ export function VehicleDocumentsPage() {
                   ? (
                     <>
                       <p>{t('documents.confirmDelete')}</p>
-                      <button
-                        data-destructive
-                        type="button"
-                        onClick={() => { void handleDelete(document.id) }}
-                        disabled={removal.pending}
-                      >
-                        {t('documents.confirmDeleteYes')}
-                      </button>
-                      <button data-quiet type="button" onClick={() => { setConfirming(null) }}>
-                        {t('documents.cancel')}
-                      </button>
+                      <p data-actions>
+                        <button
+                          data-destructive
+                          type="button"
+                          onClick={() => { void handleDelete(document.id) }}
+                          disabled={removal.pending}
+                        >
+                          {t('documents.confirmDeleteYes')}
+                        </button>
+                        <button data-quiet type="button" onClick={() => { setConfirming(null) }}>
+                          {t('documents.cancel')}
+                        </button>
+                      </p>
                     </>
                     )
                   : (

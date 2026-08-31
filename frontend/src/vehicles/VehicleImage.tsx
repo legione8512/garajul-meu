@@ -115,20 +115,23 @@ export function VehicleImage({ vehicleId, hasImage }: Props) {
             ? (
               <div>
                 <p>{t('vehicleImage.confirmDelete')}</p>
-                <button
-                  type="button"
-                  onClick={() => { void handleDelete() }}
-                  disabled={removal.pending}
-                >
-                  {t('vehicleImage.confirmDeleteYes')}
-                </button>
-                <button type="button" onClick={() => { setConfirming(false) }}>
-                  {t('vehicleImage.cancel')}
-                </button>
+                <p data-actions>
+                  <button
+                    data-destructive
+                    type="button"
+                    onClick={() => { void handleDelete() }}
+                    disabled={removal.pending}
+                  >
+                    {t('vehicleImage.confirmDeleteYes')}
+                  </button>
+                  <button data-quiet type="button" onClick={() => { setConfirming(false) }}>
+                    {t('vehicleImage.cancel')}
+                  </button>
+                </p>
               </div>
               )
             : (
-              <button type="button" onClick={() => { setConfirming(true) }}>
+              <button data-quiet type="button" onClick={() => { setConfirming(true) }}>
                 {t('vehicleImage.delete')}
               </button>
               )}

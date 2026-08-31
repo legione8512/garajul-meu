@@ -151,24 +151,34 @@ export function VehicleDetailsPage() {
 
           <FormError error={removal.error} />
 
+          {/*
+            The treatment the documents screen received on 2026-08-29 and this
+            one did not, though the pattern is identical. Deleting a vehicle takes
+            its certificate, its documents, its history and its photograph with
+            it - and in the brand colour it was the most inviting thing on the
+            screen, with a Cancel beside it painted exactly the same.
+          */}
           {confirming
             ? (
               <div>
                 <p>{t('vehicle.confirmDelete')}</p>
-                <button
-                  type="button"
-                  onClick={() => { void handleDelete() }}
-                  disabled={removal.pending}
-                >
-                  {t('vehicle.confirmDeleteYes')}
-                </button>
-                <button type="button" onClick={() => { setConfirming(false) }}>
-                  {t('vehicle.cancel')}
-                </button>
+                <p data-actions>
+                  <button
+                    data-destructive
+                    type="button"
+                    onClick={() => { void handleDelete() }}
+                    disabled={removal.pending}
+                  >
+                    {t('vehicle.confirmDeleteYes')}
+                  </button>
+                  <button data-quiet type="button" onClick={() => { setConfirming(false) }}>
+                    {t('vehicle.cancel')}
+                  </button>
+                </p>
               </div>
               )
             : (
-              <button type="button" onClick={() => { setConfirming(true) }}>
+              <button data-quiet type="button" onClick={() => { setConfirming(true) }}>
                 {t('vehicle.delete')}
               </button>
               )}

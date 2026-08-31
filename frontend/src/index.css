@@ -102,6 +102,18 @@ body {
  */
 main {
   flex: 1;
+  /*
+   * `width` is not redundant beside `max-width`, and leaving it out is exactly
+   * what broke the measure on 2026-08-31. A flex item with `auto` margins on
+   * the cross axis is never stretched: the auto margins win over `align-items:
+   * stretch`, and the item is sized to its content instead. `margin: 0 auto`
+   * had sat here harmlessly for as long as `#root` was an ordinary block, and
+   * the moment it became a flex column the measure collapsed - 243 pixels of
+   * content in a 612-pixel window, where the rule below asks for 544. Stating
+   * the width makes the cross size definite again, and the auto margins go back
+   * to doing only the centring they were written for.
+   */
+  width: 100%;
   max-width: var(--measure);
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
@@ -383,6 +395,17 @@ footer {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin: 0 0 1.5rem;
+}
+
+/*
+ * A way out beneath a form is not part of the form. Without the gap the two read
+ * as one block - which is how "send another code" came to sit flush against the
+ * verification panel's bottom edge, in the brand colour, looking like a second
+ * submit button. General sibling rather than adjacent: an error and a status
+ * line render between them and vanish again, and `+` would come and go with them.
+ */
+form[data-panel] ~ [data-actions] {
+  margin-top: 1.5rem;
 }
 
 /* The landing page is the one screen where the actions carry the whole weight
