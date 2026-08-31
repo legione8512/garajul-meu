@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useAuth } from '../auth/useAuth.ts'
+
 import {
   isSupportedLanguage, languageNames, supportedLanguages, type SupportedLanguage,
 } from '../i18n/language.ts'
@@ -72,6 +74,10 @@ function Chevron() {
  * <p>Two behaviours the element does not provide are added, because their
  * absence is what makes a menu feel broken: Escape closes it and returns focus
  * to the trigger, and a press anywhere else dismisses it.
+ * * <p><strong>The choice goes through the context, not through i18next.</strong>
+ * Signed in, a language that never reached the account is undone by the next
+ * page load - `AuthProvider.chooseLanguage` holds that rule and the reasoning
+ * for it.
  *
  * <p>The trigger's accessible name says what the control is as well as what it
  * currently shows - "Limbă: Română" - because the visible text alone announces
@@ -80,6 +86,7 @@ function Chevron() {
  */
 export function LanguageSwitcher() {
   const { i18n, t } = useTranslation()
+  const { chooseLanguage } = useAuth()
   const details = useRef<HTMLDetailsElement>(null)
   // i18next reports whatever it resolved to as a plain string, and that can be
   // a language this application does not have - the detector reads the browser,
@@ -138,7 +145,7 @@ export function LanguageSwitcher() {
             type="button"
             aria-current={language === current}
             onClick={() => {
-              void i18n.changeLanguage(language)
+              void chooseLanguage(language)
               close()
             }}
           >

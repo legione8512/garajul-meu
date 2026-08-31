@@ -1,6 +1,7 @@
 import { createContext } from 'react'
 
 import type { UserProfile } from '../api/endpoints/users.ts'
+import type { SupportedLanguage } from '../i18n/language.ts'
 
 /**
  * Three states, not two.
@@ -27,6 +28,16 @@ export interface AuthValue {
    * nowhere else.
    */
   profileChanged: (profile: UserProfile) => void
+    /**
+   * Choosing a language, from wherever the choice is offered.
+   *
+   * <p>Lives here rather than in the switcher because the rule it has to obey
+   * lives here. Section 6 makes the account's `preferred_language` outrank
+   * whatever this device remembered, so a control that only told i18next was
+   * offering a choice the next page load would silently undo - which is exactly
+   * what the header switcher did until 2026-08-31.
+   */
+  chooseLanguage: (language: SupportedLanguage) => Promise<void>
 }
 
 /** Null outside a provider, which is what lets useAuth fail loudly. */

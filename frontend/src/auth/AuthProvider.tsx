@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useTranslation } from 'react-i18next'
 
 import { login, logout } from '../api/endpoints/auth.ts'
-import { getProfile, type UserProfile } from '../api/endpoints/users.ts'
+import { getProfile, updateProfile, type UserProfile } from '../api/endpoints/users.ts'
 import { refreshSession } from '../api/refresh.ts'
 import { subscribeToAccessToken } from '../api/tokenStore.ts'
-import { isSupportedLanguage } from '../i18n/language.ts'
+import { isSupportedLanguage, type SupportedLanguage } from '../i18n/language.ts'
 import { AuthContext, type AuthStatus, type AuthValue } from './AuthContext.ts'
 
 /**
@@ -94,20 +94,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setStatus('anonymous')
   }, [])
-
-  /**
-   * The profile the backend has just confirmed. No refetch: the endpoint that
-   * changed it answered with the whole profile, and asking again would be a
-   * second request for something already in hand.
-   */
   const profileChanged = useCallback((saved: UserProfile) => {
     setProfile(saved)
     void applyLanguageOf(saved)
   }, [applyLanguageOf])
 
+  /**
+   * Choosing a language, and making the choice outlast the page.
+   *
+   * <p><strong>The interface changes first and the account is told after.</strong>
+   * The other order would hold the whole application on a network round trip to
+   * redraw one word, so somebody who has just clicked their own language would
+   * watch nothing happen for as long as the request took.
+   *
+   * <p><strong>Signed in, telling the account is not optional.</strong>
+   * `applyLanguageOf` runs on every load and applies `preferred_language` over
+   * whatever this device remembered - that is section 6, and it is what carries a
+   * language from a laptop to a phone. A switcher that stopped at i18next was
+   * therefore offering a choice the next reload would quietly reverse, storage
+   * included. Writing through is what makes the header control mean the same
+   * thing as screen 15.
+   *
+   * <p><strong>A refused write is swallowed on purpose.</strong> What is lost is
+   * durability, not the choice: the application stays in the chosen language for
+   * as long as this page lives, which is precisely the behaviour that existed
+   * before. The header has no error region, and inventing one for this would put
+   * a failure notice above every screen over a preference.
+   */
+  const chooseLanguage = useCallback(async (language: SupportedLanguage) => {
+    await i18n.changeLanguage(language)
+
+    // 'unknown' lands here too, and sending nothing is right for it: the session
+    // has not answered yet, so there is no account to tell.
+    if (status !== 'authenticated') {
+      return
+    }
+
+    try {
+      profileChanged(await updateProfile({ preferredLanguage: language }))
+    } catch {
+      // Deliberately silent - see above.
+    }
+  }, [i18n, status, profileChanged])
+
   const value = useMemo<AuthValue>(
-    () => ({ status, profile, signIn, signOut, profileChanged }),
-    [status, profile, signIn, signOut, profileChanged],
+    () => ({ status, profile, signIn, signOut, profileChanged, chooseLanguage }),
+    [status, profile, signIn, signOut, profileChanged, chooseLanguage],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

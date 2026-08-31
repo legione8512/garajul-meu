@@ -78,7 +78,30 @@ body {
   background: var(--surface-sunken);
 }
 
+/*
+ * The application's own element, which index.html provides and no component
+ * renders - so a stylesheet is the only place that can reach it, and an id is
+ * the only handle it has. Not a hole in the no-className rule: nothing here
+ * names an appearance, it gives the shell a height to divide.
+ */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* `dvh` follows a mobile browser's toolbar as it slides away; the `vh` above
+   * stays as the fallback for anything that does not know the unit. */
+  min-height: 100dvh;
+}
+
+/*
+ * `flex: 1` is what puts the footer at the bottom of a short screen instead of
+ * halfway up it. Measured on the first screen a new account ever sees: with no
+ * vehicle to list, the dashboard left 252 pixels of nothing below the footer in
+ * a 749-tall window - a third of the page. Every empty state has that shape,
+ * so the defect is worst exactly where a first impression is formed.
+ */
 main {
+  flex: 1;
   max-width: var(--measure);
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
@@ -145,12 +168,21 @@ a {
  * inside a sentence. From then on this inflates a word mid-paragraph and must
  * narrow, most likely to `:only-child` variants plus whatever the welcome
  * screen has become by then.
+  *
+ * <p><strong>This list lost a comma once and nothing said so.</strong> Written
+ * without one after `main h2 > a`, the last two entries fused into a single
+ * compound selector matching nothing, and both went quietly inert: the form
+ * links stayed at 25 pixels and the heading links at 27, while the footer links
+ * above the break measured 44. It was recorded as fixed on 2026-08-29 - the
+ * entry even names 27 as the number it had raised - and the number had not
+ * moved. **CSS fails silently and no test in this suite can see a pixel**, so
+ * the only thing that finds this is measuring the rendered page.
  */
 footer > a,
 nav a,
 main p > a,
 main li > a,
-main h2 > a 
+main h2 > a,
 [data-form-links] > a {
   display: inline-flex;
   align-items: center;
