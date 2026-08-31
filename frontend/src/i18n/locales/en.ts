@@ -202,7 +202,8 @@ export const en: typeof ro = {
     open: 'Document history',
     filter: 'Show only',
     allTypes: 'All types',
-    none: 'No records.',
+    none: 'Every document you have kept will appear here, including the ones a '
+      + 'renewal replaced. There are none yet.',
     page: 'Page {{page}} of {{pages}}.',
     total: '{{total}} records in total.',
     previous: 'Previous page',

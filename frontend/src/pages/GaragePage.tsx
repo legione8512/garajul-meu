@@ -21,6 +21,13 @@ export function GaragePage() {
     <>
       <h1>{t('screens.garage')}</h1>
 
+      {/*
+        The explanation comes before the offer when there is nothing here. With
+        vehicles in the garage the message does not render at all, so the button
+        keeps its usual place above the list - one move rather than a branch.
+      */}
+      {data !== null && data.length === 0 && <p>{t('garage.empty')}</p>}
+
       <p><Link data-action="primary" to={paths.addVehicle}>{t('garage.add')}</Link></p>
 
       {loading && <p role="status">{t('common.loading')}</p>}
@@ -31,8 +38,6 @@ export function GaragePage() {
           <button type="button" onClick={reload}>{t('common.retry')}</button>
         </div>
       )}
-
-      {data !== null && data.length === 0 && <p>{t('garage.empty')}</p>}
 
       {/*
         The name and the plate were adjacent JSX elements, which produce no

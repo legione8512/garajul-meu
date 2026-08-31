@@ -190,9 +190,9 @@ export function VehicleDocumentsPage() {
 
       <FormError error={removal.error} />
 
-      <h2>{t('documents.add')}</h2>
+      <form data-card onSubmit={(event) => { void handleAdd(event) }} noValidate>
+        <h2>{t('documents.add')}</h2>
 
-      <form onSubmit={(event) => { void handleAdd(event) }} noValidate>
         <FormError error={creation.error} />
 
         <SelectField

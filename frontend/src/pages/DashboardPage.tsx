@@ -35,7 +35,7 @@ export function DashboardPage() {
       {data !== null && data.vehicles.length === 0 && (
         <>
           <p>{t('dashboard.empty')}</p>
-          <p><Link to={paths.addVehicle}>{t('garage.add')}</Link></p>
+          <p><Link data-action="primary" to={paths.addVehicle}>{t('garage.add')}</Link></p>
         </>
       )}
 

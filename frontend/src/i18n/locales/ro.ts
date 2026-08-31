@@ -209,7 +209,8 @@ export const ro = {
     open: 'Istoricul documentelor',
     filter: 'Arată doar',
     allTypes: 'Toate tipurile',
-    none: 'Nicio înregistrare.',
+    none: 'Aici vei vedea toate documentele păstrate, inclusiv cele înlocuite '
+      + 'prin reînnoire. Deocamdată nu e niciunul.',
     page: 'Pagina {{page}} din {{pages}}.',
     total: '{{total}} înregistrări în total.',
     previous: 'Pagina anterioară',
