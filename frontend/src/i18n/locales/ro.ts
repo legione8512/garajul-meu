@@ -94,6 +94,10 @@ export const ro = {
     confirmDeleteYes: 'Da, șterge',
     cancel: 'Renunță',
   },
+  photo: {
+    take: 'Fotografiază',
+    fromGallery: 'Alege din galerie',
+  },
   certificate: {
     open: 'Vezi certificatul de înmatriculare',
     backToVehicle: 'Înapoi la vehicul',

@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { deleteVehicleImage, uploadVehicleImage } from '../api/endpoints/vehicles.ts'
@@ -6,6 +6,9 @@ import { FormError } from '../components/FormError.tsx'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { useVehicleImage } from './useVehicleImage.ts'
+
+import { VEHICLE_PHOTO_QUALITY } from '../images/camera.ts'
+import { PhotoChooser } from '../images/PhotoChooser.tsx'
 
 interface Props {
   readonly vehicleId: string
@@ -42,18 +45,10 @@ export function VehicleImage({ vehicleId, hasImage }: Props) {
 
   const upload = useSubmission()
   const removal = useSubmission()
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const { url, error, loading } = useVehicleImage(vehicleId, present, version)
 
-  async function handleChosen(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-
-    if (file === undefined) {
-      return
-    }
-
+  async function handleChosen(file: File) {
     const failure = await upload.submit(async () => {
       await uploadVehicleImage(vehicleId, file)
     })
@@ -90,17 +85,12 @@ export function VehicleImage({ vehicleId, hasImage }: Props) {
       <FormError error={upload.error} />
 
       <p>
-        <label data-file>
-          {present ? t('vehicleImage.replace') : t('vehicleImage.choose')}
-          <input
-            data-file
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png"
-            disabled={upload.pending}
-            onChange={(event) => { void handleChosen(event) }}
-          />
-        </label>
+        <PhotoChooser
+          label={present ? t('vehicleImage.replace') : t('vehicleImage.choose')}
+          quality={VEHICLE_PHOTO_QUALITY}
+          disabled={upload.pending}
+          onChosen={(file) => { void handleChosen(file) }}
+        />
       </p>
 
       <p>{t('vehicleImage.accepted')}</p>

@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 
@@ -15,6 +15,9 @@ import { useSubmission } from '../forms/useSubmission.ts'
 import { fieldMessagesFrom, validate, type FieldMessages, type FieldRules } from '../forms/validate.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
+
+import { CERTIFICATE_SCAN_QUALITY } from '../images/camera.ts'
+import { PhotoChooser } from '../images/PhotoChooser.tsx'
 
 /**
  * Built from the field table rather than written out thirty-two times. The table
@@ -56,7 +59,6 @@ const rules: FieldRules<CertificateField> = Object.fromEntries(
 export function CertificatePage() {
   const { t } = useTranslation()
   const { vehicleId = '' } = useParams()
-  const photoInputId = useId()
 
   const { data, error, loading } = useResource<CertificateData>(certificatePath(vehicleId))
   const save = useSubmission()
@@ -100,16 +102,8 @@ export function CertificatePage() {
     setDraft({ ...form, [field]: value })
   }
 
-  async function handlePhotograph(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.target
-    const file = input.files?.[0]
-
-    // Clearing the input is what lets the same photograph be tried a second
-    // time: a file input fires no change event when the selection has not
-    // changed, so without this a retry after a failed scan would do nothing.
-    input.value = ''
-
-    if (file === undefined || form === null) {
+  async function handlePhotograph(file: File) {
+    if (form === null) {
       return
     }
 
@@ -180,15 +174,12 @@ export function CertificatePage() {
           <p>{t('certificate.sensitiveNote')}</p>
 
           <div>
-            <input
-              data-file
-              id={photoInputId}
-              type="file"
-              accept="image/jpeg,image/png"
-              onChange={(event) => { void handlePhotograph(event) }}
+            <PhotoChooser
+              label={t('certificate.scan.choose')}
+              quality={CERTIFICATE_SCAN_QUALITY}
               disabled={scan.pending}
+              onChosen={(file) => { void handlePhotograph(file) }}
             />
-            <label data-file htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
 
             {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
 

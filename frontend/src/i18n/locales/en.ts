@@ -87,6 +87,10 @@ export const en: typeof ro = {
     confirmDeleteYes: 'Yes, delete it',
     cancel: 'Cancel',
   },
+  photo: {
+    take: 'Take a photo',
+    fromGallery: 'Choose from gallery',
+  },
   certificate: {
     open: 'View the registration certificate',
     backToVehicle: 'Back to the vehicle',

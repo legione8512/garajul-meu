@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 
@@ -10,6 +10,9 @@ import { TextField } from '../components/TextField.tsx'
 import { maxLength, required } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { fieldMessagesFrom, validate, type FieldMessages } from '../forms/validate.ts'
+
+import { CERTIFICATE_SCAN_QUALITY } from '../images/camera.ts'
+import { PhotoChooser } from '../images/PhotoChooser.tsx'
 import { paths } from '../routes/paths.ts'
 
 type Field = 'registrationNumber' | 'make' | 'commercialDescription' | 'vin' | 'displayName'
@@ -67,7 +70,6 @@ export function AddVehiclePage() {
   const navigate = useNavigate()
   const { pending, error, submit } = useSubmission()
   const scan = useSubmission()
-  const photoInputId = useId()
 
   const [values, setValues] = useState<Record<Field, string>>(EMPTY)
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
@@ -90,19 +92,7 @@ export function AddVehiclePage() {
   const scanned = counts.detected + counts.needsReview + counts.notDetected > 0
   const uncertain = SCANNABLE.filter(field => statuses[field] === 'NEEDS_REVIEW')
 
-  async function handlePhotograph(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.target
-    const file = input.files?.[0]
-
-    // Clearing the input is what lets the same photograph be tried a second
-    // time: a file input fires no change event when the selection has not
-    // changed, so without this a retry after a failed scan would do nothing.
-    input.value = ''
-
-    if (file === undefined) {
-      return
-    }
-
+  async function handlePhotograph(file: File) {
     const failure = await scan.submit(async () => {
       proposals.current = await scanCertificate(file)
     })
@@ -156,21 +146,12 @@ export function AddVehiclePage() {
         <FormError error={error} />
 
         <div>
-          {/*
-            The input comes first so the label can be styled from it with a
-            sibling selector. `htmlFor` binds them whichever way round they sit,
-            and the input is invisible, so the only order a reader perceives is
-            the label's.
-          */}
-          <input
-            data-file
-            id={photoInputId}
-            type="file"
-            accept="image/jpeg,image/png"
-            onChange={(event) => { void handlePhotograph(event) }}
+          <PhotoChooser
+            label={t('certificate.scan.choose')}
+            quality={CERTIFICATE_SCAN_QUALITY}
             disabled={scan.pending}
+            onChosen={(file) => { void handlePhotograph(file) }}
           />
-          <label data-file htmlFor={photoInputId}>{t('certificate.scan.choose')}</label>
 
           {scan.pending && <p role="status">{t('certificate.scan.pending')}</p>}
 

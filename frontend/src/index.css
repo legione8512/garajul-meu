@@ -716,15 +716,30 @@ label[data-file] {
   cursor: pointer;
 }
 
-/* The ring has to reach the label, or the keyboard loses sight of where it is. */
-input[type='file'][data-file]:focus-visible + label[data-file],
-label[data-file]:focus-within {
+/*
+ * The ring has to reach the label, or the keyboard loses sight of where it is.
+ * Verified in a browser on 2026-08-31 rather than reasoned about: a
+ * programmatic `.focus()` does **not** set `:focus-visible` in Chrome, which is
+ * a heuristic about keyboard use, so the first attempt to check this measured
+ * nothing and reported success. A real Tab does, and the label takes a solid
+ * 3px ring at 2px offset.
+ *
+ * <p>Each of these rules had a second half - `label:focus-within` and
+ * `label:has(input:disabled)` - written so the pair worked whichever way round
+ * the markup was nested, because `VehicleImage` wrapped its input in the label
+ * while the two scan screens made them siblings. `PhotoChooser` is the only
+ * thing that renders this markup now and it always makes them siblings, so the
+ * nested case can no longer occur. Removed rather than kept as insurance: this
+ * file lost two rules on 2026-08-31 that were written for cases they never
+ * reached, and a rule kept for a case that has stopped existing is the same
+ * mistake read backwards.
+ */
+input[type='file'][data-file]:focus-visible + label[data-file] {
   outline: 3px solid var(--brand-bright);
   outline-offset: 2px;
 }
 
-input[type='file'][data-file]:disabled + label[data-file],
-label[data-file]:has(input[type='file']:disabled) {
+input[type='file'][data-file]:disabled + label[data-file] {
   opacity: 0.55;
   cursor: default;
 }
