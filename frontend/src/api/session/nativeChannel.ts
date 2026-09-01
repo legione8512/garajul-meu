@@ -1,15 +1,22 @@
 import type { SecureStore } from './secureStore.ts'
-import { unchosenSecureStore } from './secureStore.ts'
 import type { SessionChannel } from './SessionChannel.ts'
 
 /**
  * The Capacitor client, which has to hold the token itself.
  *
  * <p>A factory rather than a constant so a test can hand it a store, and so the
- * real plugin can be passed in from one place once section 35's choice is made,
- * without this file learning the plugin's name.
+ * real plugin is passed in from one place - `channel.ts` - without this file
+ * ever learning the plugin's name.
+ *
+ * <p><strong>The store is required, and it used to have a refusing default.</strong>
+ * That default existed while section 35's choice was open; once
+ * `keystoreSecureStore` existed it became dead code that still shipped, and the
+ * string "No secure store is configured" was found in the native bundle by the
+ * artifact check. Requiring the parameter deletes it and moves the rule the stub
+ * enforced - a native channel must have somewhere safe to put the token - from
+ * runtime to compile time.
  */
-export function nativeSessionChannel(store: SecureStore = unchosenSecureStore): SessionChannel {
+export function nativeSessionChannel(store: SecureStore): SessionChannel {
   return {
     carriesTokenItself: true,
 

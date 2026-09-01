@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { cookieSessionChannel } from './cookieChannel.ts'
 import { nativeSessionChannel } from './nativeChannel.ts'
-import { unchosenSecureStore, type SecureStore } from './secureStore.ts'
+import type { SecureStore } from './secureStore.ts'
 
 /** A store that remembers, so the channel's own behaviour is what is measured. */
 function fakeStore(initial: string | null = null): SecureStore & { held: string | null } {
@@ -73,21 +73,5 @@ describe('the native channel', () => {
     await nativeSessionChannel(store).forget()
 
     expect(store.held).toBeNull()
-  })
-})
-
-describe('the unchosen secure store', () => {
-  it('refuses every operation rather than inventing a place to put a credential', async () => {
-    await expect(unchosenSecureStore.read()).rejects.toThrow()
-    await expect(unchosenSecureStore.write('anything')).rejects.toThrow()
-    await expect(unchosenSecureStore.clear()).rejects.toThrow()
-  })
-
-  /**
-   * Names, not just refuses. A stub that fails anonymously sends whoever meets
-   * it hunting through the code; this one says which decision has not been taken.
-   */
-  it('names the deferred decision in the failure', async () => {
-    await expect(unchosenSecureStore.read()).rejects.toThrow(/section 35/)
   })
 })

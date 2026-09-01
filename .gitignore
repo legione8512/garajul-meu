@@ -13,7 +13,11 @@
 # visitor whether or not it is committed here - keeping it out would hide it
 # from developers and from nobody else, while letting an unset variable fall
 # back to localhost in a build nobody would notice was broken.
+# `.env.native` joined it on 2026-08-31 for the same reason and with the same
+# guard. It holds the API origin and the client flag, both of which are inlined
+# into a bundle that ships inside an APK - a file anybody can unzip.
 !frontend/.env.production
+!frontend/.env.native
 
 application-local.properties
 application-local.yml

@@ -1,10 +1,18 @@
 /**
  * Where a native client keeps the refresh token between launches.
  *
- * <p>Section 35 defers the plugin itself - "Capacitor secure-storage plugin,
+ * <p>Section 35 deferred the plugin itself - "Capacitor secure-storage plugin,
  * selected during the mobile phase against current documentation" - and this
- * seam is what lets the rest of the session model be written, reviewed and
- * tested before that choice is made.
+ * seam is what let the rest of the session model be written, reviewed and
+ * tested before that choice was made. **It was made on 2026-08-31**:
+ * `keystoreSecureStore.ts` names it and carries the reasoning. This interface
+ * stays because it is what keeps the plugin's name in one file.
+ *
+ * <p>A refusing stub lived here until that day, so that a native build without
+ * a plugin would fail with a sentence rather than fall back to somewhere unsafe.
+ * It is gone, and what replaced it is stronger: `nativeSessionChannel` now
+ * *requires* a store, so the compiler refuses what the stub could only refuse at
+ * runtime.
  *
  * <p>What the implementation must be, whatever it ends up being called: backed
  * by the **Android Keystore** and the **iOS Keychain**, never by

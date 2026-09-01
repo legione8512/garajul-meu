@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Garajul Meu</string>
+    <string name="title_activity_main">Garajul Meu</string>
+    <string name="package_name">ro.in_garaj.app</string>
+    <string name="custom_url_scheme">ro.in_garaj.app</string>
+</resources>

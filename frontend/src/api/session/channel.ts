@@ -1,4 +1,5 @@
 import { cookieSessionChannel } from './cookieChannel.ts'
+import { keystoreSecureStore } from './keystoreSecureStore.ts'
 import { nativeSessionChannel } from './nativeChannel.ts'
 import type { SessionChannel } from './SessionChannel.ts'
 
@@ -23,9 +24,16 @@ import type { SessionChannel } from './SessionChannel.ts'
  * appear anywhere in `dist/`. Same class of check as listing the jar, and this
  * project has already paid once for trusting the source over the output.
  *
- * <p>`VITE_CLIENT` is unset everywhere today, so every existing build - the dev
- * server, Cloudflare Pages, the Playwright journey - takes the cookie channel
- * and behaves exactly as it did before. `.env.native` arrives with Capacitor.
+ * <p>`VITE_CLIENT` is set in exactly one place: `.env.native`, which Vite loads
+ * only for `vite build --mode native`. Every other build - the dev server,
+ * Cloudflare Pages, the Playwright journey - leaves it unset and takes the
+ * cookie channel, exactly as before. `committedEnv.test.ts` asserts the flag is
+ * there, because its absence is silent: the native build would take the cookie
+ * channel, the cookie would be cross-site to a WebView on `https://localhost`,
+ * and the application would install, launch and refuse to sign anybody in.
  */
+
 export const sessionChannel: SessionChannel =
-  import.meta.env.VITE_CLIENT === 'native' ? nativeSessionChannel() : cookieSessionChannel
+  import.meta.env.VITE_CLIENT === 'native'
+    ? nativeSessionChannel(keystoreSecureStore)
+    : cookieSessionChannel
