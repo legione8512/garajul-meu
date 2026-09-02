@@ -148,6 +148,17 @@ garajul-meu:
   # start, never a silently weak one. Local development reads it from
   # application-local.yml, which is gitignored.
     token-key: ${PUSH_TOKEN_KEY}
+    firebase:
+  # The one value here that is a secret, and therefore the one with no value -
+  # the same arrangement as ocr.google below, for the same two reasons. Empty on
+  # a developer machine, where application default credentials are already in the
+  # user profile. A container has neither that file nor a metadata server, so
+  # there the key arrives as this variable or the application does not start.
+  #
+  # There is no project id beside it on purpose: a service account key names its
+  # own project and the SDK reads it from there. A second copy could only ever
+  # disagree with the first.
+      credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
   storage:
     # Section 32's seam, named there as FileStorageProvider →
     # CloudflareR2FileStorageProvider. "local" writes to the filesystem for

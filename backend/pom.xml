@@ -98,6 +98,19 @@
 			<artifactId>google-cloud-document-ai</artifactId>
 			<version>2.97.0</version>
 		</dependency>
+		
+				<!--
+			Firebase Cloud Messaging, pinned for the same reason as the line above:
+			no Google BOM in this project, and exactly one library needed. Section
+			32's PushNotificationProvider seam is what keeps this from reaching
+			past the adapter - nothing outside `push.firebase` names Firebase, and
+			ReminderDispatcher has never heard of it.
+		-->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>9.9.0</version>
+		</dependency>
 
 		<!--
 			Section 27: "Sentry for unexpected exceptions; expected 4xx business

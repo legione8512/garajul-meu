@@ -69,6 +69,15 @@ garajul-meu:
     # registrations nobody can ever complete.
     provider: resend
 
+  push:
+ # Read from the environment so a bad key is undone by editing one variable
+ # rather than by a revert and a rebuild - the arrangement 9.3 arrived at for
+ # the OCR provider after learning it the hard way. It stays `logging` until
+ # a native application exists to deliver to, which is what phase 17 builds.
+    provider: ${PUSH_PROVIDER:logging}
+    firebase:
+      credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
+
   storage:
     # Release blocker closed by 16.4. A Railway container's filesystem is
     # discarded on every redeploy, so "local" here would lose every vehicle
