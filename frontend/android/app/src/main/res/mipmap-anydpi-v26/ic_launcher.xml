@@ -1,5 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+    The insets @capacitor/assets writes here have been removed, and they must
+    not come back: re-running the generator rewrites this file, so check it
+    afterwards.
+
+    The tool assumes a full-bleed foreground that needs shrinking into the
+    safe zone, and insets both layers by 16.7%. Ours is already inset - the
+    artwork occupies 62% of its own canvas, measured, against the 66% Android
+    guarantees. Insetting again put it at about 41%, and insetting the
+    *background* left the outer sixth transparent, so the launcher's mask
+    revealed the wallpaper as a ring around a black square. Rendered both ways
+    before changing anything.
+
+    A background layer must fill the canvas. A foreground layer must keep its
+    important content inside the middle 66%. Both are true without an inset.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
 </adaptive-icon>
