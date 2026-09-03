@@ -26,6 +26,7 @@ import { VehicleHistoryPage } from '../pages/VehicleHistoryPage.tsx'
 import { VerifyEmailPage } from '../pages/VerifyEmailPage.tsx'
 import { WelcomePage } from '../pages/WelcomePage.tsx'
 import { paths } from './paths.ts'
+import { NotificationPermissionPage } from '../pages/NotificationPermissionPage.tsx'
 
 /**
  * The route table, deliberately separate from the Router that drives it.
@@ -71,6 +72,7 @@ export function AppRoutes() {
           <Route path={paths.changePassword} element={<ChangePasswordPage />} />
           <Route path={paths.changeEmail} element={<ChangeEmailPage />} />
           <Route path={paths.deleteAccount} element={<DeleteAccountPage />} />
+          <Route path={paths.notifications} element={<NotificationPermissionPage />} />
         </Route>
       </Route>
     </Routes>

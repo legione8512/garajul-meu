@@ -43,6 +43,11 @@ export const paths = {
   changeEmail: '/profile/email',
   deleteAccount: '/profile/delete',
   /**
+   * Screen 18, nested with the other three for the same reason: it is reached
+   * from the profile and the primary navigation stays at three destinations.
+   */
+  notifications: '/profile/notifications',
+  /**
    * Screens 19 and 20, public. Somebody deciding whether to create an account
    * has to be able to read both before they have one.
    */

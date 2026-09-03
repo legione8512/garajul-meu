@@ -11,6 +11,7 @@ import { FormError } from '../components/FormError.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
+import { PushChannelNote } from '../notifications/PushChannelNote.tsx'
 
 /** The six offsets, in the order they fire. */
 const OFFSETS = [
@@ -88,7 +89,7 @@ export function NotificationPreferences() {
     <section data-card>
       <h2>{t('notificationPreferences.title')}</h2>
 
-      <p>{t('reminders.nativeOnly')}</p>
+      <PushChannelNote />
 
       {loading && <p role="status">{t('common.loading')}</p>}
 

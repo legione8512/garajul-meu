@@ -4,6 +4,7 @@ import { remindersPath, type ReminderView } from '../api/endpoints/reminders.ts'
 import { useResource } from '../api/useResource.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { dateTimeFormatter, lineOf } from './reminderState.ts'
+import { PushChannelNote } from '../notifications/PushChannelNote.tsx'
 
 interface Props {
   readonly vehicleId: string
@@ -43,7 +44,7 @@ export function DocumentReminders({ vehicleId, documentId }: Props) {
     <section data-card>
       <h2>{t('reminders.title')}</h2>
 
-      <p>{t('reminders.nativeOnly')}</p>
+      <PushChannelNote />
 
       {loading && <p role="status">{t('common.loading')}</p>}
 

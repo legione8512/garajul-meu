@@ -5,6 +5,7 @@ import { SiteFooter } from '../components/SiteFooter.tsx'
 import { SiteHeader } from '../components/SiteHeader.tsx'
 import { OfflineNotice } from '../network/OfflineNotice.tsx'
 import { paths } from '../routes/paths.ts'
+import { useDeviceRegistration } from '../notifications/useDeviceRegistration.ts'
 
 /**
  * The authenticated frame. Section 5 fixes the primary navigation at exactly
@@ -19,6 +20,12 @@ import { paths } from '../routes/paths.ts'
  */
 export function AppLayout() {
   const { t } = useTranslation()
+
+  // Here rather than in AuthProvider, which is about who is signed in and not
+  // about phones. This frame renders only behind RequireAuth and stays mounted
+  // while the screens inside it change, so "once per launch" is what it means
+  // without anybody having to remember it. A no-op on the web.
+  useDeviceRegistration()
 
   return (
     <>

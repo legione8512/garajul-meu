@@ -38,4 +38,18 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        Android 13 and later. Declared here because the push-notifications plugin
+        does NOT declare it - checked in its own AndroidManifest.xml on
+        2026-09-01, which registers a messaging service and nothing else. The
+        documentation says only that an application "is required to call
+        checkPermissions() and requestPermissions()" and leaves this unsaid.
+
+        Without the declaration those calls have nothing to ask for: the runtime
+        prompt never appears, the permission reads as denied, and screen 18 tells
+        the person to change a setting they were never offered. It would have
+        been found on a handset, at the worst possible moment.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

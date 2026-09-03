@@ -255,6 +255,6 @@ describe('document details', () => {
       ro.reminders.lead.fewDays.replace('{{days}}', '14'), { exact: false },
     )).toBeInTheDocument()
 
-    expect(screen.getByText(ro.reminders.nativeOnly)).toBeInTheDocument()
+    expect(screen.getByText(ro.reminders.webOnly)).toBeInTheDocument()
   })
 })

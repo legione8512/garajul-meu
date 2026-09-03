@@ -217,8 +217,10 @@ export const en: typeof ro = {
   },
   reminders: {
     title: 'Notifications',
-    nativeOnly: 'Push notifications arrive in the phone application, which does not exist yet. '
-      + 'Until then, document status is always visible on the dashboard.',
+    webOnly: 'Push notifications arrive in the phone application. Here on the web, '
+      + 'document status is always visible on the dashboard.',
+    onThisPhone: 'Reminders arrive as notifications on this phone.',
+    manage: 'See notification settings',
     none: 'No reminders scheduled for this document.',
     lead: {
       onTheDay: 'On the day it expires:',
@@ -284,6 +286,19 @@ export const en: typeof ro = {
     time: 'The time you receive them',
     save: 'Save preferences',
     saved: 'Your preferences have been saved.',
+  },
+  notifications: {
+    lead: 'To warn you before a document expires, your phone has to let us send '
+      + 'you notifications.',
+    what: 'You will only get reminders about your own vehicles\' documents, at '
+      + 'the times you choose in your profile. Nothing else.',
+    enable: 'Turn on notifications',
+    granted: 'Notifications are on for this phone.',
+    denied: 'You turned notifications down, and Android will not let us ask a '
+      + 'second time. You can turn them back on in your phone\'s settings, under '
+      + 'notifications for Garajul Meu.',
+    webOnly: 'Push notifications only arrive in the phone application. Here on '
+      + 'the web, document status is always visible on the dashboard.',
   },
   forgotPassword: {
     instructions: 'Enter the account address. If an account exists for it, we will send a code.',
@@ -402,6 +417,7 @@ export const en: typeof ro = {
     changePassword: 'Change your password',
     changeEmail: 'Change your email address',
     deleteAccount: 'Delete your account',
+    notifications: 'Phone notifications',
     terms: 'Terms and conditions',
     privacy: 'Privacy policy',
   },

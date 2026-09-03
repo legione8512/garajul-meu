@@ -228,8 +228,10 @@ export const ro = {
     // does instead. Both halves are said here because a screen listing "sent"
     // reminders without the first half is telling every current user something
     // false about their own car.
-    nativeOnly: 'Notificările push ajung în aplicația de telefon, care încă nu există. '
-      + 'Până atunci, starea documentelor e mereu vizibilă pe tabloul de bord.',
+    webOnly: 'Notificările push ajung în aplicația de telefon. Aici, pe web, '
+      + 'starea documentelor e mereu vizibilă pe tabloul de bord.',
+    onThisPhone: 'Memento-urile ajung ca notificări pe acest telefon.',
+    manage: 'Vezi setările de notificare',
     none: 'Niciun reminder programat pentru acest document.',
     lead: {
       onTheDay: 'În ziua expirării:',
@@ -298,6 +300,19 @@ export const ro = {
     time: 'Ora la care le primești',
     save: 'Salvează preferințele',
     saved: 'Preferințele au fost salvate.',
+  },
+  notifications: {
+    lead: 'Ca să te anunțăm înainte să expire un document, telefonul trebuie să '
+      + 'ne lase să îți trimitem notificări.',
+    what: 'Vei primi doar memento-uri despre documentele mașinilor tale, la '
+      + 'termenele pe care le alegi tu în profil. Nimic altceva.',
+    enable: 'Activează notificările',
+    granted: 'Notificările sunt activate pe acest telefon.',
+    denied: 'Ai refuzat notificările, iar Android nu ne mai lasă să întrebăm a '
+      + 'doua oară. Le poți reactiva din setările telefonului, la notificările '
+      + 'aplicației Garajul Meu.',
+    webOnly: 'Notificările push ajung doar în aplicația de telefon. Aici, pe '
+      + 'web, starea documentelor e mereu vizibilă pe tabloul de bord.',
   },
   forgotPassword: {
     instructions: 'Scrie adresa contului. Dacă există un cont cu ea, îți trimitem un cod.',
@@ -418,6 +433,7 @@ export const ro = {
     changePassword: 'Schimbarea parolei',
     changeEmail: 'Schimbarea adresei de email',
     deleteAccount: 'Ștergerea contului',
+    notifications: 'Notificări pe telefon',
     terms: 'Termeni și condiții',
     privacy: 'Politica de confidențialitate',
   },
