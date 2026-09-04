@@ -116,7 +116,7 @@ main {
   width: 100%;
   max-width: var(--measure);
   margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
+  padding: 1.5rem max(1rem, env(safe-area-inset-right)) 3rem max(1rem, env(safe-area-inset-left));
 }
 
 h1,
@@ -243,12 +243,35 @@ img {
  * `color` is declared before the clip so a browser that does not support it
  * still shows silver rather than nothing.
  * ------------------------------------------------------------------------- */
+/*
+ * The safe area, added 2026-09-04 after the first run on an iPhone showed the
+ * wordmark drawn underneath the clock and the language switcher under the
+ * battery. A Capacitor WebView fills the whole screen, notch included, and a
+ * page that does not say otherwise is laid out as though the screen were a
+ * rectangle.
+ *
+ * <p>The top is `calc(padding + inset)` rather than `max()`: the inset is the
+ * height of the status bar, and the padding is the space this design wants
+ * *below* it. Taking the larger of the two would put the wordmark flush against
+ * the clock instead of clear of it.
+ *
+ * <p>The sides are `max()` rather than `calc()`, for the opposite reason: there
+ * the inset is how far a rounded corner or a notch intrudes in landscape, so the
+ * rule is "at least this much", not "this much extra".
+ *
+ * <p>Every `env()` here is zero in a desktop browser and on any device without a
+ * notch, so this changes nothing anywhere it is not needed.
+ */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.875rem 1rem;
+  padding:
+    calc(0.875rem + env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    0.875rem
+    max(1rem, env(safe-area-inset-left));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -272,7 +295,9 @@ nav {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  padding: 0.75rem 1rem;
+  /* No top inset: the header above already absorbed it. Only the sides, for
+   * landscape on a notched device. */
+  padding: 0.75rem max(1rem, env(safe-area-inset-right)) 0.75rem max(1rem, env(safe-area-inset-left));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -298,7 +323,13 @@ footer {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
-  padding: 2rem 1rem;
+  /* The bottom inset is the home indicator, drawn *over* the page, which would
+   * otherwise sit across the legal links. */
+  padding:
+    2rem
+    max(1rem, env(safe-area-inset-right))
+    calc(2rem + env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 0.875rem;

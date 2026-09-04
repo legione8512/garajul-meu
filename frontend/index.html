@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` is what makes `env(safe-area-inset-*)` return real
+         numbers. Without it those functions are zero even on a notched phone, so
+         the padding written against them in index.css would silently do nothing
+         and the header would go on being drawn underneath the clock. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- The served default is Romanian, and i18n/config.ts rewrites this
          attribute the moment the language is decided. Shipping `en` here made
