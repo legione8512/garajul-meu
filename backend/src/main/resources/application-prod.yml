@@ -127,13 +127,25 @@ garajul-meu:
   # a certificate the browser trusts requires local code execution first, and
   # anyone holding that has better attacks available.
   #
-  # iOS arrives at phase 18 with capacitor://localhost, and that is a separate
-  # question rather than a second line here: it is a non-http scheme, and
-  # whether Spring's CorsConfiguration accepts one at all must be checked
-  # rather than assumed.
+  # iOS, added 2026-09-04, and the question this comment used to leave open has
+  # been answered rather than assumed: Spring's CorsConfiguration does accept a
+  # non-http scheme. Checked through the real filter chain in CorsTest, not
+  # against the class - a preflight from capacitor://localhost returns the
+  # origin and allows credentials.
+  #
+  # Unlike Android it could not have been avoided. capacitor.config.ts gives
+  # Android androidScheme: https; iOS has no equivalent, because the CLI states
+  # the iOS scheme "can't be set to schemes that the WKWebView already handles,
+  # such as http or https". capacitor://localhost is what a WKWebView sends and
+  # there is no configuration that changes it.
+  #
+  # The paragraph above applies to it unchanged: it can call this API and read
+  # the answers, and it can present nothing. A scheme no browser will ever
+  # originate a request from is if anything narrower than https://localhost.
     allowed-origins:
       - https://app.cyber-half.com
       - https://localhost
+      - capacitor://localhost
 
 # ---------------------------------------------------------------------------
 # NO RELEASE BLOCKER LEFT IN CONFIGURATION.

@@ -54,6 +54,9 @@ class CorsTest {
 
 	private static final String ALLOWED_ORIGIN = "http://localhost:5173";
 
+	/** Where an iOS Capacitor WebView serves the application from. Not negotiable. */
+	private static final String IOS_WEBVIEW_ORIGIN = "capacitor://localhost";
+
 	/**
 	 * A sibling subdomain of the production domain, and the reason the origin
 	 * check is not redundant with {@code SameSite=Strict}. SameSite reasons about
@@ -94,6 +97,37 @@ class CorsTest {
 				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
 	}
 
+	/**
+	 * Answers the question `application-prod.yml` wrote down and left open.
+	 *
+	 * <p>A Capacitor WebView on iOS is served from {@code capacitor://localhost}
+	 * and <strong>that cannot be changed</strong>: the CLI's own documentation
+	 * says the iOS scheme "can't be set to schemes that the WKWebView already
+	 * handles, such as http or https". Android was given {@code https} in
+	 * `capacitor.config.ts` and needs no help; iOS has no such option, so either
+	 * Spring accepts a non-http origin or phase 18 has a problem no amount of
+	 * frontend work can solve.
+	 *
+	 * <p>Asserted through the real filter chain rather than against
+	 * {@code CorsConfiguration} directly, because what matters is whether a
+	 * preflight <em>succeeds</em> end to end - the class accepting the string and
+	 * the matcher agreeing about it are two different things, and only one of
+	 * them is the question.
+	 *
+	 * <p>If this ever fails, the answer is not to widen the list: it is
+	 * {@code allowedOriginPatterns}, and that trade would need writing down.
+	 */
+	@Test
+	void aPreflightFromTheIosWebViewIsAllowed() throws Exception {
+		mockMvc.perform(options("/api/v1/auth/login")
+						.header(HttpHeaders.ORIGIN, IOS_WEBVIEW_ORIGIN)
+						.header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, IOS_WEBVIEW_ORIGIN))
+				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
+	}
+
+	
 	@Test
 	void aPreflightFromAnywhereElseIsRefused() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")

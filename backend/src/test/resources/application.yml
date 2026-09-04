@@ -66,6 +66,13 @@ garajul-meu:
   cors:
     allowed-origins:
       - http://localhost:5173
+      # Not configuration this profile needs, but the subject of the test below.
+      # `application-prod.yml` records that iOS arrives with a non-http scheme
+      # and that whether Spring accepts one "must be checked rather than
+      # assumed". This is the check, and it has to live here because a
+      # @TestPropertySource in CorsTest would change the context cache key and
+      # start a container of its own.
+      - capacitor://localhost
 
   # Deliberately far above anything a test does. The limiter is a singleton and
   # its counters are not transactional, so they survive between test methods: a

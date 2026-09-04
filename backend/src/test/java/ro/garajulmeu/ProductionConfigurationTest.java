@@ -141,21 +141,34 @@ class ProductionConfigurationTest {
 	 * mistake, and a substring ban could not tell the two apart.
 	 *
 	 * <p>
-	 * {@code allMatch(https://)} rather than {@code noneMatch(http://)}, because it
-	 * is the stronger sentence and it catches the phase-18 trap by accident: iOS
-	 * wants {@code capacitor://localhost}, a non-http scheme, and this fails on it
-	 * rather than letting it in quietly. Whether Spring's CorsConfiguration accepts
-	 * such a scheme at all is a question phase 18 must answer before this assertion
-	 * is widened.
+	 * <strong>Widened on 2026-09-04, after the question it named was
+	 * answered.</strong> This assertion used to require every origin to begin
+	 * {@code https://}, which caught the phase-18 trap by accident: iOS sends
+	 * {@code capacitor://localhost} and there is no configuration that changes it
+	 * - the CLI states the iOS scheme "can't be set to schemes that the WKWebView
+	 * already handles, such as http or https", so unlike Android it cannot be
+	 * given {@code https}. The open question was whether Spring's
+	 * CorsConfiguration accepts a non-http origin at all; {@code CorsTest} answers
+	 * it through the real filter chain, and it does.
+	 *
+	 * <p>
+	 * So the rule is now <em>two</em> exact WebView origins and https for
+	 * everything else, rather than one exception and a scheme test. That is
+	 * deliberately not a relaxation: naming both in full still refuses a third
+	 * scheme, a third localhost spelling, and a port. What it will not do is
+	 * quietly accept a {@code capacitor://} origin pointing anywhere but
+	 * localhost, which is why the list is compared whole rather than filtered.
 	 */
 	@Test
-	void everyProductionOriginIsHttpsAndTheOnlyLocalOneIsTheAndroidApplication() throws Exception {
+	void everyProductionOriginIsHttpsExceptTheTwoNativeWebViews() throws Exception {
 		List<String> origins = corsOriginsOf(PRODUCTION);
 
-		assertThat(origins).as("origins in the production profile").allMatch(origin -> origin.startsWith("https://"))
+		assertThat(origins).as("origins in the production profile")
+				.allMatch(origin -> origin.startsWith("https://") || origin.equals("capacitor://localhost"))
 				.noneMatch(origin -> origin.contains("127.0.0.1"));
 
 		assertThat(origins.stream().filter(origin -> origin.contains("localhost")).toList())
-				.as("localhost origins in the production profile").containsExactly("https://localhost");
+				.as("localhost origins in the production profile")
+				.containsExactlyInAnyOrder("https://localhost", "capacitor://localhost");
 	}
 }

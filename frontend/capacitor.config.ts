@@ -37,6 +37,15 @@ const config: CapacitorConfig = {
      * the WebView); it is about being a secure context.
      */
     androidScheme: 'https',
+
+    /*
+     * There is deliberately no `iosScheme` beside it, and it is not an
+     * oversight. The CLI's own documentation says the iOS scheme "can't be set
+     * to schemes that the WKWebView already handles, such as http or https", so
+     * the origin there is `capacitor://localhost` and no configuration changes
+     * it. That is why `application-prod.yml` names two WebView origins rather
+     * than one: Android was given a scheme, iOS could only be accommodated.
+     */
   },
 }
 
