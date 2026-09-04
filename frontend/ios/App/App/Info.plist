@@ -24,6 +24,37 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!--
+	    Two strings Capacitor does not add, and their absence is a crash rather
+	    than a refusal. iOS terminates the process the instant an application
+	    touches the camera without NSCameraUsageDescription, or the photo library
+	    without NSPhotoLibraryUsageDescription. Not a denied permission, not an
+	    error a catch block sees - the app is gone. Three screens reach for both.
+
+	    This is the iOS twin of POST_NOTIFICATIONS on Android, found the same way:
+	    by reading what the plugin actually declares rather than what the
+	    documentation says an application should call.
+
+	    NSPhotoLibraryAddUsageDescription is deliberately absent. It is required
+	    only for writing to the library, and nativeCamera.ts passes saveToGallery
+	    false - so asking for it would be requesting a permission the application
+	    has decided not to use.
+
+	    WRITTEN IN ROMANIAN, and it is a known gap rather than a choice made
+	    lightly. These are user-facing strings in a project whose rule is that no
+	    such string is hardcoded in one language, and iOS reads them from the
+	    bundle rather than from i18next - localising them needs InfoPlist.strings
+	    and Xcode localisation, which cannot be verified from the machine this was
+	    written on. Romanian because the application is Romanian-first and the
+	    backend defaults new accounts to RO.
+	    TRIGGER: the first English-speaking user, or the App Store listing being
+	    prepared in a second language.
+	-->
+	<key>NSCameraUsageDescription</key>
+	<string>Pentru a fotografia talonul mașinii și a completa datele automat, sau pentru a adăuga o poză vehiculului.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pentru a alege o fotografie a talonului sau a mașinii din pozele tale.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
