@@ -45,6 +45,30 @@
 
   --brand: #7c3aed;
   --brand-bright: #a855f7;
+  /*
+   * Link text, and a token of its own because `--brand-bright` is not one
+   * colour doing one job. Measured against all three surfaces on 2026-09-04,
+   * from a phone-sized iOS viewport:
+   *
+   *                        page    card    raised
+   *   --brand-bright       4.63    4.28    3.82
+   *   --link  #c084fc      6.93    6.41    5.72
+   *
+   * So the old link colour passed on exactly one of the three, and on that one
+   * by 0.13. `nav a` had already been given `--text` in 2026-08-29 for the same
+   * root cause, and its comment named it precisely - one token, two backgrounds,
+   * only the passing one ever measured. What it fixed was the navigation; this
+   * is the third surface and every link inside a sentence.
+   *
+   * `--text` would not do here. Those were structural destinations where an
+   * underline carries the meaning; a link inside prose is recognised by being a
+   * different colour from the prose around it.
+   *
+   * `--brand-bright` keeps every other use it has - button fills, the wordmark
+   * gradient, and the focus ring, where the requirement is 3:1 against adjacent
+   * colours rather than 4.5, and 3.82 meets it.
+   */
+  --link: #c084fc;
   --brand-contrast: #ffffff;
   --silver: #c8c6d6;
 
@@ -137,7 +161,7 @@ h2 {
 }
 
 a {
-  color: var(--brand-bright);
+  color: var(--link);
   text-underline-offset: 0.2em;
 }
 
@@ -190,6 +214,13 @@ a {
  * moved. **CSS fails silently and no test in this suite can see a pixel**, so
  * the only thing that finds this is measuring the rendered page.
  */
+/* `header > a` joined this list on 2026-09-04, and the entry it corrects is in
+ * this project's own record. The header was excluded in 2026-08-29 "on the
+ * reasoning that its wordmark already measured 57 pixels" - a number taken from
+ * a desktop window. On a 440-wide iOS viewport the same link measures 28. The
+ * note beside that fix already warned that the reasoning had been "drawn from
+ * the public screens"; it was drawn from a wide one as well. */
+header > a,
 footer > a,
 nav a,
 main p > a,
