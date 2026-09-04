@@ -29,10 +29,6 @@ import type { Camera } from './camera.ts'
  * web build dropped every line this project wrote and shipped the plugin anyway.
  * Inside a function there is no top-level import to survive.
  */
-async function plugin() {
-  const { Camera } = await import('@capacitor/camera')
-  return Camera
-}
 
 /**
  * The plugin answers with a `webPath` meant for an `<img src>`; everything
@@ -76,14 +72,22 @@ async function attempt(take: () => Promise<string | undefined>): Promise<File | 
   }
 }
 
+/**
+ * The plugin is imported inside each call and used there. Returning it from an
+ * `async` function would make the runtime ask a Capacitor Proxy for `.then`,
+ * which it forwards to the platform as a native method - and the promise then
+ * never settles. See `keystoreSecureStore.ts`, where that cost the first iOS run.
+ */
 export const nativeCamera: Camera = {
   takePhoto: quality => attempt(async () => {
-    const photo = await (await plugin()).takePhoto({ quality, correctOrientation: true })
+    const { Camera: plugin } = await import('@capacitor/camera')
+    const photo = await plugin.takePhoto({ quality, correctOrientation: true })
     return photo.webPath
   }),
 
   chooseFromGallery: () => attempt(async () => {
-    const chosen = await (await plugin()).chooseFromGallery({ allowMultipleSelection: false })
+    const { Camera: plugin } = await import('@capacitor/camera')
+    const chosen = await plugin.chooseFromGallery({ allowMultipleSelection: false })
     return chosen.results[0]?.webPath
   }),
 }

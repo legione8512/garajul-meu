@@ -1,10 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+/**
+ * A plain object with four spies would not have caught the defect that reached
+ * an iPhone on 2026-09-04, so this one carries the trap that did.
+ *
+ * <p>A real Capacitor plugin is a Proxy: every property access becomes a native
+ * call. That makes it look *thenable* to the promise machinery, so an `async`
+ * function which **returns** it makes the runtime ask for `.then` - and the
+ * proxy forwards that to the platform as a method named `then`, which nothing
+ * implements. Neither callback is ever invoked and the promise never settles.
+ * Not a crash: a hang, presenting as an application that quietly does nothing.
+ *
+ * <p>`then` here throws instead of hanging, deliberately. The real failure is a
+ * promise that never resolves, which in a test is a fifteen-second timeout and a
+ * message about time rather than about cause. Throwing rejects the same promise
+ * immediately and names the mistake. Any of the three seams handing the plugin
+ * object onward fails on this line.
+ */
 const plugin = vi.hoisted(() => ({
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  then: () => {
+    throw new Error(
+      'The plugin object was used as the resolution value of a promise. A Capacitor '
+      + 'proxy is thenable-looking, so this hangs for ever on a device: import it '
+      + 'inside the method that uses it and never return it.',
+    )
+  },
 }))
 
 vi.mock('@aparajita/capacitor-secure-storage', () => ({ SecureStorage: plugin }))

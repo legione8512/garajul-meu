@@ -65,13 +65,41 @@ const KEY = 'garajul-meu.refresh-token'
  * <p>The runtime caches a module after its first import, so only the first call
  * of a session pays anything for this.
  */
-async function storage() {
-  const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')
-  return SecureStorage
-}
-
+/**
+ * The import is repeated in each method rather than shared through a helper,
+ * and that is the whole point of this shape.
+ *
+ * <p><strong>A Capacitor plugin object must never be the resolution value of a
+ * promise.</strong> It is a Proxy that turns every property access into a native
+ * call, so it looks thenable to the promise machinery - and an `async` function
+ * that *returns* it makes the runtime ask for `.then`, which the proxy forwards
+ * to iOS as a method named `then`. Nothing there implements it, so neither
+ * `onFulfil` nor `onReject` is ever called and **the promise never settles**.
+ *
+ * <p>That is not a crash. It is a hang, and it presents as the application
+ * simply not doing anything: on the first iOS run the refresh never reached the
+ * network, `AuthProvider` sat at `unknown` for ever, and the landing page
+ * withheld its own sign-in buttons because it could not tell whether somebody
+ * was already signed in. The only clue anywhere was an unhandled rejection
+ * reading `"SecureStorage.then()" is not implemented on ios`.
+ *
+ * <p>`import()` caches, so repeating the line costs one module-map lookup and
+ * buys a rule with no exceptions: the proxy is used where it is imported and
+ * never handed onward.
+ */
 export const keystoreSecureStore: SecureStore = {
-  read: async () => (await storage()).getItem(KEY),
-  write: async (value) => { await (await storage()).setItem(KEY, value) },
-  clear: async () => { await (await storage()).removeItem(KEY) },
+  async read() {
+    const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')
+    return SecureStorage.getItem(KEY)
+  },
+
+  async write(value) {
+    const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')
+    await SecureStorage.setItem(KEY, value)
+  },
+
+  async clear() {
+    const { SecureStorage } = await import('@aparajita/capacitor-secure-storage')
+    await SecureStorage.removeItem(KEY)
+  },
 }

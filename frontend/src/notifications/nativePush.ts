@@ -16,9 +16,19 @@ const TOKEN_TIMEOUT_MS = 15_000
  * dropped every line of the secure-storage adapter and shipped the plugin
  * anyway. Inside a function there is no top-level import to survive.
  */
-async function plugin() {
+/**
+ * Returns the *result* of a call, never the plugin. Handing a Capacitor Proxy
+ * back from an `async` function makes the runtime ask it for `.then`, which it
+ * forwards to the platform as a native method, and the promise never settles.
+ * See `keystoreSecureStore.ts` for what that cost.
+ */
+async function permissionState(ask: 'check' | 'request'): Promise<string> {
   const { PushNotifications } = await import('@capacitor/push-notifications')
-  return PushNotifications
+  const status = ask === 'check'
+    ? await PushNotifications.checkPermissions()
+    : await PushNotifications.requestPermissions()
+
+  return status.receive
 }
 
 /** See `PushPermission`: two of Capacitor's four states mean the same thing here. */
@@ -45,7 +55,7 @@ function simplified(receive: string): PushPermission {
  * safe: a registration that failed produced no token, so there is none to leak.
  */
 async function token(): Promise<string> {
-  const notifications = await plugin()
+    const { PushNotifications: notifications } = await import('@capacitor/push-notifications')
 
   return new Promise<string>((resolve, reject) => {
     const handles: PluginListenerHandle[] = []
@@ -86,8 +96,8 @@ async function token(): Promise<string> {
 }
 
 export const nativePush: Push = {
-  permission: async () => simplified((await (await plugin()).checkPermissions()).receive),
-  request: async () => simplified((await (await plugin()).requestPermissions()).receive),
+  permission: async () => simplified(await permissionState('check')),
+  request: async () => simplified(await permissionState('request')),
   token,
 
   /**
