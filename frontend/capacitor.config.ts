@@ -25,6 +25,22 @@ const config: CapacitorConfig = {
   appName: 'Garajul Meu',
   webDir: 'dist',
 
+  /*
+   * The WebView's own background, which is white by default and shows in the
+   * gap between the launch screen going away and the page painting its first
+   * frame. The first iOS run opened on a white screen, and the launch screen was
+   * the wrong suspect: `LaunchScreen.storyboard` was given this colour and the
+   * white stayed, because the white was never the launch screen at all.
+   *
+   * The same `#151321` as the storyboard, the Android splash and `body`. Four
+   * places now carry it, and the point of all four is that nobody ever sees a
+   * transition between them.
+   *
+   * Global rather than under `ios`, because Android has the same gap and the
+   * same answer.
+   */
+  backgroundColor: '#151321',
+
   server: {
     /*
      * The WebView's origin, and the reason `application-prod.yml` allows
