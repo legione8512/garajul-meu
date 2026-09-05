@@ -4,7 +4,6 @@
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
-        <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -12,10 +11,31 @@
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <!--
+                        The background is stated rather than inherited, and the first
+                        launch on a simulator is why: this was systemBackgroundColor,
+                        which is white in light mode, and the application opened on a
+                        white screen. The splash image is scaleAspectFill and should
+                        cover it, so the white only shows when the image is late,
+                        missing, or does not fill - which is exactly when a colour is
+                        worth having.
+
+                        #151321 is the surface-sunken token, the colour body already
+                        carries, so the launch screen and the first rendered screen
+                        are the same colour and there is no transition to see. The
+                        same value was given to the Android splash on 2026-09-03.
+
+                        The token is named without its leading dashes on purpose: an
+                        XML comment may not contain a double hyphen anywhere, and
+                        writing it the usual way made this file unparseable.
+
+                        A system colour would also mean two appearances, and this
+                        application has one theme by decision, taken in 13.5.
+                    -->
                     <imageView key="view" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" id="snD-IY-ifK">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" red="0.08235294117647059" green="0.07450980392156863" blue="0.12941176470588235" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                     </imageView>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -25,8 +45,5 @@
     </scenes>
     <resources>
         <image name="Splash" width="1366" height="1366"/>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
     </resources>
 </document>
