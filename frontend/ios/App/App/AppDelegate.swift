@@ -39,10 +39,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: deviceToken)
     }
 
-    // Posted rather than swallowed so getToken() rejects instead of hanging. A
-    // registration failure is a real state - no network at first launch, a build
-    // whose provisioning profile carries no push entitlement - and screen 18 can
-    // only tell the truth about it if the promise settles.
+    // Posted for completeness, and it is worth being exact about what that buys,
+    // because the first version of this comment claimed something false.
+    //
+    // **Nothing observes this notification.** Checked in the plugin's source on
+    // 2026-09-05, after a real device failed: it subscribes to
+    // `.capacitorDidRegisterForRemoteNotifications` and to a plain-string
+    // "didReceiveRemoteNotification", and to nothing else. A registration
+    // failure is therefore silent to it.
+    //
+    // That silence has a cost we paid the same day. With no push entitlement -
+    // the Push Notifications capability had not been added in Xcode -
+    // registerForRemoteNotifications() failed, `apnsToken` was never set, and
+    // the only symptom anywhere was getToken() rejecting with "No APNS token
+    // specified before fetching FCM Token". A message about ordering, for a
+    // missing permission. The real cause was found by looking for the
+    // entitlement, not by reading the error.
+    //
+    // Kept because posting it costs one line and the day something does listen -
+    // the plugin, or code of ours - the signal is already being sent. It is not
+    // what makes getToken() settle.
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
         NotificationCenter.default.post(
