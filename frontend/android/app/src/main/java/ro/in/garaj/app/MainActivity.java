@@ -1,4 +1,4 @@
-package ro.in_garaj.app;
+package ro.in.garaj.app;
 
 import com.getcapacitor.BridgeActivity;
 

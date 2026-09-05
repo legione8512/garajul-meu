@@ -3,17 +3,41 @@ import type { CapacitorConfig } from '@capacitor/cli'
 /**
  * The native shell's configuration. Specification section 18.
  *
- * <p><strong>`appId` is `ro.in_garaj.app`, and it is permanent.</strong> Google
+ * <p><strong>`appId` is `ro.in.garaj.app`, and it is permanent.</strong> Google
  * Play keys a listing on the package name for the life of the application - it
  * cannot be changed after the first upload, and a rename means a new listing
  * with no installs and no reviews. It was chosen on 2026-08-29 against
  * `in-garaj.ro`, a domain bought to back the namespace, because reverse-DNS
- * asks for a domain somebody actually controls. The underscore is not a slip:
- * a package segment may not contain a hyphen, and `in-garaj` would not compile.
+ * asks for a domain somebody actually controls.
  *
- * <p>The Firebase Android app registered under GCP project
- * `garajul-meu-505722` carries this same identifier, and `google-services.json`
- * is matched to it. The two must never drift.
+ * <p><strong>It was `ro.in_garaj.app` until 2026-09-05, and between them the
+ * two platforms allow neither separator.</strong> Android's `applicationId`
+ * takes `[a-zA-Z0-9_]` and no hyphen - which is why the underscore was chosen
+ * in the first place, and the note saying so was correct as far as it went.
+ * Apple's bundle identifier takes letters, digits, periods and **hyphens**, and
+ * no underscore. The intersection is alphanumeric, so `in-garaj` and `in_garaj`
+ * are both impossible. Firebase refused to register the Apple app and is the
+ * reason this was found.
+ *
+ * <p>A period is the separator both platforms do accept, so the word simply
+ * became two segments. Each one still starts with a letter, which Android
+ * requires. **`in` is a Kotlin keyword and not a Java one**, checked before
+ * choosing: this project compiles no Kotlin at all - no `.kt` file, no Kotlin
+ * Gradle plugin, and the Firebase messaging plugin's Android source is Java -
+ * so nothing is affected today. If Kotlin ever arrives here, an import naming
+ * this package needs backticks: ``ro.`in`.garaj.app``. That is the whole cost,
+ * and it was taken knowingly against a name that reads as what it is.
+ *
+ * <p><strong>Changed at the last moment it was free.</strong> Nothing is
+ * published to either store and Android had never been run, so this cost an
+ * afternoon; after a first upload it could not have been done at all. Anything
+ * calling itself permanent is worth checking on both platforms *before* the
+ * upload that makes it so.
+ *
+ * <p>The Firebase apps registered under GCP project `garajul-meu-505722` carry
+ * this same identifier - the Android one was re-registered on 2026-09-05 - and
+ * `google-services.json` and `GoogleService-Info.plist` are matched to it. They
+ * must never drift.
  *
  * <p>`webDir` is `dist` because that is what `vite build` writes. Capacitor
  * copies from it rather than serving it, so a stale `dist` ships a stale
@@ -21,7 +45,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
  * the npm scripts below pair them.
  */
 const config: CapacitorConfig = {
-  appId: 'ro.in_garaj.app',
+  appId: 'ro.in.garaj.app',
   appName: 'Garajul Meu',
   webDir: 'dist',
 
