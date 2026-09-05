@@ -41,6 +41,21 @@ const config: CapacitorConfig = {
    */
   backgroundColor: '#151321',
 
+    /*
+   * Required by @capacitor-firebase/messaging, and it is not optional: without
+   * it Swift Package Manager hits a package identity collision and the iOS build
+   * fails. Needs Capacitor CLI 8.4.0 or later, and we are on 8.5.1.
+   */
+  experimental: {
+    ios: {
+      spm: {
+        packageOptions: {
+          '@capacitor-firebase/messaging': { symlink: true },
+        },
+      },
+    },
+  },
+
   server: {
     /*
      * The WebView's origin, and the reason `application-prod.yml` allows

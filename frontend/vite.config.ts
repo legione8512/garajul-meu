@@ -1,9 +1,24 @@
+import { fileURLToPath } from 'node:url'
+
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+
+  resolve: {
+    alias: {
+      // @capacitor-firebase/messaging's web implementation imports this, and it
+      // is an optional peer we do not install. Rollup follows the dynamic
+      // import to it regardless of whether the branch can run, so without this
+      // line `npm run build` fails outright. The stub explains the whole
+      // decision, including what to do if Web Push ever comes into scope.
+      'firebase/messaging': fileURLToPath(
+        new URL('./firebaseMessagingUnavailable.ts', import.meta.url),
+      ),
+    },
+  },
   test: {
     // Unit tests live in `src`; repository guards live in `guards`, because
     // they read files and `src` is deliberately typed as browser-only.

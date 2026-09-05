@@ -27,6 +27,27 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+            Stops Firebase minting an FCM token at launch and uploading it
+            before anybody has been asked anything. The token is a durable
+            identifier for this handset, and the default is to create one the
+            first time the app runs.
+
+            Not a restriction on the feature: the plugin sets auto-init back on
+            inside getToken(), so this only moves the minting from launch to the
+            moment somebody has said yes on screen 18. reportDevice() is written
+            around exactly that.
+
+            Analytics is switched off beside it because the Firebase SDK pulled
+            in by the messaging plugin collects on its own, and this application
+            asks for no analytics consent and has nowhere to show one.
+
+            The iOS twin is FirebaseMessagingAutoInitEnabled in
+            ios/App/App/Info.plist, and the two must agree.
+        -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
     </application>
 
     <!-- Permissions -->
@@ -34,16 +55,19 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
-        Android 13 and later. Declared here because the push-notifications plugin
-        does NOT declare it - checked in its own AndroidManifest.xml on
-        2026-09-01, which registers a messaging service and nothing else. The
-        documentation says only that an application "is required to call
-        checkPermissions() and requestPermissions()" and leaves this unsaid.
+        Android 13 and later. Added on 2026-09-01 because @capacitor/push-
+        notifications did not declare it, and kept on 2026-09-05 after the swap
+        to @capacitor-firebase/messaging, whose manifest does. The merger unions
+        the two, so the duplicate costs nothing.
 
-        Without the declaration those calls have nothing to ask for: the runtime
-        prompt never appears, the permission reads as denied, and screen 18 tells
-        the person to change a setting they were never offered. It would have
-        been found on a handset, at the worst possible moment.
+        Kept rather than deleted because what this application is allowed to ask
+        of the phone should be readable here, not inferred from a dependency -
+        and because the failure it prevents is silent. Without the declaration
+        checkPermissions() and requestPermissions() have nothing to ask for: no
+        runtime prompt appears, the permission reads as denied, and screen 18
+        tells the person to change a setting they were never offered. That is
+        found on a handset, at the worst possible moment, and a plugin dropping
+        the line in a future version would put us back there.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

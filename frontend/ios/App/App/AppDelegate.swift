@@ -11,6 +11,59 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
+    // MARK: - Remote notifications
+    //
+    // Three methods that Capacitor generates no stub for, and whose absence
+    // fails silently. Read in the plugin's own source on 2026-09-05 rather than
+    // taken from its README: FirebaseMessagingPlugin.load() subscribes to
+    // NotificationCenter for `.capacitorDidRegisterForRemoteNotifications`, and
+    // nothing in Capacitor posts that notification on the app's behalf. This
+    // file is the only place it can come from.
+    //
+    // What breaks without them: the plugin's init calls
+    // registerForRemoteNotifications(), so iOS does hand us an APNs token - it
+    // just arrives here and stops. `Messaging.messaging().apnsToken` is never
+    // set, and getToken() then waits for an APNs registration that already
+    // happened. No crash, no log, no exception for reportDevice to catch. The
+    // iPhone simply never registers, and every reminder for it is recorded as
+    // sent. Exactly the lie section 10.7 exists to prevent, arriving through the
+    // one path our tests cannot see.
+    //
+    // Android needs no counterpart: there the token comes back through the
+    // plugin's own MessagingService, declared in its manifest.
+
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications,
+            object: deviceToken)
+    }
+
+    // Posted rather than swallowed so getToken() rejects instead of hanging. A
+    // registration failure is a real state - no network at first launch, a build
+    // whose provisioning profile carries no push entitlement - and screen 18 can
+    // only tell the truth about it if the promise settles.
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(
+            name: .capacitorDidFailToRegisterForRemoteNotifications,
+            object: error)
+    }
+
+    // The name is a plain string because the plugin observes a plain string -
+    // `Notification.Name.init("didReceiveRemoteNotification")`, with no constant
+    // in Capacitor to import. It reads the payload from `userInfo` and hands
+    // `object` back as the completion handler, so both must be passed exactly
+    // this way round.
+    func application(_ application: UIApplication,
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        NotificationCenter.default.post(
+            name: Notification.Name.init("didReceiveRemoteNotification"),
+            object: completionHandler,
+            userInfo: userInfo)
+    }
+
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.

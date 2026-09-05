@@ -74,6 +74,23 @@
       </array>
     </dict>
 	</dict>
+	<!--
+		Stops Firebase minting an FCM token at launch and uploading it before
+		anybody has been asked anything. The token is a durable identifier for
+		this handset, and the default is to create one the first time the app
+		runs.
+
+		This is not a restriction on the feature. FirebaseMessaging.getToken()
+		sets isAutoInitEnabled back to true before it asks - read at
+		ios/Plugin/FirebaseMessaging.swift line 57 on 2026-09-05 - so the effect
+		is only to move the minting from launch to the moment somebody has said
+		yes on screen 18. reportDevice() is written around exactly that.
+
+		Its Android twin is the pair of meta-data elements in
+		android/app/src/main/AndroidManifest.xml, and the two must agree.
+	-->
+	<key>FirebaseMessagingAutoInitEnabled</key>
+	<false/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
