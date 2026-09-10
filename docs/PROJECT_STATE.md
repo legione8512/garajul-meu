@@ -4,9 +4,60 @@ Portable state of the guided build. Updated at every meaningful milestone so the
 project can be continued in a new conversation, or by a different AI assistant,
 without relying on model memory.
 
-Last updated: 2026-08-29
+Last updated: 2026-09-10
 
 ---
+
+## Machine change, 2026-09-10 — read this first
+
+**All development moves to one MacBook Pro 2025 (Apple Silicon), and the Windows
+desktop and laptop are retired for development.** Three machines had drifted
+apart: the desktop was thirty-five commits behind GitHub, it ran npm 12.0.2
+where the laptop ran 11.6.3, and each had its own copy of the secrets and its own
+Claude session with its own idea of where the project stood. The Mac is the only
+machine that can build all three targets — web, Android and iOS — and Claude
+Code runs **on** it, with a shell. The arrangement recorded further down, where
+the session ran on Windows and every command on the Mac had to be relayed by
+hand, is superseded.
+
+**The MacBook used for phase 18, reached over AnyDesk, is no longer accessible,
+and nothing was lost with it.** It only ever cloned the public repository; every
+iOS commit is on GitHub. What lived only there is recoverable: `GoogleService-Info.plist`
+is downloaded again from the Firebase console (project `garajul-meu-505722`, iOS
+app `ro.in.garaj.app`); signing regenerates itself, since the committed project
+has `CODE_SIGN_STYLE = Automatic` and no `DEVELOPMENT_TEAM`; the APNs key is
+already uploaded to Firebase. The old development certificate cannot be reused —
+its private key stayed in that Mac's keychain and Apple never holds it — and
+does not need to be. Revoking it, and removing that Mac from the Apple ID's
+devices if it was signed into iCloud, is hygiene rather than urgency.
+
+**Carried over by hand, and nothing else needs to be:**
+
+- `backend/application-local.yml`, from the desktop. **Checked complete on
+  2026-09-10** against the six properties with no default that the application
+  refuses to start without — `DB_URL`, `DB_MIGRATION_URL`, `DB_USERNAME`,
+  `DB_PASSWORD`, `JWT_SECRET` and the push token key. Everything phases 17 and
+  18 added, `FIREBASE_CREDENTIALS_JSON` included, has an empty default.
+- The Claude memory folder, from the laptop, where the recent sessions ran.
+- `google-services.json` and `GoogleService-Info.plist` are fetched from the
+  Firebase console on the Mac rather than copied.
+- **There is no Android release keystore**, because nothing has been published.
+  The first one created must be backed up the day it is made: losing it means
+  never publishing an update to the same Play Store listing again.
+
+**Owed on the Mac before any code changes**: install and verify the toolchain
+against the project's pins — one JDK 21 Temurin and no other, Node from
+`.nvmrc` with its own bundled npm, Docker Desktop for Apple Silicon, Xcode,
+Android Studio; run every gate; and **rewrite the tool-versions section below,
+which still describes a Windows laptop**. Clone to a path without spaces: the
+old `Garajul Meu` produced `%20` in file URIs and arguments split in two.
+
+**One decision is open**: whether the developer keeps applying delivered files
+by hand, or the session applies them and the developer reviews `git diff`
+before each commit. The manual channel was behind several defects on 2026-08-23
+alone — three production files in `src/test/java`, YAML indentation, lines
+dropped from `pom.xml`, a byte-order mark carried inside a copied key. The
+developer's call.
 
 ## Current position
 
@@ -1298,7 +1349,7 @@ Capacitor project exists is the whole point of the pass.
 
 - ~~**The header language switcher does not stick for a signed-in person.**~~ — **resolved 2026-08-31, the same day it was found, by the first of the three options.** `AuthProvider.chooseLanguage` now changes i18next and then, only when the status is `authenticated`, writes `preferredLanguage` to the account and feeds the answer back through `profileChanged`. **The rule stayed where the rule lives**: the switcher is a control and knows nothing about accounts, and `unknown` is treated as "no account to tell" rather than as signed out. **The interface changes first and the account is told after** — the other order would hold the application on a round trip to redraw one word. **A refused write is swallowed**, which loses durability and not the choice: the language holds for the life of the page, exactly the old behaviour, and the header has no error region worth inventing for a preference. Verified in a real browser rather than only in jsdom: the switch sends `PATCH /api/v1/users/me` → 200, Romanian survives a full reload where it previously reverted to English with `localStorage` rewritten, and screen 15's own language select then reads the same value the header shows. Two tests were added, and **the one that matters asserts the request body, not the screen** — the screen looked right for the whole time this was broken. 272 tests in 48 files. Original entry:
 - **The header language switcher does not stick for a signed-in person, by design, and it reads as a broken control.** Measured 2026-08-31 in a real browser: choosing Romanian re-renders the application in Romanian and writes `ro` to `localStorage`; the next page load restores the session, `AuthProvider.applyLanguageOf` applies the account's `preferredLanguage`, and the screen comes back English with `localStorage` rewritten to `en`. Every step is deliberate — section 6 makes the account's preference outrank the device, which is what carries a language from a laptop to a phone — and the switcher is what makes it look wrong, because it offers a choice it then silently discards. Three ways out: **write through to the profile when authenticated**, so the header control means the same thing as the profile screen and section 6 still holds; hide the switcher once signed in, so the choice is only offered where it lasts; or leave it as a per-session override and say so on screen. The first is recommended and is the only one that costs an API call. Not a regression — the old `<select>` behaved identically since Phase 5 — and found only because the flags made someone look at it closely.
-- ~~Mac availability for Phase 18 (iOS) not yet confirmed.~~ — **confirmed 2026-09-04, and phase 18 is unblocked.** A MacBook running macOS Sequoia 15.8 with Xcode 26.3 already installed, reached over AnyDesk, and a **paid** Apple Developer account — so the simulator, a real iPhone and the App Store are all reachable rather than only the first. **The working arrangement is worth writing down because it is slower than the one used so far**: this session runs on the Windows machine and has no shell on the Mac at all, so every command there is the owner's to run and to report back. Code is written and committed here; the Mac clones it.
+- ~~Mac availability for Phase 18 (iOS) not yet confirmed.~~ — **confirmed 2026-09-04, and phase 18 is unblocked.** A MacBook running macOS Sequoia 15.8 with Xcode 26.3 already installed, reached over AnyDesk, and a **paid** Apple Developer account — so the simulator, a real iPhone and the App Store are all reachable rather than only the first. **The working arrangement is worth writing down because it is slower than the one used so far**: this session runs on the Windows machine and has no shell on the Mac at all, so every command there is the owner's to run and to report back. Code is written and committed here; the Mac clones it. **Superseded 2026-09-10**: that Mac is no longer accessible, and development moved to a MacBook Pro where the session itself has a shell — see *Machine change* at the top.
 - Google Document AI processor version must be verified as currently supported at Phase 9; deliberately not frozen in advance.
 - ~~Spring Security Argon2 encoder implementation~~ — **resolved 2026-08-13.** `Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8()`, with the reasoning in the `ro.garajulmeu.security` section. Argon2 itself was always the frozen algorithm.
 
