@@ -7,3 +7,7 @@ DerivedData/
 .swiftpm/config/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
+
+# Written by `cap sync`: links into node_modules with absolute targets, valid on
+# one machine only. `cap sync` recreates them, as it must after every `npm ci`.
+/symlinks/
