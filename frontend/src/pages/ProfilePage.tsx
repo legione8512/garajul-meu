@@ -196,11 +196,13 @@ export function ProfilePage() {
               </Link>
             </p>
             {/*
-              Deleting an account is not one of three equal choices. It keeps its
-              own line and the quiet treatment the document list already gives a
-              destructive action - reachable, never inviting.
+              Deleting an account is not one of three equal choices, so it keeps
+              its own line. Since 2026-09-11 it is painted in the destructive tone,
+              at the developer's request, to read as dangerous at a glance; until
+              then it was quiet, the opposite answer to the same worry. See
+              a[data-action='destructive'] in index.css.
             */}
-            <p><Link data-action="quiet" to={paths.deleteAccount}>
+            <p><Link data-action="destructive" to={paths.deleteAccount}>
               {t('profile.deleteAccount')}
             </Link></p>
           </section>

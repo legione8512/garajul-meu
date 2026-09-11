@@ -149,6 +149,21 @@ describe('profile', () => {
   })
 
   /**
+   * The developer's decision of 2026-09-11: the way to deleting the account is
+   * painted as dangerous. jsdom draws no colours, so the test pins the marker
+   * the stylesheet paints - and a return to the quiet link would fail it.
+   */
+  it('marks the way to deleting the account as destructive', async () => {
+    stubAccount()
+
+    renderApp(paths.profile)
+
+    const way = await screen.findByRole('link', { name: ro.profile.deleteAccount })
+    expect(way).toHaveAttribute('href', paths.deleteAccount)
+    expect(way).toHaveAttribute('data-action', 'destructive')
+  })
+
+  /**
    * No navigation of its own: ending the session makes the status anonymous and
    * the gate does the rest. Asserted here so that stays true - a hand-written
    * redirect added later would race it.

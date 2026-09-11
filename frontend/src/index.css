@@ -503,22 +503,22 @@ a[data-action='secondary'] {
 }
 
 /*
- * A way to somewhere consequential, offered without inviting. Same reasoning as
- * `button[data-quiet]`: deleting an account is reachable from the profile and
- * must not sit there looking like one of three equal choices.
+ * The way to deleting the account, painted as the destructive button it leads
+ * to: the same `--tone-urgent` and the same dark text, 6.1:1, and 5.65:1 for
+ * the button against the card. White on this red would be 3.0, too little for
+ * text. At the developer's request on 2026-09-11, so that it reads as dangerous
+ * at a glance - replacing `data-action='quiet'`, which answered the same worry
+ * the other way on 2026-08-31, by making the link recede so that deleting
+ * could not look like the thing to do. The deletion screen still asks for the
+ * password and then for a second confirmation.
  */
-a[data-action='quiet'] {
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-weight: 400;
-  padding-left: 0;
-  padding-right: 0;
+a[data-action='destructive'] {
+  background: var(--tone-urgent);
+  color: var(--surface-sunken);
 }
 
-a[data-action='quiet']:hover,
-a[data-action='quiet']:focus-visible {
-  color: var(--text);
-  text-decoration: underline;
+a[data-action='destructive']:hover {
+  background: var(--tone-gap);
 }
 
 /*
