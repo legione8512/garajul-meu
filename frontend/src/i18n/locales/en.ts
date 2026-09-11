@@ -297,7 +297,7 @@ export const en: typeof ro = {
     enabling: 'Turning on notifications for this phone…',
     granted: 'Notifications are on for this phone.',
     notActive: 'Notifications are not on for this phone yet.',
-    denied: 'You turned notifications down, and Android will not let us ask a '
+    denied: 'You turned notifications down, and your phone will not let us ask a '
       + 'second time. You can turn them back on in your phone\'s settings, under '
       + 'notifications for Garajul Meu.',
     webOnly: 'Push notifications only arrive in the phone application. Here on '

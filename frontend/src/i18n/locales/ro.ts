@@ -314,7 +314,9 @@ export const ro = {
     // permission alone. See NotificationPermissionPage.
     granted: 'Notificările sunt activate pe acest telefon.',
     notActive: 'Notificările nu sunt încă active pe acest telefon.',
-    denied: 'Ai refuzat notificările, iar Android nu ne mai lasă să întrebăm a '
+    // Names no platform since 2026-09-11: it said Android, written when only
+    // Android existed, and iOS asks once as well.
+    denied: 'Ai refuzat notificările, iar telefonul nu ne mai lasă să întrebăm a '
       + 'doua oară. Le poți reactiva din setările telefonului, la notificările '
       + 'aplicației Garajul Meu.',
     webOnly: 'Notificările push ajung doar în aplicația de telefon. Aici, pe '

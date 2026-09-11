@@ -80,6 +80,26 @@ const config: CapacitorConfig = {
     },
   },
 
+  plugins: {
+    FirebaseMessaging: {
+      /*
+       * What iOS shows when a reminder arrives while the application is open:
+       * the banner, the sound, the badge. This is the plugin's own default,
+       * read in `FirebaseMessagingConfig.swift`, and it is written out anyway
+       * because it is a decision rather than an accident - taken on 2026-09-11,
+       * after a note in PROJECT_STATE had read the missing setting as a missing
+       * behaviour. Stated here, an upgrade that changed the default cannot
+       * change what a person sees.
+       *
+       * iOS only, as the plugin documents. On Android a notification message
+       * that arrives in the foreground is handed to the application as an event
+       * and shown by nobody; showing it there means a local notification raised
+       * on `notificationReceived`, which waits for Android to run anywhere.
+       */
+      presentationOptions: ['alert', 'badge', 'sound'],
+    },
+  },
+
   server: {
     /*
      * The WebView's origin, and the reason `application-prod.yml` allows
