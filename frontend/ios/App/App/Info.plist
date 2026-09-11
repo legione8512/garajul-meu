@@ -55,6 +55,19 @@
 	<string>Pentru a fotografia talonul mașinii și a completa datele automat, sau pentru a adăuga o poză vehiculului.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pentru a alege o fotografie a talonului sau a mașinii din pozele tale.</string>
+
+	<!--
+	    Stops iOS from raising its own limited-access alert automatically, each
+	    time the application reaches the library while access is limited to
+	    chosen photos. The camera plugin's chooseFromGallery always asks for
+	    library access and draws its own grid, which already offers a way to add
+	    photos. On 2026-09-11 the alert on top of it sent the developer to
+	    Settings, and changing a privacy setting terminates the application,
+	    which looked exactly like a crash. The plugin's older picker needs no
+	    permission at all but is deprecated; this keeps the supported one.
+	-->
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
