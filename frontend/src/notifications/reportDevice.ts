@@ -1,4 +1,4 @@
-import { registerDevice } from '../api/endpoints/devices.ts'
+import { registerDevice, type DeviceView } from '../api/endpoints/devices.ts'
 
 import { push } from './push.ts'
 
@@ -11,6 +11,21 @@ import { push } from './push.ts'
  * refresh credential and should stay uncrowded.
  */
 const REGISTERED_TOKEN = 'garajul-meu.push-token'
+
+/**
+ * How long the platform may take to issue a token before its silence counts as
+ * a failure.
+ *
+ * <p><strong>`getToken()` can wait for ever on iOS.</strong> It waits for an APNs
+ * registration, and when that registration fails the plugin hears nothing:
+ * `63db063` found it on an iPhone 12 Pro whose build carried no push
+ * entitlement. Unbounded, the launch report hangs where nobody sees it, and
+ * screen 18 would say "activăm" for good - the same silence the screen exists
+ * to end. Thirty seconds is a bound rather than a measurement: generous for a
+ * registration that works, and short enough that somebody watching the screen
+ * is still there when it gives up.
+ */
+const TOKEN_TIMEOUT_MS = 30_000
 
 function remembered(): string | null {
   try {
@@ -33,8 +48,41 @@ function remember(token: string): void {
   }
 }
 
+/** `token`, or a rejection once {@link TOKEN_TIMEOUT_MS} has passed without one. */
+function withinDeadline(token: Promise<string>): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`The platform issued no push token within ${TOKEN_TIMEOUT_MS} ms`))
+    }, TOKEN_TIMEOUT_MS)
+
+    token.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (reason: unknown) => {
+        clearTimeout(timer)
+        reject(reason)
+      },
+    )
+  })
+}
+
 /**
- * Tells the account what this installation can currently do, on every launch.
+ * The report in progress, if there is one.
+ *
+ * <p>Two callers can ask at the same moment: the launch report from `AppLayout`,
+ * and screen 18 opened before that report has finished. They are asking the same
+ * question, so the second gets the first one's answer rather than a second
+ * upsert of the same token racing it to the server. Only a report in progress
+ * is shared - once it has answered, the next caller asks afresh, because the
+ * answer can have changed.
+ */
+let inFlight: Promise<DeviceView | null> | null = null
+
+/**
+ * Tells the account what this installation can currently do, on every launch,
+ * and answers with what the account now holds for it.
  *
  * <p>`DeviceController.register` is an upsert answering 200 rather than 201 for
  * exactly this: the usual answer is "the registration you already had". What
@@ -68,42 +116,56 @@ function remember(token: string): void {
  * Somebody who declines at the first prompt and never grants leaves no trace,
  * which is exactly right.
  *
+ * <p><strong>The answer, added 2026-09-11, is what screen 18 believes.</strong>
+ * It resolves with the server's own description of this device once the
+ * registration has been accepted, and with `null` when nothing was reported - a
+ * browser, a question not yet put, a refusal with nothing to correct. Screen 18
+ * says notifications are on only when this answer does: the permission alone is
+ * what the operating system allows, not what the account can deliver to.
+ *
  * <p>TRIGGER for revisiting: a device whose notifications were switched off in
  * settings still showing as able. That would mean the remembered token was lost
  * - cleared site data, a reinstall - and the revocation had nothing to report
  * against.
  */
-export async function reportDevice(): Promise<void> {
+export function reportDevice(): Promise<DeviceView | null> {
+  inFlight ??= report().finally(() => {
+    inFlight = null
+  })
+  return inFlight
+}
+
+async function report(): Promise<DeviceView | null> {
   const device = push
 
   if (device === null) {
-    return
+    return null
   }
 
   const permission = await device.permission()
 
   if (permission === 'prompt') {
-    return
+    return null
   }
 
   if (permission === 'denied') {
     const previous = remembered()
 
-    if (previous !== null) {
-      await registerDevice({
-        platform: await device.platform(),
-        pushToken: previous,
-        notificationsEnabled: false,
-      })
+    if (previous === null) {
+      return null
     }
 
-    return
+    return registerDevice({
+      platform: await device.platform(),
+      pushToken: previous,
+      notificationsEnabled: false,
+    })
   }
 
-  const token = await device.token()
+  const token = await withinDeadline(device.token())
   remember(token)
 
-  await registerDevice({
+  return registerDevice({
     platform: await device.platform(),
     pushToken: token,
     notificationsEnabled: true,

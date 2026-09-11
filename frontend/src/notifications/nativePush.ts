@@ -16,8 +16,10 @@ import type { Push, PushPermission } from './push.ts'
  * <p>This plugin returns an FCM token on both platforms, so one backend path
  * serves both and nothing on the server changes.
  *
- * <p>The listener-and-timeout machinery the old plugin needed is gone with it:
- * `getToken()` is a promise.
+ * <p>The listener machinery the old plugin needed is gone with it: `getToken()`
+ * is a promise. <strong>It is not a promise that always settles</strong>: on iOS
+ * it waits for an APNs registration, and a failed one reaches nothing
+ * (`63db063`), so the bound lives in `reportDevice`, the one caller of `token()`.
  */
 
 /** See `PushPermission`: two of Capacitor's four states mean the same thing here. */

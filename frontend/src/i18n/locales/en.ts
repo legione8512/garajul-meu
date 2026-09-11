@@ -293,7 +293,10 @@ export const en: typeof ro = {
     what: 'You will only get reminders about your own vehicles\' documents, at '
       + 'the times you choose in your profile. Nothing else.',
     enable: 'Turn on notifications',
+    checking: 'Checking that reminders can reach this phone…',
+    enabling: 'Turning on notifications for this phone…',
     granted: 'Notifications are on for this phone.',
+    notActive: 'Notifications are not on for this phone yet.',
     denied: 'You turned notifications down, and Android will not let us ask a '
       + 'second time. You can turn them back on in your phone\'s settings, under '
       + 'notifications for Garajul Meu.',

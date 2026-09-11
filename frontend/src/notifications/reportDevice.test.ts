@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Push } from './push.ts'
 
@@ -53,6 +53,10 @@ describe('reporting the device at launch', () => {
     registerDevice.mockReset()
     registerDevice.mockResolvedValue({})
     seam.push = null
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('does nothing at all in a browser, where there is no push to report', async () => {
@@ -171,5 +175,80 @@ describe('reporting the device at launch', () => {
     await reportDevice()
 
     expect(registerDevice).not.toHaveBeenCalled()
+  })
+
+  /**
+   * The answer is what screen 18 shows, so it has to be the server's own
+   * description of the device and not something assembled here.
+   */
+  it('answers with what the server now holds for this phone', async () => {
+    const held = {
+      id: 'd1', platform: 'IOS', deviceName: null,
+      notificationsEnabled: true, tokenUpdatedAt: '2026-09-11T11:12:30Z',
+    }
+    registerDevice.mockResolvedValue(held)
+    seam.push = phone('granted', { platform: 'IOS' })
+
+    expect(await reportDevice()).toBe(held)
+  })
+
+  it('answers null whenever it reported nothing', async () => {
+    expect(await reportDevice()).toBeNull()
+
+    seam.push = phone('prompt')
+    expect(await reportDevice()).toBeNull()
+
+    seam.push = phone('denied')
+    expect(await reportDevice()).toBeNull()
+  })
+
+  /**
+   * The hang `63db063` found on an iPhone: `getToken()` waiting for an APNs
+   * registration that had already failed. Measured at both edges, because a
+   * bound that fired early would fail working phones on a slow network, and one
+   * that never fired is the bug.
+   */
+  it('gives up on a token that never comes, after thirty seconds and not before', async () => {
+    vi.useFakeTimers()
+    const device = phone('granted')
+    device.token.mockImplementation(() => new Promise<string>(() => {}))
+    seam.push = device
+
+    const outcome = reportDevice()
+    const settled = vi.fn()
+    outcome.then(settled, settled)
+
+    await vi.advanceTimersByTimeAsync(29_999)
+    expect(settled).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    await expect(outcome).rejects.toThrow('no push token')
+    expect(registerDevice).not.toHaveBeenCalled()
+    expect(localStorage.getItem(REGISTERED_TOKEN)).toBeNull()
+  })
+
+  /**
+   * The launch report and screen 18 can ask at the same moment. One question:
+   * one token minted, one registration sent, one answer for both.
+   */
+  it('asks the server once when asked twice at the same moment', async () => {
+    const device = phone('granted')
+    seam.push = device
+
+    const [first, second] = await Promise.all([reportDevice(), reportDevice()])
+
+    expect(device.token).toHaveBeenCalledTimes(1)
+    expect(registerDevice).toHaveBeenCalledTimes(1)
+    expect(second).toBe(first)
+  })
+
+  /** Sharing is only for a report in progress: a later visit asks afresh. */
+  it('asks again once the earlier answer is in', async () => {
+    seam.push = phone('granted')
+
+    await reportDevice()
+    await reportDevice()
+
+    expect(registerDevice).toHaveBeenCalledTimes(2)
   })
 })

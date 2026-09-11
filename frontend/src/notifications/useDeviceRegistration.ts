@@ -14,20 +14,18 @@ import { reportDevice } from './reportDevice.ts'
  * been asked, register a refusal too - live in `reportDevice` and are tested
  * there. This hook is only the *when*.
  *
- * <p><strong>A failure here is swallowed, and that is a known gap rather than a
- * decision to be pleased with.</strong> There is no place on every screen to
- * report it, and reminders quietly not arriving is exactly the symptom. Screen
- * 18 is where somebody would look, and it currently reports the *permission*
- * rather than the registration - so a granted permission whose registration
- * failed reads as healthy. <strong>TRIGGER: the first report of reminders not
- * arriving on a phone whose notifications are switched on.</strong> The fix is
- * for screen 18 to show what the account holds rather than what the operating
- * system allows.
+ * <p><strong>A failure here is swallowed, and screen 18 is where it
+ * surfaces.</strong> There is no place on every screen to report it, and
+ * reminders quietly not arriving is exactly the symptom. Until 2026-09-11 screen
+ * 18 reported the *permission* rather than the registration, so a granted
+ * permission whose registration had failed read as healthy. It now runs the same
+ * report and says notifications are on only when the server's answer does. What
+ * stays silent is a failure nobody goes to look at.
  */
 export function useDeviceRegistration(): void {
   useEffect(() => {
     void reportDevice().catch(() => {
-      // See above. Deliberately silent, and deliberately recorded as a gap.
+      // See above: silent here, and visible on screen 18.
     })
   }, [])
 }

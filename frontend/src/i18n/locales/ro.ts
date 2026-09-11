@@ -307,7 +307,13 @@ export const ro = {
     what: 'Vei primi doar memento-uri despre documentele mașinilor tale, la '
       + 'termenele pe care le alegi tu în profil. Nimic altceva.',
     enable: 'Activează notificările',
+    // Screen 18 while the registration runs: on arrival, then after the button.
+    checking: 'Verificăm dacă memento-urile pot ajunge pe acest telefon…',
+    enabling: 'Activăm notificările pe acest telefon…',
+    // Only once the server's answer holds this phone as able - never on the
+    // permission alone. See NotificationPermissionPage.
     granted: 'Notificările sunt activate pe acest telefon.',
+    notActive: 'Notificările nu sunt încă active pe acest telefon.',
     denied: 'Ai refuzat notificările, iar Android nu ne mai lasă să întrebăm a '
       + 'doua oară. Le poți reactiva din setările telefonului, la notificările '
       + 'aplicației Garajul Meu.',
