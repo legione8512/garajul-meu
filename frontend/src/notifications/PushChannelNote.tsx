@@ -17,6 +17,13 @@ import { push } from './push.ts'
  * is native-only, which stays true and no longer claims the app is unbuilt. On a
  * phone it points at screen 18, which is the only place the answer can actually
  * be changed.
+ *
+ * <p><strong>It claims nothing about this phone since 2026-09-11.</strong> It
+ * said "Memento-urile ajung ca notificări pe acest telefon" on every phone,
+ * including one whose notifications were refused in its settings, and one whose
+ * account had switched reminders off. Whether they reach this phone is screen
+ * 18's to say, where the answer comes from the phone and the server; here the
+ * sentence names the channel and the condition, and links there.
  */
 export function PushChannelNote() {
   const { t } = useTranslation()
@@ -27,7 +34,7 @@ export function PushChannelNote() {
 
   return (
     <p>
-      {t('reminders.onThisPhone')}
+      {t('reminders.byNotification')}
       {' '}
       <Link to={paths.notifications}>{t('reminders.manage')}</Link>
     </p>

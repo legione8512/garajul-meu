@@ -7,6 +7,7 @@ import { useSubmission } from '../forms/useSubmission.ts'
 import { push, type PushPermission } from '../notifications/push.ts'
 import { reportDevice } from '../notifications/reportDevice.ts'
 import { paths } from '../routes/paths.ts'
+import { NotificationPreferences } from '../settings/NotificationPreferences.tsx'
 
 /**
  * Why the registration is running. It changes only the sentence shown while it
@@ -41,6 +42,14 @@ type Purpose = 'checking' | 'enabling'
  * `reportDevice` runs, "activate" only when the server's answer holds this phone
  * as able, and otherwise that notifications are not on yet, the reason, and a
  * way to try again.
+ *
+ * <p><strong>The account's preferences live here too, since the same day</strong>
+ * - moved from screen 15 by the developer's decision, against the
+ * specification's screen map, after screen 15 showed "Trimite-mi notificări"
+ * ticked beside a phone that refused notifications. They appear once the phone
+ * is held, and in a browser; never on a phone that refuses or has not been asked,
+ * where nothing set there could reach it. "Activate" depends on the account
+ * sending anything as well, so that sentence belongs to `NotificationPreferences`.
  *
  * <p><strong>The web is a fourth state and gets an honest answer rather than a
  * broken screen.</strong> Section 18 makes push native-only and V1 implements no
@@ -122,13 +131,15 @@ export function NotificationPermissionPage() {
 
       {push === null && <p data-panel>{t('notifications.webOnly')}</p>}
 
+      {push === null && <NotificationPreferences onThisPhone={false} />}
+
       {granted && pending && (
         <p role="status">
           {purpose === 'enabling' ? t('notifications.enabling') : t('notifications.checking')}
         </p>
       )}
 
-      {granted && !pending && held && <p role="status">{t('notifications.granted')}</p>}
+      {granted && !pending && held && <NotificationPreferences onThisPhone />}
 
       {granted && !pending && !held && (
         <>

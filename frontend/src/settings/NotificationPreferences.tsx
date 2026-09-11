@@ -11,7 +11,6 @@ import { FormError } from '../components/FormError.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { useSubmission } from '../forms/useSubmission.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
-import { PushChannelNote } from '../notifications/PushChannelNote.tsx'
 
 /** The six offsets, in the order they fire. */
 const OFFSETS = [
@@ -19,6 +18,21 @@ const OFFSETS = [
 ] as const
 
 type Offset = (typeof OFFSETS)[number]
+
+/** Everything but the switch: the part the form edits and saves with its button. */
+type Schedule = Omit<Preferences, 'notificationsEnabled'>
+
+function scheduleOf(preferences: Preferences): Schedule {
+  return {
+    remind30Days: preferences.remind30Days,
+    remind14Days: preferences.remind14Days,
+    remind7Days: preferences.remind7Days,
+    remind3Days: preferences.remind3Days,
+    remind1Day: preferences.remind1Day,
+    remindOnExpiry: preferences.remindOnExpiry,
+    notificationLocalTime: preferences.notificationLocalTime,
+  }
+}
 
 /**
  * `HH:mm:ss` on the wire, `HH:mm` in the input.
@@ -36,35 +50,79 @@ function forWire(inputTime: string): string {
   return inputTime.length === 5 ? `${inputTime}:00` : inputTime
 }
 
+interface NotificationPreferencesProps {
+  /**
+   * True on a phone the server holds as able, where the section can say that
+   * notifications are on *on this phone*. False on the web, where there is no
+   * "this phone" to speak about.
+   */
+  onThisPhone: boolean
+}
+
 /**
- * What an account is told about, on screen 15. Specification sections 12 and 16.
+ * What an account is told about, and when. Specification sections 12 and 16.
  *
- * <p><strong>All eight fields are sent on every save.</strong> The endpoint is a
- * replace, and the backend refuses a body that omits a switch rather than
- * reading the gap as "off" - so the form holds a whole preferences object and
- * edits it, instead of collecting only what was touched.
+ * <p><strong>On screen 18 since 2026-09-11, not on screen 15</strong> - moved by
+ * the developer's decision, and against the specification's screen map, which
+ * puts these preferences on the profile. The reason was a contradiction seen on
+ * a real iPhone: notifications refused in the phone's settings, and screen 15
+ * still showing "Trimite-mi notificări" ticked under a sentence saying reminders
+ * arrive on this phone. One screen now says what the phone allows and, below it,
+ * what the account asks for - and on a phone that refuses, only the first.
  *
- * <p>The standing note about push being native-only is shown here too, and it is
- * the same sentence the reminder list uses. Somebody turning these switches on
- * in a browser today is configuring something that will reach them when the
- * phone application exists and not before; a preferences screen that does not
- * say so is making a promise the system cannot keep.
+ * <p><strong>The switch saves itself; the schedule saves with its button.</strong>
+ * A switch that needed a second button to take effect would look off while
+ * reminders were still being sent, whereas six offsets and a time are edited
+ * together and sent together. With the switch off the schedule is not shown at
+ * all: nothing would be sent on it.
+ *
+ * <p><strong>All eight fields go on every save</strong>, because the endpoint is a
+ * replace and the backend refuses a body that omits a switch rather than reading
+ * the gap as "off". Both saves start from what the server last said: the switch
+ * sends the server's schedule with its own value changed, so an edit to the
+ * schedule that has not been saved is neither sent by the switch nor lost by it;
+ * the button sends the edited schedule with the server's switch. What is shown
+ * after either is the server's answer.
+ *
+ * <p><strong>A refused switch puts itself back.</strong> Showing "off" for
+ * reminders the server is still sending is the kind of lie screen 18 was rebuilt
+ * on 2026-09-11 to stop telling.
  */
-export function NotificationPreferences() {
+export function NotificationPreferences({ onThisPhone }: NotificationPreferencesProps) {
   const { t } = useTranslation()
   const { data, error, loading } = useResource<Preferences>(notificationPreferencesPath)
 
-  const save = useSubmission()
-  const [draft, setDraft] = useState<Preferences | null>(null)
+  const switching = useSubmission()
+  const saving = useSubmission()
+  const [answered, setAnswered] = useState<Preferences | null>(null)
+  const [edited, setEdited] = useState<Schedule | null>(null)
   const [saved, setSaved] = useState(false)
 
-  // Null means "showing what the server last said", the same arrangement the
-  // vehicle nickname uses - no effect copying server state into state.
-  const preferences = draft ?? data
+  // Null means "what the server said when the screen opened", the arrangement
+  // the vehicle nickname uses - no effect copying server state into state.
+  const server = answered ?? data
+  const shown = server === null ? null : { ...server, ...edited }
 
-  function change(patch: Partial<Preferences>) {
-    if (preferences !== null) {
-      setDraft({ ...preferences, ...patch })
+  async function toggle(on: boolean) {
+    if (server === null || switching.pending) {
+      return
+    }
+
+    const before = server
+    setAnswered({ ...before, notificationsEnabled: on })
+
+    const failure = await switching.submit(async () => {
+      setAnswered(await saveNotificationPreferences({ ...before, notificationsEnabled: on }))
+    })
+
+    if (failure !== null) {
+      setAnswered(before)
+    }
+  }
+
+  function change(patch: Partial<Schedule>) {
+    if (shown !== null) {
+      setEdited({ ...scheduleOf(shown), ...patch })
       setSaved(false)
     }
   }
@@ -72,12 +130,13 @@ export function NotificationPreferences() {
   async function handleSave(event: FormEvent) {
     event.preventDefault()
 
-    if (preferences === null) {
+    if (shown === null) {
       return
     }
 
-    const failure = await save.submit(async () => {
-      await saveNotificationPreferences(preferences)
+    const failure = await saving.submit(async () => {
+      setAnswered(await saveNotificationPreferences(shown))
+      setEdited(null)
     })
 
     if (failure === null) {
@@ -89,49 +148,59 @@ export function NotificationPreferences() {
     <section data-card>
       <h2>{t('notificationPreferences.title')}</h2>
 
-      <PushChannelNote />
-
       {loading && <p role="status">{t('common.loading')}</p>}
 
       {error !== null && <p role="alert">{t(errorMessageKey(error.code))}</p>}
 
-      {preferences !== null && (
-        <form onSubmit={(event) => { void handleSave(event) }} noValidate>
-          <FormError error={save.error} />
+      {shown !== null && (
+        <>
+          {!shown.notificationsEnabled && <p role="status">{t('notifications.paused')}</p>}
+
+          {shown.notificationsEnabled && onThisPhone && (
+            <p role="status">{t('notifications.granted')}</p>
+          )}
 
           <CheckboxField
             label={t('notificationPreferences.enabled')}
-            checked={preferences.notificationsEnabled}
-            onChange={(checked) => { change({ notificationsEnabled: checked }) }}
+            checked={shown.notificationsEnabled}
+            onChange={(on) => { void toggle(on) }}
           />
 
-          <fieldset>
-            <legend>{t('notificationPreferences.leads')}</legend>
+          <FormError error={switching.error} />
 
-            {OFFSETS.map((offset: Offset) => (
-              <CheckboxField
-                key={offset}
-                label={t(`notificationPreferences.${offset}`)}
-                checked={preferences[offset]}
-                onChange={(checked) => { change({ [offset]: checked } as Partial<Preferences>) }}
+          {shown.notificationsEnabled && (
+            <form onSubmit={(event) => { void handleSave(event) }} noValidate>
+              <FormError error={saving.error} />
+
+              <fieldset>
+                <legend>{t('notificationPreferences.leads')}</legend>
+
+                {OFFSETS.map((offset: Offset) => (
+                  <CheckboxField
+                    key={offset}
+                    label={t(`notificationPreferences.${offset}`)}
+                    checked={shown[offset]}
+                    onChange={(checked) => { change({ [offset]: checked } as Partial<Schedule>) }}
+                  />
+                ))}
+              </fieldset>
+
+              <TextField
+                label={t('notificationPreferences.time')}
+                type="time"
+                value={forInput(shown.notificationLocalTime)}
+                onChange={(value) => { change({ notificationLocalTime: forWire(value) }) }}
+                message={undefined}
               />
-            ))}
-          </fieldset>
 
-          <TextField
-            label={t('notificationPreferences.time')}
-            type="time"
-            value={forInput(preferences.notificationLocalTime)}
-            onChange={(value) => { change({ notificationLocalTime: forWire(value) }) }}
-            message={undefined}
-          />
+              <button type="submit" disabled={saving.pending}>
+                {t('notificationPreferences.save')}
+              </button>
 
-          <button type="submit" disabled={save.pending}>
-            {t('notificationPreferences.save')}
-          </button>
-
-          {saved && <p role="status">{t('notificationPreferences.saved')}</p>}
-        </form>
+              {saved && <p role="status">{t('notificationPreferences.saved')}</p>}
+            </form>
+          )}
+        </>
       )}
     </section>
   )

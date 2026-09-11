@@ -11,16 +11,8 @@ const PROFILE = {
   preferredLanguage: 'ro', timezone: 'Europe/Bucharest', emailVerified: true,
 }
 
-const PREFERENCES = {
-  notificationsEnabled: true,
-  remind30Days: true, remind14Days: true, remind7Days: true,
-  remind3Days: false, remind1Day: false, remindOnExpiry: true,
-  notificationLocalTime: '09:00:00',
-}
-
 interface Sent {
   profile: Record<string, unknown> | null
-  preferences: Record<string, unknown> | null
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -31,12 +23,12 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 /**
- * Keeps both records in memory so a PATCH or a PUT is visible to whatever reads
- * next, and records the exact bodies - the preferences endpoint is a replace,
- * and the only way to prove all eight fields were sent is to look at one.
+ * Keeps the account in memory so a PATCH is visible to whatever reads next, and
+ * records the exact body. The notification preferences left this screen on
+ * 2026-09-11, and their tests went with them to screen 18's.
  */
 function stubAccount(profileStatus = 200): Sent {
-  const sent: Sent = { profile: null, preferences: null }
+  const sent: Sent = { profile: null }
   let profile = { ...PROFILE }
 
   vi.stubGlobal('fetch', vi.fn((input: string, init?: RequestInit) => {
@@ -47,13 +39,6 @@ function stubAccount(profileStatus = 200): Sent {
     }
     if (input.includes('/auth/logout')) {
       return Promise.resolve(new Response(null, { status: 204 }))
-    }
-    if (input.includes('/notification-preferences')) {
-      if (init?.method === 'PUT') {
-        sent.preferences = JSON.parse(init.body as string) as Record<string, unknown>
-        return Promise.resolve(jsonResponse(200, sent.preferences))
-      }
-      return Promise.resolve(jsonResponse(200, PREFERENCES))
     }
     if (init?.method === 'PATCH') {
       sent.profile = JSON.parse(init.body as string) as Record<string, unknown>
@@ -148,37 +133,19 @@ describe('profile', () => {
     expect(sent.profile).toBeNull()
   })
 
-  it('shows the stored notification preferences', async () => {
+  /**
+   * The preferences moved to screen 18 on 2026-09-11, beside what the phone
+   * allows. The profile keeps the way there and nothing that could disagree
+   * with it.
+   */
+  it('points to the notifications screen and carries no preferences of its own', async () => {
     stubAccount()
 
     renderApp(paths.profile)
 
-    expect(await screen.findByLabelText(ro.notificationPreferences.enabled)).toBeChecked()
-    expect(screen.getByLabelText(ro.notificationPreferences.remind3Days)).not.toBeChecked()
-    expect(screen.getByLabelText(ro.notificationPreferences.time)).toHaveValue('09:00')
-  })
-
-  /**
-   * The endpoint is a replace and the backend refuses a body missing a switch,
-   * so the assertion is on the whole body rather than on the one field touched.
-   * The time goes back with its seconds, which is what a LocalTime expects.
-   */
-  it('saving preferences sends all eight fields, not only the one changed', async () => {
-    const sent = stubAccount()
-
-    renderApp(paths.profile)
-    await screen.findByLabelText(ro.notificationPreferences.remind3Days)
-
-    await userEvent.click(screen.getByLabelText(ro.notificationPreferences.remind3Days))
-    await userEvent.click(screen.getByRole('button', { name: ro.notificationPreferences.save }))
-
-    expect(await screen.findByText(ro.notificationPreferences.saved)).toBeInTheDocument()
-    expect(sent.preferences).toEqual({
-      notificationsEnabled: true,
-      remind30Days: true, remind14Days: true, remind7Days: true,
-      remind3Days: true, remind1Day: false, remindOnExpiry: true,
-      notificationLocalTime: '09:00:00',
-    })
+    const way = await screen.findByRole('link', { name: ro.reminders.manage })
+    expect(way).toHaveAttribute('href', paths.notifications)
+    expect(screen.queryByLabelText(ro.notificationPreferences.enabled)).not.toBeInTheDocument()
   })
 
   /**

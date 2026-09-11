@@ -13,7 +13,6 @@ import { useSubmission } from '../forms/useSubmission.ts'
 import { validate } from '../forms/validate.ts'
 import { languageNames, supportedLanguages } from '../i18n/language.ts'
 import { paths } from '../routes/paths.ts'
-import { NotificationPreferences } from '../settings/NotificationPreferences.tsx'
 
 const nameRules = { fullName: [required, maxLength(150)] }
 
@@ -171,7 +170,20 @@ export function ProfilePage() {
             {saved && <p role="status">{t('profile.saved')}</p>}
           </form>
 
-          <NotificationPreferences />
+          {/*
+            The notification preferences lived here until 2026-09-11 and moved to
+            screen 18, beside what the phone itself allows - see
+            NotificationPreferences. What stays is the way there.
+          */}
+          <section data-card>
+            <h2>{t('profile.notifications')}</h2>
+            <p>{t('profile.notificationsLead')}</p>
+            <p data-actions>
+              <Link data-action="secondary" to={paths.notifications}>
+                {t('reminders.manage')}
+              </Link>
+            </p>
+          </section>
 
           <section data-card>
             <h2>{t('profile.security')}</h2>

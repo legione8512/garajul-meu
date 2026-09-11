@@ -219,7 +219,7 @@ export const en: typeof ro = {
     title: 'Notifications',
     webOnly: 'Push notifications arrive in the phone application. Here on the web, '
       + 'document status is always visible on the dashboard.',
-    onThisPhone: 'Reminders arrive as notifications on this phone.',
+    byNotification: 'Reminders arrive as phone notifications, when they are turned on.',
     manage: 'See notification settings',
     none: 'No reminders scheduled for this document.',
     lead: {
@@ -251,6 +251,9 @@ export const en: typeof ro = {
     changeEmail: 'Change email address',
     deleteAccount: 'Delete account',
     back: 'Back to profile',
+    notifications: 'Notifications',
+    notificationsLead: 'Reminders about your vehicles\' documents: whether you get them, how '
+      + 'far ahead, and at what time.',
   },
   changePassword: {
     warning: 'Changing your password signs you out everywhere, on every device, '
@@ -297,6 +300,8 @@ export const en: typeof ro = {
     enabling: 'Turning on notifications for this phone…',
     granted: 'Notifications are on for this phone.',
     notActive: 'Notifications are not on for this phone yet.',
+    paused: 'Reminders are off. We send you nothing, on any phone, until you turn '
+      + 'them back on.',
     denied: 'You turned notifications down, and your phone will not let us ask a '
       + 'second time. You can turn them back on in your phone\'s settings, under '
       + 'notifications for Garajul Meu.',
@@ -420,7 +425,7 @@ export const en: typeof ro = {
     changePassword: 'Change your password',
     changeEmail: 'Change your email address',
     deleteAccount: 'Delete your account',
-    notifications: 'Phone notifications',
+    notifications: 'Notifications',
     terms: 'Terms and conditions',
     privacy: 'Privacy policy',
   },

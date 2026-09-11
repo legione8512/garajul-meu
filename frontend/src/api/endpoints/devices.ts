@@ -53,6 +53,18 @@ export function registerDevice(registration: DeviceRegistration): Promise<Device
   })
 }
 
+/**
+ * Specification section 16's other device endpoint, and **deliberately called by
+ * nobody when somebody signs out** - decided by the developer on 2026-09-11.
+ *
+ * <p>An automatic end of session is not a choice to stop reminders, and neither,
+ * by that decision, is a deliberate one: reminders stop when the documents go,
+ * when the account goes, or when the application is uninstalled and Firebase
+ * says so, and whoever is handed the phone either removes the application or
+ * signs in with an account of their own, which moves the token to it. The
+ * account's switch on screen 18 is how somebody stops them on purpose.
+ * Wiring this into sign-out would reverse that decision, not fix an oversight.
+ */
 export function unregisterDevice(deviceId: string): Promise<void> {
   return apiFetch<void>(`/api/v1/devices/${deviceId}`, { method: 'DELETE' })
 }

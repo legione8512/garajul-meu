@@ -230,7 +230,8 @@ export const ro = {
     // false about their own car.
     webOnly: 'Notificările push ajung în aplicația de telefon. Aici, pe web, '
       + 'starea documentelor e mereu vizibilă pe tabloul de bord.',
-    onThisPhone: 'Memento-urile ajung ca notificări pe acest telefon.',
+    // Names the channel, not the state of this phone - see PushChannelNote.
+    byNotification: 'Memento-urile ajung ca notificări pe telefon, dacă sunt pornite.',
     manage: 'Vezi setările de notificare',
     none: 'Niciun reminder programat pentru acest document.',
     lead: {
@@ -261,6 +262,9 @@ export const ro = {
     changeEmail: 'Schimbă adresa de email',
     deleteAccount: 'Șterge contul',
     back: 'Înapoi la profil',
+    notifications: 'Notificări',
+    notificationsLead: 'Memento-urile despre documentele mașinilor tale: dacă le primești, '
+      + 'cu cât timp înainte și la ce oră.',
   },
   changePassword: {
     // Said before the form, not after. Somebody who learns this only once every
@@ -314,6 +318,9 @@ export const ro = {
     // permission alone. See NotificationPermissionPage.
     granted: 'Notificările sunt activate pe acest telefon.',
     notActive: 'Notificările nu sunt încă active pe acest telefon.',
+    // The account's switch is off - see NotificationPreferences, where it is set.
+    paused: 'Memento-urile sunt oprite. Nu îți trimitem nimic, pe niciun telefon, '
+      + 'până nu le pornești din nou.',
     // Names no platform since 2026-09-11: it said Android, written when only
     // Android existed, and iOS asks once as well.
     denied: 'Ai refuzat notificările, iar telefonul nu ne mai lasă să întrebăm a '
@@ -441,7 +448,7 @@ export const ro = {
     changePassword: 'Schimbarea parolei',
     changeEmail: 'Schimbarea adresei de email',
     deleteAccount: 'Ștergerea contului',
-    notifications: 'Notificări pe telefon',
+    notifications: 'Notificări',
     terms: 'Termeni și condiții',
     privacy: 'Politica de confidențialitate',
   },
