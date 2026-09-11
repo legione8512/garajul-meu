@@ -308,8 +308,10 @@ export const ro = {
   notifications: {
     lead: 'Ca să te anunțăm înainte să expire un document, telefonul trebuie să '
       + 'ne lase să îți trimitem notificări.',
+    // Names no place: the preferences left the profile on 2026-09-11, and on a
+    // phone that refuses they are not shown at all.
     what: 'Vei primi doar memento-uri despre documentele mașinilor tale, la '
-      + 'termenele pe care le alegi tu în profil. Nimic altceva.',
+      + 'termenele alese de tine. Nimic altceva.',
     enable: 'Activează notificările',
     // Screen 18 while the registration runs: on arrival, then after the button.
     checking: 'Verificăm dacă memento-urile pot ajunge pe acest telefon…',

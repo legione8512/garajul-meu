@@ -294,7 +294,7 @@ export const en: typeof ro = {
     lead: 'To warn you before a document expires, your phone has to let us send '
       + 'you notifications.',
     what: 'You will only get reminders about your own vehicles\' documents, at '
-      + 'the times you choose in your profile. Nothing else.',
+      + 'the times you choose. Nothing else.',
     enable: 'Turn on notifications',
     checking: 'Checking that reminders can reach this phone…',
     enabling: 'Turning on notifications for this phone…',

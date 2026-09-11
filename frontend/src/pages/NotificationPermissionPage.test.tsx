@@ -202,7 +202,7 @@ describe('screen 18, notifications on this phone', () => {
 
     renderApp(paths.notifications)
 
-    expect(await screen.findByRole('checkbox', { name: ro.notificationPreferences.enabled })).toBeChecked()
+    expect(await screen.findByRole('switch', { name: ro.notificationPreferences.enabled })).toBeChecked()
     expect(screen.getByText(ro.notifications.granted)).toBeInTheDocument()
   })
 
@@ -215,11 +215,11 @@ describe('screen 18, notifications on this phone', () => {
     seam.push = phone('granted')
 
     renderApp(paths.notifications)
-    await userEvent.click(await screen.findByRole('checkbox', { name: ro.notificationPreferences.enabled }))
+    await userEvent.click(await screen.findByRole('switch', { name: ro.notificationPreferences.enabled }))
 
     expect(await screen.findByText(ro.notifications.paused)).toBeInTheDocument()
     expect(screen.queryByText(ro.notifications.granted)).not.toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: ro.notificationPreferences.enabled })).not.toBeChecked()
+    expect(screen.getByRole('switch', { name: ro.notificationPreferences.enabled })).not.toBeChecked()
     await waitFor(() => { expect(saved).toEqual([{ ...PREFERENCES, notificationsEnabled: false }]) })
   })
 
@@ -236,7 +236,7 @@ describe('screen 18, notifications on this phone', () => {
     expect(await screen.findByText(ro.notifications.paused)).toBeInTheDocument()
     expect(screen.queryByText(ro.notifications.granted)).not.toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('checkbox', { name: ro.notificationPreferences.enabled }))
+    await userEvent.click(screen.getByRole('switch', { name: ro.notificationPreferences.enabled }))
 
     expect(await screen.findByText(ro.notifications.granted)).toBeInTheDocument()
     await waitFor(() => { expect(saved).toEqual([{ ...PREFERENCES, notificationsEnabled: true }]) })
@@ -252,11 +252,11 @@ describe('screen 18, notifications on this phone', () => {
     seam.push = phone('granted')
 
     renderApp(paths.notifications)
-    await userEvent.click(await screen.findByRole('checkbox', { name: ro.notificationPreferences.enabled }))
+    await userEvent.click(await screen.findByRole('switch', { name: ro.notificationPreferences.enabled }))
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByRole('checkbox', { name: ro.notificationPreferences.enabled })).toBeChecked()
+      expect(screen.getByRole('switch', { name: ro.notificationPreferences.enabled })).toBeChecked()
     })
     expect(screen.getByText(ro.notifications.granted)).toBeInTheDocument()
     expect(screen.queryByText(ro.notifications.paused)).not.toBeInTheDocument()
@@ -333,5 +333,20 @@ describe('screen 18, notifications on this phone', () => {
     await userEvent.click(screen.getByLabelText(ro.notificationPreferences.enabled))
 
     await waitFor(() => { expect(saved).toEqual([{ ...PREFERENCES, notificationsEnabled: false }]) })
+  })
+
+  /**
+   * The developer asked for a switch, and a switch is a role as well as a look:
+   * screen readers say "on" and "off" for it. The schedule's six choices stay
+   * checkboxes, because they are a choice of several.
+   */
+  it('exposes the account\'s reminders as a switch, and the schedule as checkboxes', async () => {
+    stubSignedIn()
+
+    renderApp(paths.notifications)
+
+    expect(await screen.findByRole('switch', { name: ro.notificationPreferences.enabled })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: ro.notificationPreferences.remind3Days })).not.toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: ro.notificationPreferences.enabled })).not.toBeInTheDocument()
   })
 })

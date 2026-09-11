@@ -727,6 +727,60 @@ input[type='radio'] + label {
 }
 
 /*
+ * A checkbox that is a switch: `role='switch'`, which CheckboxField sets for the
+ * one control that turns something on and off rather than choosing among
+ * options - the account's reminders, on screen 18. Added 2026-09-11 at the
+ * developer's request; the six offsets stay checkboxes, because they are a
+ * choice of several.
+ *
+ * The knob is a radial gradient rather than a pseudo-element, which not every
+ * engine draws on an input, and it moves by background position. Every colour
+ * is a token and was measured against the card before it was chosen, since
+ * WCAG 1.4.11 asks 3:1 of what shows a control's state: on, the track in
+ * `--brand-bright` is 4.28 against `--surface` and the white knob 3.96 against
+ * the track; off, the `--text-muted` edge is 6.55 against the card and the knob
+ * 7.07 against the sunken track. Position says the state as well, so colour is
+ * never the only signal. Fifty-two by thirty-two clears the 24-pixel minimum,
+ * and the label beside it still supplies the 44.
+ */
+input[type='checkbox'][role='switch'] {
+  --knob: var(--text-muted);
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 3.25rem;
+  height: 2rem;
+  margin: 0 0.75rem 0 0;
+  border: 1px solid var(--text-muted);
+  border-radius: 1rem;
+  background-color: var(--surface-sunken);
+  background-image: radial-gradient(circle, var(--knob) 0 0.6875rem, transparent calc(0.6875rem + 0.5px));
+  background-repeat: no-repeat;
+  background-size: 1.875rem 1.875rem;
+  background-position: left center;
+  cursor: pointer;
+  transition: background-position 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+input[type='checkbox'][role='switch']:checked {
+  --knob: var(--brand-contrast);
+  border-color: var(--brand-bright);
+  background-color: var(--brand-bright);
+  background-position: right center;
+}
+
+input[type='checkbox'][role='switch']:focus-visible {
+  outline: 2px solid var(--brand-bright);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type='checkbox'][role='switch'] {
+    transition: none;
+  }
+}
+
+/*
  * A file chooser that speaks the application's language.
  *
  * The native control renders "Choose file" and "No file chosen" in the

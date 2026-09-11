@@ -4,6 +4,13 @@ interface CheckboxFieldProps {
   label: string
   checked: boolean
   onChange: (checked: boolean) => void
+  /**
+   * Exposes the box as a switch - `role='switch'`, drawn as a track and knob by
+   * index.css - for a control that turns one thing on and off. Screen readers
+   * then say "on" and "off" rather than "checked". A choice among several
+   * options stays a checkbox.
+   */
+  asSwitch?: boolean
 }
 
 /**
@@ -18,7 +25,7 @@ interface CheckboxFieldProps {
  * with nothing to get wrong, and an unused affordance invites somebody to find a
  * use for it.
  */
-export function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) {
+export function CheckboxField({ label, checked, onChange, asSwitch = false }: CheckboxFieldProps) {
   const id = useId()
 
   return (
@@ -26,6 +33,7 @@ export function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) 
       <input
         id={id}
         type="checkbox"
+        role={asSwitch ? 'switch' : undefined}
         checked={checked}
         onChange={(event) => { onChange(event.target.checked) }}
       />

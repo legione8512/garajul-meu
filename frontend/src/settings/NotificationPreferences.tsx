@@ -161,6 +161,7 @@ export function NotificationPreferences({ onThisPhone }: NotificationPreferences
           )}
 
           <CheckboxField
+            asSwitch
             label={t('notificationPreferences.enabled')}
             checked={shown.notificationsEnabled}
             onChange={(on) => { void toggle(on) }}
