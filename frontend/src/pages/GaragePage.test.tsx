@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -57,6 +57,23 @@ describe('garage', () => {
     expect(await screen.findByRole('link', { name: 'Mașina de teren' })).toBeInTheDocument()
     expect(screen.getByText('B 100 ABC')).toBeInTheDocument()
     expect(screen.getByText('Volkswagen Golf')).toBeInTheDocument()
+  })
+
+  /**
+   * The whole card opens the vehicle, as on the dashboard (2026-09-14): the
+   * name is the one link and index.css stretches it over the marked card.
+   */
+  it('makes each card one way to its vehicle', async () => {
+    stubGarage(() => jsonResponse(200, [LOGAN]))
+
+    renderApp(paths.garage)
+
+    const name = await screen.findByRole('link', { name: 'Dacia Logan' })
+    const card = name.closest('[data-card-link]')
+
+    expect(card, 'the card is not marked for the stretched link').not.toBeNull()
+    expect(name.parentElement?.tagName).toBe('H2')
+    expect(within(card as HTMLElement).getAllByRole('link')).toHaveLength(1)
   })
 
     it('says the garage is empty', async () => {

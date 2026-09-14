@@ -589,6 +589,149 @@ ul[data-features] > li[data-card] {
   text-decoration: underline;
 }
 
+/*
+ * A card that is one destination: a vehicle on the dashboard and in the garage.
+ *
+ * Asked for on 2026-09-14 on an iPad, where only the vehicle's name opened it -
+ * a line of text in the corner of a card the size of a hand. The name stays the
+ * one link, so a screen reader still hears one link per vehicle, named by the
+ * vehicle, and its ::after is stretched over the card: a tap anywhere on the
+ * card lands on that link. Two links to the same place would say it twice.
+ *
+ * Any other link inside - the dashboard's "Documente și expirări" - is lifted
+ * above the stretched area and keeps going where it says. The focus ring stays
+ * on the name, where the keyboard is, rather than being redrawn round the card.
+ */
+[data-card-link] {
+  position: relative;
+}
+
+[data-card-link] h2 > a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+}
+
+[data-card-link] a:not(h2 > a) {
+  position: relative;
+  z-index: 1;
+}
+
+[data-card-link]:hover h2 > a {
+  text-decoration: underline;
+}
+
+/*
+ * A vehicle's emblem, on the right of its card where the space was empty
+ * (2026-09-14, at the developer's request). See vehicles/brandMarks.ts.
+ *
+ * Silver, the colour of "Garajul" in the logo, rather than each brand's own:
+ * several are navy or black and would vanish on --surface. It measures 10.1:1
+ * there, which an emblem does not need and a faint one would not reach.
+ *
+ * Sized by the card it sits in, and made larger the same day after the first
+ * run on the iPad: a dashboard card holds four document lines and is tall, a
+ * garage card holds a name and a plate and is not. Below 36rem - a phone, where
+ * the card is about 360 pixels wide - both are smaller again, because every
+ * rem the emblem takes is a rem the document lines wrap in.
+ *
+ * The card makes room only when an emblem or a name is there, so a card for an
+ * unknown make keeps its full width. `pointer-events: none` because the mark is
+ * drawn after the stretched link and would otherwise be the one spot on the
+ * card that does not open the vehicle.
+ */
+[data-brand-mark] {
+  --mark-size: 4rem;
+  --mark-name-width: 6rem;
+  --mark-name-size: 0.9rem;
+
+  position: absolute;
+  top: 50%;
+  right: 1.15rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+li[data-card] > [data-brand-mark] {
+  --mark-size: 3.5rem;
+  --mark-name-width: 5.5rem;
+  --mark-name-size: 0.8rem;
+}
+
+@media (min-width: 36rem) {
+  [data-brand-mark] {
+    --mark-size: 6rem;
+    --mark-name-width: 7.5rem;
+    --mark-name-size: 1.05rem;
+  }
+
+  li[data-card] > [data-brand-mark] {
+    --mark-size: 4.25rem;
+    --mark-name-width: 6.5rem;
+    --mark-name-size: 0.9rem;
+  }
+}
+
+[data-brand-mark='emblem'] {
+  width: var(--mark-size);
+  height: var(--mark-size);
+  fill: var(--silver);
+}
+
+/*
+ * A brand recognised without an emblem - Mercedes-Benz above all - shows its
+ * name in the same place and the same silver, in capitals and tracked out so it
+ * reads as a mark rather than as a second copy of the heading. Two lines at
+ * most: "MERCEDES-BENZ" breaks after its hyphen, "LAND ROVER" at its space.
+ */
+[data-brand-mark='name'] {
+  width: var(--mark-name-width);
+  color: var(--silver);
+  font-size: var(--mark-name-size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* The mark's own width, its distance from the edge, and a gap before the text. */
+[data-card]:has(> [data-brand-mark='emblem']) {
+  padding-right: calc(4rem + 2.15rem);
+}
+
+li[data-card]:has(> [data-brand-mark='emblem']) {
+  padding-right: calc(3.5rem + 2.15rem);
+}
+
+[data-card]:has(> [data-brand-mark='name']) {
+  padding-right: calc(6rem + 2.15rem);
+}
+
+li[data-card]:has(> [data-brand-mark='name']) {
+  padding-right: calc(5.5rem + 2.15rem);
+}
+
+@media (min-width: 36rem) {
+  [data-card]:has(> [data-brand-mark='emblem']) {
+    padding-right: calc(6rem + 2.15rem);
+  }
+
+  li[data-card]:has(> [data-brand-mark='emblem']) {
+    padding-right: calc(4.25rem + 2.15rem);
+  }
+
+  [data-card]:has(> [data-brand-mark='name']) {
+    padding-right: calc(7.5rem + 2.15rem);
+  }
+
+  li[data-card]:has(> [data-brand-mark='name']) {
+    padding-right: calc(6.5rem + 2.15rem);
+  }
+}
+
 /* The h2 rule adds 2rem above every heading, which is right between sections of
  * prose and wrong at the top of a card. */
 ul[data-features] h2 {

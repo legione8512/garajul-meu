@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { DashboardView } from '../api/endpoints/dashboard.ts'
@@ -83,6 +83,48 @@ describe('dashboard', () => {
     expect(await screen.findByText(ro.documents.state.notConfigured)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: ro.dashboard.configure }))
       .toHaveAttribute('href', paths.documents('v1'))
+  })
+
+  /**
+   * The whole card opens the vehicle (2026-09-14). jsdom has no layout to tap,
+   * so the tap itself was checked in a browser; what this holds is the markup
+   * the stylesheet stretches: a marked card whose heading is the one link to the
+   * vehicle, and a documents link that is a separate link to its own screen.
+   */
+  it('makes the card one way to the vehicle, with the documents link still its own', async () => {
+    stubDashboard(() => jsonResponse(200, garage(
+      { type: 'RCA', status: 'NOT_CONFIGURED' },
+    )))
+
+    renderApp(paths.dashboard)
+
+    const name = await screen.findByRole('link', { name: 'Dacia Logan' })
+    const card = name.closest('[data-card-link]')
+
+    expect(card, 'the card is not marked for the stretched link').not.toBeNull()
+    expect(name.parentElement?.tagName).toBe('H2')
+    expect(name).toHaveAttribute('href', paths.vehicle('v1'))
+
+    const links = within(card as HTMLElement).getAllByRole('link')
+    expect(links.map(link => link.getAttribute('href')))
+      .toEqual([paths.vehicle('v1'), paths.documents('v1')])
+  })
+
+  /**
+   * The make's emblem on the right of the card (2026-09-14). Loaded on demand, so
+   * it arrives after the card; the fixture's Dacia is one Simple Icons carries.
+   */
+  it('shows the emblem of a make it knows', async () => {
+    stubDashboard(() => jsonResponse(200, garage(
+      { type: 'RCA', status: 'NOT_CONFIGURED' },
+    )))
+
+    renderApp(paths.dashboard)
+
+    const card = (await screen.findByRole('link', { name: 'Dacia Logan' })).closest('section')
+    await waitFor(() => {
+      expect(card?.querySelector('svg[data-brand-mark]')).not.toBeNull()
+    })
   })
 
   /**

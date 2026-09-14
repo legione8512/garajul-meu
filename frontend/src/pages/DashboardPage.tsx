@@ -7,6 +7,7 @@ import { useResource } from '../api/useResource.ts'
 import { dateFormatter, stateOf } from '../documents/status.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
+import { BrandMark } from '../vehicles/BrandMark.tsx'
 
 /**
  * Screen 6 in specification section 5, with the content section 27 asks of it:
@@ -17,6 +18,17 @@ import { paths } from '../routes/paths.ts'
  * car, which is the point rather than noise - it is the only place the
  * application says what it is for, and each vehicle carries a link to the screen
  * that answers it. An invitation, not an alarm.
+ *
+ * <p>The whole card opens the vehicle, since 2026-09-14 on an iPad, where a
+ * card the size of a hand answered only to the name in its corner. It is still
+ * one link - the name - stretched over the card by `data-card-link` in
+ * index.css, so a screen reader hears one link per vehicle, named by the
+ * vehicle. The documents link sits above the stretched area and goes where it
+ * says.
+ *
+ * <p>The make's emblem sits on the right of the card when the make is one
+ * `vehicles/brandMarks.ts` knows, and nothing sits there when it is not
+ * (2026-09-14, at the developer's request).
  */
 export function DashboardPage() {
   const { t, i18n } = useTranslation()
@@ -40,7 +52,7 @@ export function DashboardPage() {
       )}
 
       {data !== null && data.vehicles.map(vehicle => (
-        <section data-card key={vehicle.vehicleId}>
+        <section data-card data-card-link key={vehicle.vehicleId}>
           <h2>
             <Link to={paths.vehicle(vehicle.vehicleId)}>{vehicleLabel(vehicle)}</Link>
           </h2>
@@ -62,6 +74,8 @@ export function DashboardPage() {
           <p>
             <Link to={paths.documents(vehicle.vehicleId)}>{t('dashboard.configure')}</Link>
           </p>
+
+          <BrandMark make={vehicle.make} />
         </section>
       ))}
     </>

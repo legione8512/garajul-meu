@@ -5,6 +5,7 @@ import { vehicleLabel, vehiclesPath, type VehicleSummary } from '../api/endpoint
 import { useResource } from '../api/useResource.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
+import { BrandMark } from '../vehicles/BrandMark.tsx'
 
 /**
  * Screen 7 in specification section 5.
@@ -44,15 +45,20 @@ export function GaragePage() {
         whitespace between them - the garage read "Chevrolet AveoCT 10 DOC" from
         the day the screen was written. A heading and a subtitle say what each of
         them is, and cannot run together.
+
+        The whole card opens the vehicle, as on the dashboard: the name is the
+        one link, stretched over the card by data-card-link in index.css. The
+        make's emblem, when there is one, sits on the right as it does there.
       */}
       {data !== null && data.length > 0 && (
         <ul>
           {data.map(vehicle => (
-            <li data-card key={vehicle.id}>
+            <li data-card data-card-link key={vehicle.id}>
               <h2>
                 <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
               </h2>
               <p data-subtitle>{vehicle.registrationNumber}</p>
+              <BrandMark make={vehicle.make} />
             </li>
           ))}
         </ul>
