@@ -1108,6 +1108,115 @@ summary:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
+ * Certificate
+ *
+ * The one screen whose content is a picture of a document at a fixed pixel
+ * width, with fields laid over it at measured fractions. Both rules here exist
+ * because that picture is not a form in the page's column, and the rest of this
+ * file cannot know that.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * Out of the column, as wide as the screen allows and no wider than the
+ * template at the current zoom.
+ *
+ * Asked for on 2026-09-14 on a 12.9-inch iPad in landscape: every screen sits in
+ * `--measure`, and a 1280-pixel certificate seen through the 512 pixels of it
+ * left a dark band either side of a document that had to be panned. Only this
+ * container leaves; the title, the zoom controls and Save stay in the column,
+ * because they are text and text keeps its measure.
+ *
+ * `--certificate-width` is the template at the current zoom, set inline by
+ * CertificateOverlay. `max(100%, ...)` never lets the view get narrower than
+ * the column, so on a phone, where the screen is the limit, it computes to
+ * exactly the column it always had. The negative margin is half the difference
+ * on each side, which centres the view on the column, and the column is centred
+ * on the screen. The gutter keeps it off the edges and out of a notch in
+ * landscape.
+ */
+[data-certificate] {
+  --certificate-gutter: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  --certificate-view: max(100%, min(var(--certificate-width), 100vw - 2 * var(--certificate-gutter)));
+
+  width: var(--certificate-view);
+  margin-inline: calc((100% - var(--certificate-view)) / 2);
+  overflow: auto;
+}
+
+/*
+ * A field on the certificate is a line on a document, not a field in a form.
+ *
+ * Found on 2026-09-14 on an iPad, and then measured in Chrome, so not an iPad
+ * problem: the form rule above gives every input and textarea a 44-pixel
+ * min-height, 0.55rem of padding, a 1rem margin and a radius. A field box on the
+ * template is 22 pixels tall at 100%, so every field grew to twice its row,
+ * overlapped the one below, and set its text half a row under the line it
+ * belongs on. It had been like that in every browser since the form rule
+ * arrived with the design system on 2026-08-24, eight days after the overlay
+ * was calibrated.
+ *
+ * Two attribute selectors outrank the form rule's one, so this holds wherever
+ * it sits in the file. The box itself stays inline in CertificateOverlay,
+ * because it is data.
+ */
+[data-certificate] input:not([type='checkbox'], [type='radio']),
+[data-certificate] textarea {
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.25em;
+  border-radius: 0;
+}
+
+/*
+ * A certificate checkbox drawn like the printed one: a square in ink, and a tick
+ * in it when ticked. Asked for on 2026-09-14 with a photograph of exactly that.
+ *
+ * iOS drew the native control in the dark theme's colours - a solid black
+ * square when unticked - on a pale document, where solid reads as marked. Worse,
+ * the template prints a tick in the C2=C1 square, so a transparent control would
+ * always look ticked. So the box is painted with the paper's colour, sampled
+ * round both squares, which hides the printed tick, and the square and the tick
+ * are drawn again on top. The SVG's 26 by 19 grid is the box itself, measured in
+ * the template's pixels - see coordinates.ts - and stretches with the zoom.
+ *
+ * `display: block` matters as much as the drawing. A checkbox is inline, and the
+ * checkbox rule above aligns it to the middle of a line box - which inside a
+ * 19-pixel box is 25 pixels of line, so the control sat several pixels below the
+ * square it was meant to cover. That was also why the native control had looked
+ * dropped. Text fields never showed it because the form rule makes them blocks.
+ *
+ * The ink is DOCUMENT_INK from CertificateOverlay, #151321, written out because
+ * an SVG in a URL cannot read a variable. The focus ring stays the global one.
+ */
+[data-certificate] input[type='checkbox'] {
+  display: block;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  background: #e8f4ec url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 19' preserveAspectRatio='none'%3E%3Crect x='1.5' y='2.5' width='16' height='15' fill='none' stroke='%23151321' stroke-width='1.3'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+[data-certificate] input[type='checkbox']:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 19' preserveAspectRatio='none'%3E%3Crect x='1.5' y='2.5' width='16' height='15' fill='none' stroke='%23151321' stroke-width='1.3'/%3E%3Cpath d='M6.5 10 L10.5 15.5 L23.5 1.8' fill='none' stroke='%23151321' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/*
+ * iOS draws a date input as a native control with a width of its own, and on
+ * the iPad simulator on 2026-09-14 B, I and I.1 each ran past the right edge of
+ * their box by about a dozen pixels while every text field fitted. Without the
+ * native appearance the value is ordinary text in the box, and tapping still
+ * opens the date picker.
+ */
+[data-certificate] input[type='date'] {
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ---------------------------------------------------------------------------
  * Messages
  * ------------------------------------------------------------------------- */
 [role='alert'],

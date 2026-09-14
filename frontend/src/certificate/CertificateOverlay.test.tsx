@@ -74,6 +74,88 @@ describe('CertificateOverlay', () => {
   })
 
   /**
+   * index.css lets the certificate out of the page's column, as wide as the
+   * screen and the zoomed template allow, and it can only know the second from
+   * this number. jsdom has no layout, so the width itself was measured in Chrome
+   * and on the iPad simulator on 2026-09-14; what this holds is the number the
+   * stylesheet is handed, which a zoom that forgot to update it would get wrong.
+   */
+  it('hands the stylesheet the template width at the current zoom', async () => {
+    show()
+
+    const view = document.querySelector<HTMLElement>('[data-certificate]')
+    expect(view, 'no [data-certificate] container for index.css to widen').not.toBeNull()
+    expect(view?.style.getPropertyValue('--certificate-width')).toBe('1280px')
+
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomIn }))
+    expect(view?.style.getPropertyValue('--certificate-width')).toBe('1600px')
+
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomReset }))
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomOut }))
+    expect(view?.style.getPropertyValue('--certificate-width')).toBe('960px')
+  })
+
+  /**
+   * Zooming out used to shrink the boxes and not the words in them, so a value
+   * showed as a slice of itself (2026-09-14). The text is part of the document
+   * and scales with it.
+   */
+  it('the text in the fields grows and shrinks with the template', async () => {
+    show()
+
+    const make = screen.getByLabelText(ro.certificate.fields.make)
+    expect(make.style.fontSize).toBe('16px')
+
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomOut }))
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomOut }))
+    expect(make.style.fontSize).toBe('8px')
+
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomReset }))
+    await userEvent.click(screen.getByRole('button', { name: ro.certificate.zoomIn }))
+    expect(make.style.fontSize).toBe('20px')
+  })
+
+  /**
+   * Nothing on the template used to say which parts of it were fields
+   * (2026-09-14). Every field now has a visible edge, and an empty one a fill,
+   * so the difference between "you can write here" and "you still have to" is
+   * on the page before anybody taps.
+   */
+  it('shows every field as a field, and an empty one as still to fill', () => {
+    show()
+
+    const make = screen.getByLabelText(ro.certificate.fields.make)
+    const colour = screen.getByLabelText(ro.certificate.fields.colour)
+
+    expect(make.style.border).not.toContain('transparent')
+    expect(colour.style.border).toBe(make.style.border)
+
+    expect(make.style.background).toBe('transparent')
+    expect(colour.style.background).not.toBe('transparent')
+    expect(colour.style.background).not.toBe('')
+  })
+
+  /**
+   * The form rule in index.css gives every input a 44-pixel minimum height, and
+   * on the template that doubled each 22-pixel field and set its text half a row
+   * low (2026-09-14). The stylesheet undoes it for fields inside
+   * `[data-certificate]` and only there - so a field rendered outside that
+   * container would quietly get the defect back. jsdom applies no stylesheet, so
+   * the containment is the part a test can hold.
+   */
+  it('every field sits inside the container the stylesheet resets', () => {
+    show()
+
+    const view = document.querySelector('[data-certificate]')
+    const fields = document.querySelectorAll('input, textarea')
+
+    expect(fields.length).toBeGreaterThan(30)
+    for (const field of fields) {
+      expect(view?.contains(field), field.id).toBe(true)
+    }
+  })
+
+  /**
    * The state is drawn as a line style and also said in words. Asserting the
    * words is what makes this a test rather than a screenshot: a border is
    * invisible to anyone not looking at the picture, and section 7's three states

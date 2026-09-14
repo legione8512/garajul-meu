@@ -35,6 +35,25 @@ const MAX_SCALE = 3
 const STEP = 0.25
 
 /**
+ * The size of the text in a field at 100%, and at every other zoom this times
+ * the zoom.
+ *
+ * <p><strong>Found on 2026-09-14 on an iPad.</strong> Zooming out shrank the
+ * template and its boxes but not the words in them: every field inherited the
+ * page's 16 pixels, so at 50% a box eleven pixels tall held text sixteen pixels
+ * tall and showed a slice of it. Zooming is enlarging a document, and the text
+ * written on a document is part of it.
+ *
+ * <p>Sixteen at 100% because that is what the fields had and what the
+ * calibration was checked against: a box is 22 pixels tall there. Below 100%
+ * the text is smaller than iOS likes an input to be, and iOS zooms the page when
+ * such an input is focused. The native build locks the page scale for exactly
+ * that reason and more - see `layouts/pageScale.ts`; a mobile browser keeps its
+ * pinch, so its visitor can zoom back out.
+ */
+const FIELD_FONT_PX = 16
+
+/**
  * Ink on the template, and <strong>deliberately not `--text`</strong>.
  *
  * <p>Every other colour in this application is a token in `index.css`, because
@@ -57,6 +76,24 @@ const STEP = 0.25
  */
 const DOCUMENT_INK = '#151321'
 
+/**
+ * Where a person can write, and where they still have to: the edge of every
+ * field, and the fill of an empty one. Chosen by the developer on 2026-09-14 on
+ * an iPad, from three drawn variants, after noticing that nothing on the
+ * template said which parts of it were fields at all.
+ *
+ * <p>Local constants for the same reason as {@link DOCUMENT_INK}: they are drawn
+ * on a photograph of a document, not on a surface the palette controls. The
+ * edge is the brand violet at full strength, because at 85% it measured under
+ * 4:1 on the yellow; at full strength it measures 5.5:1 against the palest paper
+ * under any field and 4.6:1 on the fill, both above the 3:1 WCAG 1.4.11 asks of
+ * a control's boundary. The ink on the fill measures 12.9:1 on the darkest paper.
+ * The fill itself is not what identifies the field - the edge is - so its own
+ * low contrast with the paper is a highlight, not a boundary.
+ */
+const EDITABLE_EDGE = '#7c3aed'
+const EMPTY_FILL = 'rgba(250, 204, 21, 0.45)'
+
 const percent = (fraction: number) => `${(fraction * 100).toFixed(4)}%`
 
 /**
@@ -73,13 +110,14 @@ const SCAN_OUTLINE: Record<ScanStatus, string> = {
 
 /**
  * A validation problem outranks a scan state: one is something to fix, the other
- * something to know, and a box can only say one thing at a time.
+ * something to know, and a box can only say one thing at a time. A field with
+ * neither says only that it is a field, in {@link EDITABLE_EDGE}.
  */
 function outlineFor(hasMessage: boolean, status: ScanStatus | undefined): string {
   if (hasMessage) {
     return '2px solid currentColor'
   }
-  return status === undefined ? '1px solid transparent' : SCAN_OUTLINE[status]
+  return status === undefined ? `1px solid ${EDITABLE_EDGE}` : SCAN_OUTLINE[status]
 }
 
 /**
@@ -164,7 +202,14 @@ export function CertificateOverlay({ form, messages, statuses, onChange }: Certi
         <span role="status">{t('certificate.zoomLevel', { percent: Math.round(scale * 100) })}</span>
       </div>
 
-      <div style={{ overflow: 'auto', maxWidth: '100%' }}>
+      {/*
+        `data-certificate` is what index.css reads twice: to let this one
+        container out of the page's column, as wide as the screen and the zoomed
+        template allow, and to stop the form rule shaping the fields below as if
+        they were a form. The width is handed over as a custom property because
+        the zoom lives here and the arithmetic belongs to the stylesheet.
+      */}
+      <div data-certificate style={{ '--certificate-width': `${String(TEMPLATE_WIDTH * scale)}px` } as CSSProperties}>
         <div style={{ position: 'relative', width: TEMPLATE_WIDTH * scale }}>
           <img src={template} alt="" style={{ display: 'block', width: '100%' }} />
 
@@ -202,11 +247,12 @@ export function CertificateOverlay({ form, messages, statuses, onChange }: Certi
               width: '100%',
               height: '100%',
               boxSizing: 'border-box',
-              background: 'transparent',
+              background: value === '' ? EMPTY_FILL : 'transparent',
               // Both the typed value and, through currentColor, the scan outline.
               color: DOCUMENT_INK,
               border: outlineFor(message !== undefined, status),
-              font: 'inherit',
+              fontFamily: 'inherit',
+              fontSize: `${String(FIELD_FONT_PX * scale)}px`,
             }
 
             return (
