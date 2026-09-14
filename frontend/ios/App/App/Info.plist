@@ -36,10 +36,16 @@
 	    by reading what the plugin actually declares rather than what the
 	    documentation says an application should call.
 
-	    NSPhotoLibraryAddUsageDescription is deliberately absent. It is required
-	    only for writing to the library, and nativeCamera.ts passes saveToGallery
-	    false - so asking for it would be requesting a permission the application
-	    has decided not to use.
+	    NSPhotoLibraryAddUsageDescription is declared, and this application still
+	    never writes to the library: nativeCamera.ts passes saveToGallery false.
+	    It was deliberately absent until 2026-09-14. The gallery now goes through
+	    the plugin's getPhoto, because chooseFromGallery hands over HEIC originals
+	    the server refuses, and getPhoto rejects the call before showing anything
+	    unless all three of these keys exist - read in CameraPlugin.swift,
+	    checkUsageDescriptions. Declaring a purpose asks the user nothing; iOS
+	    shows the string only if the application asks to add a photo, which it
+	    does not. Remove it together with getPhoto, see the TRIGGER in
+	    nativeCamera.ts.
 
 	    WRITTEN IN ROMANIAN, and it is a known gap rather than a choice made
 	    lightly. These are user-facing strings in a project whose rule is that no
@@ -55,16 +61,21 @@
 	<string>Pentru a fotografia talonul mașinii și a completa datele automat, sau pentru a adăuga o poză vehiculului.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pentru a alege o fotografie a talonului sau a mașinii din pozele tale.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Garajul Meu nu salvează nimic în pozele tale. Doar citește fotografia pe care o alegi tu.</string>
 
 	<!--
 	    Stops iOS from raising its own limited-access alert automatically, each
 	    time the application reaches the library while access is limited to
-	    chosen photos. The camera plugin's chooseFromGallery always asks for
-	    library access and draws its own grid, which already offers a way to add
-	    photos. On 2026-09-11 the alert on top of it sent the developer to
-	    Settings, and changing a privacy setting terminates the application,
-	    which looked exactly like a crash. The plugin's older picker needs no
-	    permission at all but is deprecated; this keeps the supported one.
+	    chosen photos. On 2026-09-11 the alert sent the developer to Settings,
+	    and changing a privacy setting terminates the application, which looked
+	    exactly like a crash.
+
+	    Still needed after the gallery moved to getPhoto on 2026-09-14. Until
+	    then this comment said the older picker needs no permission at all, and
+	    that was wrong: getPhoto asks for library access before it opens the system
+	    picker, and looks the chosen asset up in the library afterwards for its
+	    metadata. Both are the library access this alert fires on.
 	-->
 	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
 	<true/>

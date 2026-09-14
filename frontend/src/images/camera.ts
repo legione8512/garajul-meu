@@ -22,8 +22,14 @@ export interface Camera {
    */
   takePhoto(quality: number): Promise<File | null>
 
-  /** An existing picture, or `null` if the person changed their mind. */
-  chooseFromGallery(): Promise<File | null>
+  /**
+   * An existing picture as a JPEG, or `null` if the person changed their mind.
+   *
+   * <p>Takes the same `quality` as `takePhoto` because a picture from the
+   * gallery is re-encoded too: it may be HEIC, which the server does not keep.
+   * `nativeCamera.ts` says how that was found and what the re-encoding costs.
+   */
+  chooseFromGallery(quality: number): Promise<File | null>
 }
 
 export const camera: Camera | null =

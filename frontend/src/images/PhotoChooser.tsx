@@ -6,7 +6,10 @@ import { camera } from './camera.ts'
 interface PhotoChooserProps {
   /** What this control offers to do, in the words of the screen it sits on. */
   label: string
-  /** The capture quality for the camera path. Ignored where there is no camera. */
+  /**
+   * The JPEG quality for the camera and for a picture from the gallery, which
+   * is re-encoded as well. Ignored where there is no camera.
+   */
   quality: number
   disabled?: boolean
   onChosen: (file: File) => void
@@ -33,6 +36,11 @@ interface PhotoChooserProps {
  * asks the question itself - which it would have wanted anyway, since the
  * plugin's dialog needed its labels translated through `promptLabel*` to say
  * what two ordinary buttons say for free.
+ *
+ * <p>The gallery button is served by `getPhoto` underneath all the same, and
+ * not by `chooseFromGallery`: the supported method hands over the original file,
+ * which from an iPhone or an iPad is HEIC and is refused by the server.
+ * `nativeCamera.ts` holds the finding and its TRIGGER.
  *
  * <p>Both buttons are quiet. They replace a control that was never a screen's
  * primary action, and making them louder than the Save beneath them would say
@@ -72,7 +80,7 @@ export function PhotoChooser({ label, quality, disabled, onChosen }: PhotoChoose
           data-quiet
           type="button"
           disabled={disabled}
-          onClick={() => { void fromCamera(() => device.chooseFromGallery()) }}
+          onClick={() => { void fromCamera(() => device.chooseFromGallery(quality)) }}
         >
           {t('photo.fromGallery')}
         </button>

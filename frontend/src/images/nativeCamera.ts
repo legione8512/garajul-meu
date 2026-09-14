@@ -15,6 +15,10 @@ import type { Camera } from './camera.ts'
  * about not capturing an eight-megabyte JPEG in order to re-encode it a moment
  * later.
  *
+ * <p>The same number goes to the gallery, where it is the quality of the JPEG
+ * the picture is re-encoded into - see `chooseFromGallery` below for why a
+ * picture from the gallery is re-encoded at all.
+ *
  * <p><strong>No `targetWidth` or `targetHeight` on either path.</strong> The
  * plugin can resize, and `withinCeiling` already does. Two size limiters is two
  * places for the rules to disagree, and the one that exists is the one the
@@ -85,9 +89,54 @@ export const nativeCamera: Camera = {
     return photo.webPath
   }),
 
-  chooseFromGallery: () => attempt(async () => {
-    const { Camera: plugin } = await import('@capacitor/camera')
-    const chosen = await plugin.chooseFromGallery({ allowMultipleSelection: false })
-    return chosen.results[0]?.webPath
+  /**
+   * <strong>Through the deprecated `getPhoto`, on purpose, because the
+   * supported `chooseFromGallery` hands over the original file.</strong>
+   *
+   * <p>Found on 2026-09-14 on an iPad, where every photograph taken by an
+   * iPhone or an iPad is HEIC. `chooseFromGallery` in plugin 8.2.4 answers with
+   * the asset's own full-size file - ion-ios-camera 2.0.0 reads it through
+   * `requestContentEditingInput` and `fullSizeImageURL` - so the HEIC reached the
+   * server unchanged, and the server keeps JPEG and PNG only: the upload came
+   * back IMAGE_INVALID_TYPE. The same happens on an iPhone with any photograph
+   * its own camera took; the iPhone run on 2026-09-11 had simply picked a
+   * picture that was already a JPEG.
+   *
+   * <p>`getPhoto` with `CameraSource.Photos` decodes the chosen picture and
+   * writes a JPEG at `quality`, whatever the picture was. Read in the plugin on
+   * 2026-09-14: on iOS it is `PHPickerViewController`, a `UIImage` and
+   * `generateJPEG`; on Android it is the system photo picker, a `Bitmap` and
+   * `Bitmap.CompressFormat.JPEG`. `correctOrientation` draws the image upright,
+   * which the certificate scan needs anyway.
+   *
+   * <p>The alternatives, and why not. Re-encoding in the page needs the WebView
+   * to decode HEIC first, which is not something to count on in WebKit on
+   * iPadOS 16 or in Android's WebView. Accepting HEIC on the server needs a
+   * decoder Java does not ship, and a format policy the specification does not
+   * have.
+   *
+   * <p>What it costs, stated so nobody rediscovers it:
+   * - It is deprecated. It works in Capacitor 8 and may not exist in 9.
+   * - It still asks for photo-library access before it opens the picker, even
+   *   though the picker itself would not need it.
+   * - On iOS it refuses to open at all unless Info.plist declares
+   *   NSPhotoLibraryAddUsageDescription, a key for writing to the library that
+   *   this application never does. `attempt` above would turn that refusal
+   *   into a button that does nothing, which is why Info.plist declares it and
+   *   says why.
+   *
+   * <p>TRIGGER for returning to `chooseFromGallery`: the Capacitor 9 upgrade,
+   * or ion-ios-camera handing back a JPEG for a HEIC asset - check by choosing a
+   * photograph an iPhone's camera took and uploading it as the vehicle photo.
+   */
+  chooseFromGallery: quality => attempt(async () => {
+    const { Camera: plugin, CameraResultType, CameraSource } = await import('@capacitor/camera')
+    const photo = await plugin.getPhoto({
+      source: CameraSource.Photos,
+      resultType: CameraResultType.Uri,
+      quality,
+      correctOrientation: true,
+    })
+    return photo.webPath
   }),
 }
