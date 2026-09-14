@@ -228,6 +228,80 @@ describe('reporting the device at launch', () => {
   })
 
   /**
+   * The iPad on 2026-09-14: permission given, and the red error at once, because
+   * Firebase refuses a token until APNs has answered - which on a fresh
+   * installation takes some seconds. The refusal is asked again, and the
+   * registration that follows is the ordinary one.
+   */
+  it('asks again for a token the platform refused, and registers the one that comes', async () => {
+    vi.useFakeTimers()
+    const device = phone('granted', { platform: 'IOS' })
+    device.token
+      .mockRejectedValueOnce(new Error('No APNS token specified before fetching FCM Token'))
+      .mockRejectedValueOnce(new Error('No APNS token specified before fetching FCM Token'))
+    seam.push = device
+
+    const outcome = reportDevice()
+
+    await vi.advanceTimersByTimeAsync(4_000)
+    await outcome
+
+    expect(device.token).toHaveBeenCalledTimes(3)
+    expect(registerDevice).toHaveBeenCalledTimes(1)
+    expect(registerDevice).toHaveBeenCalledWith({
+      platform: 'IOS',
+      pushToken: 'an-fcm-token',
+      notificationsEnabled: true,
+    })
+  })
+
+  /**
+   * Not a tight loop. Two refusals in the same instant would mean the pause had
+   * gone, and the plugin being called as fast as the bridge can carry it.
+   */
+  it('pauses between attempts rather than asking again at once', async () => {
+    vi.useFakeTimers()
+    const device = phone('granted')
+    device.token.mockRejectedValue(new Error('No APNS token specified before fetching FCM Token'))
+    seam.push = device
+
+    const outcome = reportDevice()
+    outcome.catch(() => {})
+
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(device.token).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(device.token).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(30_000)
+  })
+
+  /**
+   * A refusal that never turns into a token is still reported, inside the same
+   * thirty seconds, and with the platform's own reason rather than a timeout
+   * that did not happen.
+   */
+  it('reports a refusal that keeps coming, within the thirty seconds', async () => {
+    vi.useFakeTimers()
+    const device = phone('granted')
+    device.token.mockRejectedValue(new Error('No APNS token specified before fetching FCM Token'))
+    seam.push = device
+
+    const outcome = reportDevice()
+    const settled = vi.fn()
+    outcome.then(settled, settled)
+
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(settled).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    await expect(outcome).rejects.toThrow('No APNS token')
+    expect(registerDevice).not.toHaveBeenCalled()
+    expect(localStorage.getItem(REGISTERED_TOKEN)).toBeNull()
+  })
+
+  /**
    * The launch report and screen 18 can ask at the same moment. One question:
    * one token minted, one registration sent, one answer for both.
    */

@@ -1,6 +1,6 @@
 import { registerDevice, type DeviceView } from '../api/endpoints/devices.ts'
 
-import { push } from './push.ts'
+import { push, type Push } from './push.ts'
 
 /**
  * The token this installation last registered, so a refusal can be reported
@@ -27,6 +27,31 @@ const REGISTERED_TOKEN = 'garajul-meu.push-token'
  */
 const TOKEN_TIMEOUT_MS = 30_000
 
+/**
+ * The pause before asking the platform for a token again, inside the same
+ * {@link TOKEN_TIMEOUT_MS}.
+ *
+ * <p><strong>Found on 2026-09-14, on an iPad the application had just been
+ * installed on.</strong> Screen 18 asked for the permission, was given it, and
+ * showed the red "try again later" at once; going back and opening the screen
+ * again showed notifications on. `getToken()` had not hung - it had refused.
+ * Firebase declines an FCM token until APNs has handed the application its
+ * device token, answering "No APNS token specified before fetching FCM Token"
+ * straight away (read in FIRMessagingTokenManager.m, Firebase iOS SDK 12.19.1),
+ * and on a fresh installation APNs answers some seconds after launch. By the
+ * second visit it had. The iPhone never showed this; nothing recorded says why,
+ * and the likeliest reason is that APNs had already answered by the time the
+ * screen was opened.
+ *
+ * <p>So a refusal is asked again rather than reported, and every refusal is:
+ * matching on Firebase's wording would tie this file to text Firebase is free to
+ * change, and a failure that is not transient costs only the wait before the
+ * same error. Two seconds is a bound rather than a measurement - long enough not
+ * to call the plugin in a tight loop, short enough that a registration arriving
+ * a moment after the refusal is used by the very next attempt.
+ */
+const TOKEN_RETRY_MS = 2_000
+
 function remembered(): string | null {
   try {
     return localStorage.getItem(REGISTERED_TOKEN)
@@ -48,12 +73,12 @@ function remember(token: string): void {
   }
 }
 
-/** `token`, or a rejection once {@link TOKEN_TIMEOUT_MS} has passed without one. */
-function withinDeadline(token: Promise<string>): Promise<string> {
+/** `token`, or a rejection once `ms` have passed without one. */
+function withinDeadline(token: Promise<string>, ms: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`The platform issued no push token within ${TOKEN_TIMEOUT_MS} ms`))
-    }, TOKEN_TIMEOUT_MS)
+    }, ms)
 
     token.then(
       (value) => {
@@ -66,6 +91,37 @@ function withinDeadline(token: Promise<string>): Promise<string> {
       },
     )
   })
+}
+
+function pause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+/**
+ * The platform's token, asked again after each refusal until one arrives or
+ * {@link TOKEN_TIMEOUT_MS} has passed since the first request.
+ *
+ * <p>One deadline for all the attempts rather than one per attempt: a request
+ * that never settles uses up the whole of it, exactly as before retrying
+ * existed, and a string of quick refusals ends when no further attempt fits. The
+ * rejection is the last one the platform gave, or the timeout.
+ */
+async function tokenWithinDeadline(device: Push): Promise<string> {
+  const deadline = Date.now() + TOKEN_TIMEOUT_MS
+
+  for (;;) {
+    try {
+      return await withinDeadline(device.token(), deadline - Date.now())
+    }
+    catch (reason) {
+      if (Date.now() + TOKEN_RETRY_MS >= deadline) {
+        throw reason
+      }
+      await pause(TOKEN_RETRY_MS)
+    }
+  }
 }
 
 /**
@@ -162,7 +218,7 @@ async function report(): Promise<DeviceView | null> {
     })
   }
 
-  const token = await withinDeadline(device.token())
+  const token = await tokenWithinDeadline(device)
   remember(token)
 
   return registerDevice({

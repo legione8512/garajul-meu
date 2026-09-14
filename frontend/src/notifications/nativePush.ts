@@ -20,6 +20,9 @@ import type { Push, PushPermission } from './push.ts'
  * is a promise. <strong>It is not a promise that always settles</strong>: on iOS
  * it waits for an APNs registration, and a failed one reaches nothing
  * (`63db063`), so the bound lives in `reportDevice`, the one caller of `token()`.
+ * Nor is it one that succeeds the first time on a fresh installation: asked
+ * before APNs has answered, Firebase refuses at once, which is why
+ * `reportDevice` asks again inside that same bound (2026-09-14).
  */
 
 /** See `PushPermission`: two of Capacitor's four states mean the same thing here. */
