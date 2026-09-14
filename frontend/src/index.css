@@ -307,16 +307,24 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
+/*
+ * Larger, and violet from its first letter, since 2026-09-14: the developer
+ * chose it from three drawn variants. The gradient runs from a pale lilac
+ * through --brand-bright to #8b5cf6 rather than to --brand, because at 24
+ * pixels and this weight the wordmark is large text, which needs 3:1, and
+ * --brand measures 2.97:1 on --surface where #8b5cf6 measures 4.0:1. The pale
+ * start measures 12.5:1.
+ */
 header > a:first-child {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   letter-spacing: 0.01em;
     /* Two words, one line. The bar shrinks the select instead, which has an
    * obvious minimum where a name has none. */
   white-space: nowrap;
   text-decoration: none;
   color: var(--silver);
-  background: linear-gradient(100deg, var(--silver) 40%, var(--brand-bright));
+  background: linear-gradient(100deg, #e9d5ff 0%, var(--brand-bright) 38%, #8b5cf6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -364,6 +372,21 @@ footer {
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 0.875rem;
+}
+
+/*
+ * No underline at rest, since 2026-09-14 at the developer's request. The footer
+ * holds nothing but links, set apart in their own bar and in the link colour,
+ * so the underline was not what said they were links - WCAG 1.4.1 is about a
+ * link inside running text. It comes back on hover and on keyboard focus.
+ */
+footer > a {
+  text-decoration: none;
+}
+
+footer > a:hover,
+footer > a:focus-visible {
+  text-decoration: underline;
 }
 
 /* ---------------------------------------------------------------------------
@@ -472,8 +495,28 @@ form[data-panel] ~ [data-actions] {
 
 /* The landing page is the one screen where the actions carry the whole weight
  * of the page, and it earns the extra room beneath them. */
+/*
+ * The landing page's two ways in, as two equal halves of the column, larger
+ * than a form's buttons. Chosen by the developer on 2026-09-14 from three drawn
+ * variants: aligned left at their own widths they looked unfinished under a
+ * centred picture. Below 22rem the halves are too narrow for "Creează un cont"
+ * on one line, and they stack.
+ */
 main > [data-hero] ~ [data-actions] {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 2.5rem;
+}
+
+main > [data-hero] ~ [data-actions] > a[data-action] {
+  min-height: 3.25rem;
+  font-size: 1.075rem;
+}
+
+@media (max-width: 22rem) {
+  main > [data-hero] ~ [data-actions] {
+    grid-template-columns: 1fr;
+  }
 }
 
 a[data-action] {

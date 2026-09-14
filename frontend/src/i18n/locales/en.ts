@@ -217,9 +217,9 @@ export const en: typeof ro = {
   },
   reminders: {
     title: 'Notifications',
-    webOnly: 'Push notifications arrive in the phone application. Here on the web, '
+    webOnly: 'Push notifications arrive in the mobile app. Here on the web, '
       + 'document status is always visible on the dashboard.',
-    byNotification: 'Reminders arrive as phone notifications, when they are turned on.',
+    byNotification: 'Reminders arrive as notifications on your device, when they are turned on.',
     manage: 'See notification settings',
     none: 'No reminders scheduled for this document.',
     lead: {
@@ -291,21 +291,21 @@ export const en: typeof ro = {
     saved: 'Your preferences have been saved.',
   },
   notifications: {
-    lead: 'To warn you before a document expires, your phone has to let us send '
+    lead: 'To warn you before a document expires, your device has to let us send '
       + 'you notifications.',
     what: 'You will only get reminders about your own vehicles\' documents, at '
       + 'the times you choose. Nothing else.',
     enable: 'Turn on notifications',
-    checking: 'Checking that reminders can reach this phone…',
-    enabling: 'Turning on notifications for this phone…',
-    granted: 'Notifications are on for this phone.',
-    notActive: 'Notifications are not on for this phone yet.',
-    paused: 'Reminders are off. We send you nothing, on any phone, until you turn '
+    checking: 'Checking that reminders can reach this device…',
+    enabling: 'Turning on notifications for this device…',
+    granted: 'Notifications are on for this device.',
+    notActive: 'Notifications are not on for this device yet.',
+    paused: 'Reminders are off. We send you nothing, on any device, until you turn '
       + 'them back on.',
-    denied: 'You turned notifications down, and your phone will not let us ask a '
-      + 'second time. You can turn them back on in your phone\'s settings, under '
+    denied: 'You turned notifications down, and your device will not let us ask a '
+      + 'second time. You can turn them back on in your device\'s settings, under '
       + 'notifications for Garajul Meu.',
-    webOnly: 'Push notifications only arrive in the phone application. Here on '
+    webOnly: 'Push notifications only arrive in the mobile app. Here on '
       + 'the web, document status is always visible on the dashboard.',
   },
   forgotPassword: {
@@ -346,7 +346,7 @@ export const en: typeof ro = {
   features: {
     lead: 'Everything the application does, explained. Nothing here is planned or '
       + 'promised - all of it works today.',
-    readMore: 'See everything the application does',
+    readMore: 'Learn more about the app',
     garage: {
       title: 'The garage',
       body: 'Add as many vehicles as you own. Each keeps its own identity - plate, '
@@ -383,8 +383,8 @@ export const en: typeof ro = {
       title: 'Reminders',
       body: 'Reminders are prepared for every document at thirty, fourteen and seven '
         + 'days before it expires, and you choose which of them you want and at what '
-        + 'time of day. For now you see them in the application; notifications on '
-        + 'your phone arrive with the Android app.',
+        + 'time of day. You can see them beside each document at any time, and the '
+        + 'mobile app also sends them to you as notifications.',
     },
     account: {
       title: 'Your account and your data',
@@ -415,7 +415,7 @@ export const en: typeof ro = {
     forgotPassword: 'Forgot your password',
     resetPassword: 'New password',
     notFound: 'Page not found',
-    features: 'What the application does',
+    features: 'About the app',
     dashboard: 'Home',
     garage: 'My garage',
     profile: 'Profile',

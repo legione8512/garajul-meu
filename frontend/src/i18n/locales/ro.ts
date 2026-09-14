@@ -228,10 +228,12 @@ export const ro = {
     // does instead. Both halves are said here because a screen listing "sent"
     // reminders without the first half is telling every current user something
     // false about their own car.
-    webOnly: 'Notificările push ajung în aplicația de telefon. Aici, pe web, '
+    // "Dispozitiv" and "aplicația mobilă" rather than "telefon" since
+    // 2026-09-14, when the application ran on an iPad and said "phone" to it.
+    webOnly: 'Notificările push ajung în aplicația mobilă. Aici, pe web, '
       + 'starea documentelor e mereu vizibilă pe tabloul de bord.',
     // Names the channel, not the state of this phone - see PushChannelNote.
-    byNotification: 'Memento-urile ajung ca notificări pe telefon, dacă sunt pornite.',
+    byNotification: 'Memento-urile ajung ca notificări pe dispozitivul tău, dacă sunt pornite.',
     manage: 'Vezi setările de notificare',
     none: 'Niciun reminder programat pentru acest document.',
     lead: {
@@ -306,7 +308,7 @@ export const ro = {
     saved: 'Preferințele au fost salvate.',
   },
   notifications: {
-    lead: 'Ca să te anunțăm înainte să expire un document, telefonul trebuie să '
+    lead: 'Ca să te anunțăm înainte să expire un document, dispozitivul trebuie să '
       + 'ne lase să îți trimitem notificări.',
     // Names no place: the preferences left the profile on 2026-09-11, and on a
     // phone that refuses they are not shown at all.
@@ -314,21 +316,21 @@ export const ro = {
       + 'termenele alese de tine. Nimic altceva.',
     enable: 'Activează notificările',
     // Screen 18 while the registration runs: on arrival, then after the button.
-    checking: 'Verificăm dacă memento-urile pot ajunge pe acest telefon…',
-    enabling: 'Activăm notificările pe acest telefon…',
+    checking: 'Verificăm dacă memento-urile pot ajunge pe acest dispozitiv…',
+    enabling: 'Activăm notificările pe acest dispozitiv…',
     // Only once the server's answer holds this phone as able - never on the
     // permission alone. See NotificationPermissionPage.
-    granted: 'Notificările sunt activate pe acest telefon.',
-    notActive: 'Notificările nu sunt încă active pe acest telefon.',
+    granted: 'Notificările sunt activate pe acest dispozitiv.',
+    notActive: 'Notificările nu sunt încă active pe acest dispozitiv.',
     // The account's switch is off - see NotificationPreferences, where it is set.
-    paused: 'Memento-urile sunt oprite. Nu îți trimitem nimic, pe niciun telefon, '
+    paused: 'Memento-urile sunt oprite. Nu îți trimitem nimic, pe niciun dispozitiv, '
       + 'până nu le pornești din nou.',
     // Names no platform since 2026-09-11: it said Android, written when only
     // Android existed, and iOS asks once as well.
-    denied: 'Ai refuzat notificările, iar telefonul nu ne mai lasă să întrebăm a '
-      + 'doua oară. Le poți reactiva din setările telefonului, la notificările '
+    denied: 'Ai refuzat notificările, iar dispozitivul nu ne mai lasă să întrebăm a '
+      + 'doua oară. Le poți reactiva din setările dispozitivului, la notificările '
       + 'aplicației Garajul Meu.',
-    webOnly: 'Notificările push ajung doar în aplicația de telefon. Aici, pe '
+    webOnly: 'Notificările push ajung doar în aplicația mobilă. Aici, pe '
       + 'web, starea documentelor e mereu vizibilă pe tabloul de bord.',
   },
   forgotPassword: {
@@ -369,7 +371,7 @@ export const ro = {
   features: {
     lead: 'Fiecare lucru pe care îl face aplicația, explicat. Nimic din ce scrie '
       + 'aici nu e în lucru sau promis — toate funcționează azi.',
-    readMore: 'Vezi tot ce face aplicația',
+    readMore: 'Află mai multe despre aplicație',
     garage: {
       title: 'Garajul',
       body: 'Adaugi oricâte vehicule. Fiecare are datele lui de identificare — număr '
@@ -405,8 +407,8 @@ export const ro = {
       title: 'Memento-uri',
       body: 'Pentru fiecare document se pregătesc memento-uri cu 30, 14 și 7 zile '
         + 'înainte de expirare, iar tu alegi care dintre ele vrei și la ce oră. '
-        + 'Deocamdată le vezi în aplicație; notificările pe telefon vin odată cu '
-        + 'aplicația de Android.',
+        + 'Le vezi oricând la fiecare document, iar aplicația mobilă ți le trimite '
+        + 'și ca notificări.',
     },
     account: {
       title: 'Contul și datele tale',
@@ -440,7 +442,7 @@ export const ro = {
     forgotPassword: 'Ai uitat parola',
     resetPassword: 'Parolă nouă',
     notFound: 'Pagina nu există',
-    features: 'Ce face aplicația',
+    features: 'Despre aplicație',
     dashboard: 'Acasă',
     garage: 'Garajul meu',
     profile: 'Profil',
