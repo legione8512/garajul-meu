@@ -1294,6 +1294,40 @@ summary:focus-visible {
 }
 
 /* ---------------------------------------------------------------------------
+ * Legal documents
+ *
+ * The privacy policy's table of providers is the only table in the
+ * application. On a phone its three columns wrap rather than scroll: a first
+ * version held them at 30rem and scrolled, and on a 390-pixel screen the
+ * "where" column - the one a reader of a privacy policy is looking for - was cut
+ * off with nothing to say it could be reached (2026-09-14). The box still
+ * scrolls, as a last resort for a word too long to wrap.
+ * ------------------------------------------------------------------------- */
+[data-legal-table] {
+  overflow-x: auto;
+  margin: 0 0 1rem;
+}
+
+[data-legal-table] table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+[data-legal-table] th,
+[data-legal-table] td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+[data-legal-table] thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
  * Certificate
  *
  * The one screen whose content is a picture of a document at a fixed pixel

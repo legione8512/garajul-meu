@@ -410,6 +410,10 @@ export const ro = {
         + 'Le vezi oricând la fiecare document, iar aplicația mobilă ți le trimite '
         + 'și ca notificări.',
     },
+    contact: {
+      title: 'Contact',
+      body: 'Ai o întrebare, o problemă sau o sugestie? Scrie-ne la',
+    },
     account: {
       title: 'Contul și datele tale',
       body: 'Aplicația e în română și în engleză, iar limba te urmează de pe un '
@@ -422,17 +426,9 @@ export const ro = {
   legal: {
     terms: 'Termeni și condiții',
     privacy: 'Politica de confidențialitate',
-    // Announces itself as unfinished on purpose. Plausible invented wording is
-    // what ships by accident; this cannot be mistaken for a finished document.
-    placeholder: 'TEXT PROVIZORIU. Acest document nu are încă formularea legală '
-      + 'finală și nu produce efecte. Secțiunea 24 îl face obligatoriu înainte de '
-      + 'lansarea publică.',
-    termsScope: 'Aici vor sta condițiile de utilizare a aplicației: ce oferă, ce nu '
-      + 'garantează, și ce se întâmplă cu contul tău.',
-    privacyScope: 'Aici va sta ce date păstrăm, cât timp și de ce. Ce face aplicația '
-      + 'astăzi: datele proprietarului de pe certificat sunt opționale și nu sunt '
-      + 'folosite niciodată pentru memento-uri, ștergerea contului este definitivă, '
-      + 'iar fotografiile dispar odată cu vehiculul lor.',
+    // The documents themselves are in src/legal, one per language; see
+    // legal/document.ts for why they are not keys here.
+    updated: 'Ultima actualizare: {{date}}',
   },
   screens: {
     welcome: 'Bun venit',

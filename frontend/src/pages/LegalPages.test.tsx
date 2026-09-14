@@ -1,15 +1,19 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import i18n from '../i18n/config.ts'
 import { ro } from '../i18n/locales/ro.ts'
+import { CONTACT_EMAIL, OPERATOR_NAME } from '../legal/document.ts'
+import { termsAndConditions } from '../legal/terms.ts'
 import { paths } from '../routes/paths.ts'
 import { renderApp } from '../test/renderApp.tsx'
 
 /**
  * One file for both screens, against the usual one-per-page convention. They are
- * two placeholders with the same shape and the same three claims to check, and
- * two files of two near-identical tests would say less while costing more to
- * read.
+ * two documents rendered by one component, with the same claims to check, and
+ * two files of near-identical tests would say less while costing more to read.
+ * The support contact on the features page is here too, because it is the same
+ * address and the same promise.
  *
  * <p>Nobody is signed in: the refresh is refused, so the status settles on
  * anonymous. That is the state these assertions are about - somebody deciding
@@ -32,7 +36,10 @@ describe('legal pages', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: ro.screens.terms }))
       .toBeInTheDocument()
-    expect(screen.getByText(ro.legal.termsScope)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: termsAndConditions.ro.sections[0].title }))
+      .toBeInTheDocument()
+    expect(screen.getByText(ro.legal.updated.replace('{{date}}', termsAndConditions.ro.updated)))
+      .toBeInTheDocument()
   })
 
   it('the privacy policy is readable without an account', async () => {
@@ -42,29 +49,45 @@ describe('legal pages', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: ro.screens.privacy }))
       .toBeInTheDocument()
-    expect(screen.getByText(ro.legal.privacyScope)).toBeInTheDocument()
+    expect(screen.getByRole('rowheader', { name: 'Railway (serverul aplicației)' }))
+      .toBeInTheDocument()
   })
 
   /**
-   * The assertion that keeps a placeholder from shipping. Section 24 makes both
-   * documents release-blocking and section 35 has not settled the wording; a
-   * page carrying plausible invented terms is the one that goes out unnoticed,
-   * so the notice is asserted rather than trusted to stay there.
+   * The placeholder that stood here until 2026-09-14 said the wording was not
+   * final. Its replacement has to say who is responsible and how to reach them,
+   * which is the first thing either document is for.
    */
-  it('both say plainly that the wording is not final', async () => {
-    stubSignedOut()
-
-    renderApp(paths.terms)
-
-    expect(await screen.findByRole('note')).toHaveTextContent(ro.legal.placeholder)
-  })
-
-  it('the privacy notice carries the same warning', async () => {
+  it('both name the operator and a contact address that can be written to', async () => {
     stubSignedOut()
 
     renderApp(paths.privacy)
 
-    expect(await screen.findByRole('note')).toHaveTextContent(ro.legal.placeholder)
+    const contacts = await screen.findAllByRole('link', { name: CONTACT_EMAIL })
+    expect(contacts[0]).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`)
+    expect(screen.getAllByText(new RegExp(OPERATOR_NAME)).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  it('the terms are in English when the interface is', async () => {
+    stubSignedOut()
+    await i18n.changeLanguage('en')
+
+    renderApp(paths.terms)
+
+    expect(await screen.findByRole('heading', { level: 2, name: termsAndConditions.en.sections[0].title }))
+      .toBeInTheDocument()
+  })
+
+  /** The support address App Store Connect is given is this page, so it must carry one. */
+  it('the page about the application gives the contact address', async () => {
+    stubSignedOut()
+
+    renderApp(paths.features)
+
+    expect(await screen.findByRole('heading', { level: 2, name: ro.features.contact.title }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('link', { name: CONTACT_EMAIL })).toHaveAttribute('href', `mailto:${CONTACT_EMAIL}`)
   })
 
   /**

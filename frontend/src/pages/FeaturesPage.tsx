@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
+import { CONTACT_EMAIL } from '../legal/document.ts'
 import { paths } from '../routes/paths.ts'
 
 /**
@@ -67,6 +68,20 @@ export function FeaturesPage() {
       <section>
         <h2>{t('features.account.title')}</h2>
         <p>{t('features.account.body')}</p>
+      </section>
+
+      {/*
+        The support contact App Store Connect asks for, and this page is the
+        support address given there (2026-09-14): somebody with a problem
+        looks for the page about the application, not for the privacy policy.
+      */}
+      <section>
+        <h2>{t('features.contact.title')}</h2>
+        <p>
+          {t('features.contact.body')}
+          {' '}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+        </p>
       </section>
 
       <p data-actions>

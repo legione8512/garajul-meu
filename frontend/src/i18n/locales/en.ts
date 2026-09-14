@@ -386,6 +386,10 @@ export const en: typeof ro = {
         + 'time of day. You can see them beside each document at any time, and the '
         + 'mobile app also sends them to you as notifications.',
     },
+    contact: {
+      title: 'Contact',
+      body: 'A question, a problem or a suggestion? Write to us at',
+    },
     account: {
       title: 'Your account and your data',
       body: 'The application speaks Romanian and English, and the language follows '
@@ -398,14 +402,7 @@ export const en: typeof ro = {
   legal: {
     terms: 'Terms and conditions',
     privacy: 'Privacy policy',
-    placeholder: 'PLACEHOLDER TEXT. This document does not yet carry its final legal '
-      + 'wording and has no effect. Section 24 makes it required before public release.',
-    termsScope: 'This will carry the conditions of use: what the application offers, '
-      + 'what it does not guarantee, and what happens to your account.',
-    privacyScope: 'This will carry what data we keep, for how long, and why. What the '
-      + 'application does today: certificate owner details are optional and are never '
-      + 'used for reminders, deleting your account is permanent, and photographs go '
-      + 'with the vehicle they belong to.',
+    updated: 'Last updated: {{date}}',
   },
   screens: {
     welcome: 'Welcome',
