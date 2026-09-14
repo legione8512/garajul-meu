@@ -26,6 +26,18 @@
 	<true/>
 
 	<!--
+	    Answers App Store Connect's export compliance question in the build, so
+	    it is not asked again at every upload. False because the application
+	    uses no encryption of its own: HTTPS through the system, the Keychain
+	    through the secure-storage plugin, and push through APNs, all of which
+	    Apple treats as exempt. The push token is encrypted at rest on the
+	    server, not here. TRIGGER for revisiting: any cryptography added to the
+	    application itself, such as encrypting a file on the device.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!--
 	    Two strings Capacitor does not add, and their absence is a crash rather
 	    than a refusal. iOS terminates the process the instant an application
 	    touches the camera without NSCameraUsageDescription, or the photo library
