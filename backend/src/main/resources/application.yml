@@ -8,12 +8,17 @@ spring:
     import: optional:file:./application-local.yml
 
   datasource:
-    # Neon POOLED endpoint - hostname contains "-pooler".
+    # Production: Supabase SESSION pooler, port 5432, since 2026-09-16 - not the
+    # direct connection, which is IPv6 only on the free plan, and not the
+    # transaction pooler on 6543, which does not support prepared statements.
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      # Neon scales to zero when idle: cold starts are slow, idle connections die.
+      # Written for Neon, which scaled to zero, and kept for the pooler: a
+      # pooled connection held idle is one of the free plan's few, and a short
+      # life means a connection the pooler dropped is replaced rather than used.
+      # Five stays well under the session pooler's own limit.
       connection-timeout: 30000
       max-lifetime: 300000
       idle-timeout: 60000
@@ -27,7 +32,11 @@ spring:
       ddl-auto: validate
 
   flyway:
-    # Neon DIRECT endpoint - no "-pooler". Flyway needs a session-level lock.
+    # The same session pooler URL as the datasource. Flyway needs a session-level
+    # lock, which Neon's transaction-mode pooler could not give and which is why
+    # this was a separate, direct URL there; a session pooler holds one server
+    # connection for the whole session, so the lock holds. Kept as its own
+    # variable so a future pooler in transaction mode needs no code change.
     url: ${DB_MIGRATION_URL}
     user: ${DB_USERNAME}
     password: ${DB_PASSWORD}

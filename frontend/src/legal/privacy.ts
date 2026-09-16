@@ -11,14 +11,22 @@ import { CONTACT_EMAIL, OPERATOR_NAME, type LegalDocuments } from './document.ts
  * (Amsterdam), Neon's six-hour restore window, and seven days of logs on
  * Railway's Hobby plan. It is not legal advice, and the draft said so.
  *
+ * <p><strong>Updated on 2026-09-16, when production moved from Neon to
+ * Supabase</strong> (free plan, Frankfurt): the provider in section 3, and the
+ * backup sentence in section 4. Supabase's free plan keeps no project backups -
+ * the dashboard says so in those words - so the six hours that were Neon's
+ * restore window became "no backups", which is also the more honest thing to
+ * tell somebody deciding what to store.
+ *
  * <p>TRIGGER for revisiting, because each makes a sentence here false: a new
  * table or column holding personal data, a new external service, a change of
- * Railway plan or region, Neon's restore window, analytics or crash reporting
- * inside the application, or email beyond the account's own messages.
+ * Railway plan or region, a Supabase plan with backups or a different region,
+ * analytics or crash reporting inside the application, or email beyond the
+ * account's own messages.
  */
 export const privacyPolicy: LegalDocuments = {
   ro: {
-    updated: '15 septembrie 2026',
+    updated: '16 septembrie 2026',
     sections: [
       {
         title: '1. Cine suntem',
@@ -85,7 +93,7 @@ export const privacyPolicy: LegalDocuments = {
             table: {
               head: ['Furnizor', 'Pentru ce', 'Unde'],
               rows: [
-                ['Neon (baza de date)', 'Stocarea datelor contului, vehiculelor și documentelor', 'UE — Frankfurt'],
+                ['Supabase (baza de date)', 'Stocarea datelor contului, vehiculelor și documentelor', 'UE — Frankfurt'],
                 ['Railway (serverul aplicației)', 'Rularea serverului', 'UE — Amsterdam'],
                 ['Cloudflare (R2 și Pages)', 'Stocarea fotografiilor vehiculelor; găzduirea site-ului', 'Fotografii: preferință de locație UE; site: rețea globală'],
                 ['Google Cloud Document AI', 'Citirea câmpurilor din fotografia certificatului', 'UE'],
@@ -109,7 +117,7 @@ export const privacyPolicy: LegalDocuments = {
               'Fotografia unui vehicul se șterge când o înlocuiești, când ștergi vehiculul sau când ștergi contul.',
               'Sesiunile de autentificare expiră după 30 de zile; codurile trimise prin email expiră după 15 minute.',
               'Ștergerea contului este definitivă și imediată: odată cu contul se șterg vehiculele, certificatele, documentele, memento-urile, dispozitivele înregistrate și fotografiile.',
-              'Copiile de siguranță ale bazei de date păstrate de furnizor dispar automat după cel mult 6 ore, iar jurnalele tehnice ale serverului după cel mult 7 zile.',
+              'Nu păstrăm copii de siguranță ale bazei de date, deci datele șterse nu mai pot fi recuperate. Jurnalele tehnice ale serverului dispar automat după cel mult 7 zile.',
             ],
           },
         ],
@@ -159,7 +167,7 @@ export const privacyPolicy: LegalDocuments = {
   },
 
   en: {
-    updated: '15 September 2026',
+    updated: '16 September 2026',
     sections: [
       {
         title: '1. Who we are',
@@ -226,7 +234,7 @@ export const privacyPolicy: LegalDocuments = {
             table: {
               head: ['Provider', 'What for', 'Where'],
               rows: [
-                ['Neon (database)', 'Storing account, vehicle and document data', 'EU — Frankfurt'],
+                ['Supabase (database)', 'Storing account, vehicle and document data', 'EU — Frankfurt'],
                 ['Railway (application server)', 'Running the server', 'EU — Amsterdam'],
                 ['Cloudflare (R2 and Pages)', 'Storing vehicle photographs; hosting the website', 'Photographs: EU location preference; website: global network'],
                 ['Google Cloud Document AI', 'Reading the fields of the certificate photograph', 'EU'],
@@ -250,7 +258,7 @@ export const privacyPolicy: LegalDocuments = {
               'A vehicle\'s photograph is deleted when you replace it, when you delete the vehicle, or when you delete your account.',
               'Sign-in sessions expire after 30 days; codes sent by email expire after 15 minutes.',
               'Deleting your account is permanent and immediate: the vehicles, certificates, documents, reminders, registered devices and photographs are deleted with it.',
-              'The database provider\'s backups disappear automatically after at most 6 hours, and the server\'s technical logs after at most 7 days.',
+              'We keep no backups of the database, so deleted data cannot be recovered. The server\'s technical logs disappear automatically after at most 7 days.',
             ],
           },
         ],

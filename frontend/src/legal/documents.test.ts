@@ -41,12 +41,13 @@ describe.each(documents)('the %s', (_, doc) => {
 describe('the privacy policy', () => {
   /**
    * Every external service the application sends personal data to, as listed
-   * in PROJECT_STATE's production table on 2026-09-14. A provider added to the
-   * application and not to this list is the omission that makes the policy
-   * untrue, so the list is asserted rather than trusted.
+   * in PROJECT_STATE's production table on 2026-09-14 - with Supabase in place
+   * of Neon since 2026-09-16. A provider added to the application and not to
+   * this list is the omission that makes the policy untrue, so the list is
+   * asserted rather than trusted.
    */
   it('lists every provider the application uses, in both languages', () => {
-    const providers = ['Neon', 'Railway', 'Cloudflare', 'Document AI', 'Firebase', 'Apple Push', 'Resend', 'Sentry']
+    const providers = ['Supabase', 'Railway', 'Cloudflare', 'Document AI', 'Firebase', 'Apple Push', 'Resend', 'Sentry']
 
     for (const language of [privacyPolicy.ro, privacyPolicy.en]) {
       const text = JSON.stringify(language)

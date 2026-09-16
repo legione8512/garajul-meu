@@ -17,11 +17,18 @@ import org.testcontainers.utility.DockerImageName;
 public class TestcontainersConfiguration {
 
 	/**
-	 * Pinned to the same PostgreSQL version Neon runs, so tests exercise the
-	 * dialect, types and behaviour the application meets in production.
+	 * Pinned to the same PostgreSQL version production runs, so tests exercise
+	 * the dialect, types and behaviour the application meets there.
+	 *
+	 * <p><strong>17.6 since 2026-09-16, when production moved from Neon to
+	 * Supabase</strong> and the version was read with {@code select version()} on
+	 * the new project. Until then this was 18.4, Neon's version - a major version
+	 * newer than production is now, which is the direction that lets a test pass
+	 * on a feature production does not have. TRIGGER: Supabase upgrading the
+	 * project's PostgreSQL, which it announces in the dashboard.
 	 */
 	private static final DockerImageName POSTGRES_IMAGE =
-			DockerImageName.parse("postgres:18.4-alpine");
+			DockerImageName.parse("postgres:17.6-alpine");
 
 	@Bean
 	@ServiceConnection
