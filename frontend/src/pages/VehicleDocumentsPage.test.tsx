@@ -95,6 +95,23 @@ describe('vehicle documents', () => {
     )).toBeInTheDocument()
   })
 
+  /**
+   * The card for a document bought ahead of its start (2026-09-15): it says when
+   * it takes effect, and never that it is valid for the days until it ends.
+   */
+  it('says when a document not yet in force takes effect', async () => {
+    stubDocuments([() => jsonResponse(200, [{
+      ...RCA, validFrom: '2026-12-05', validUntil: '2027-12-04', daysRemaining: 445,
+    }])])
+
+    await open()
+
+    expect(await screen.findByText(
+      ro.documents.state.notStarted.replace('{{date}}', '5 decembrie 2026'),
+    )).toBeInTheDocument()
+    expect(screen.queryByText(ro.documents.state.active.replace('{{days}}', '445'))).toBeNull()
+  })
+
   /** The four section 8 requires of a period: only the end date is mandatory. */
   it('refuses an empty expiry date without asking the backend', async () => {
     const sent = stubDocuments([() => jsonResponse(200, [])])

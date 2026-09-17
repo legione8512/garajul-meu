@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { dateFormatter, stateOf } from './status.ts'
 
@@ -46,6 +46,39 @@ describe('document state', () => {
     expect(notStarted.values).toEqual({ date: '2026-09-01' })
   })
 
+  /**
+   * The demo account's RCA of 2026-09-15: running from 5 December 2026 to
+   * 4 December 2027, and read on 15 September 2026 as "valid for another 445
+   * days". The period holds 364 days and 445 remain, so it has not begun.
+   */
+  it('says when a stored document takes effect, rather than that it is valid', () => {
+    expect(stateOf({
+      status: 'ACTIVE', validFrom: '2026-12-05', validUntil: '2027-12-04', daysRemaining: 445,
+    }, asIs)).toEqual({ tone: 'ok', key: 'documents.state.notStarted', values: { date: '2026-12-05' } })
+  })
+
+  /** Measured at both edges: the day before it starts, and the day it starts. */
+  it('reads a document as active from the morning it starts, and not before', () => {
+    const period = { validFrom: '2026-12-05', validUntil: '2027-12-04' } as const
+
+    expect(stateOf({ status: 'ACTIVE', ...period, daysRemaining: 365 }, asIs).key)
+      .toBe('documents.state.notStarted')
+    expect(stateOf({ status: 'ACTIVE', ...period, daysRemaining: 364 }, asIs).key)
+      .toBe('documents.state.active')
+  })
+
+  /** A short document can start tomorrow and still sit in an urgent band. */
+  it('applies whatever band the expiry falls in', () => {
+    expect(stateOf({
+      status: 'URGENT', validFrom: '2026-09-17', validUntil: '2026-09-19', daysRemaining: 4,
+    }, asIs).key).toBe('documents.state.notStarted')
+  })
+
+  it('treats a document with no start date as started', () => {
+    expect(stateOf({ status: 'ACTIVE', validUntil: '2027-12-04', daysRemaining: 445 }, asIs).key)
+      .toBe('documents.state.active')
+  })
+
   it('reports a type nothing was ever entered for as unset', () => {
     expect(stateOf({ status: 'NOT_CONFIGURED' }, asIs))
       .toEqual({ tone: 'unset', key: 'documents.state.notConfigured', values: {} })
@@ -53,6 +86,30 @@ describe('document state', () => {
 
   it('falls back to the raw value when a date cannot be read', () => {
     expect(dateFormatter('ro')('not-a-date')).toBe('not-a-date')
-    expect(dateFormatter('ro')('2026-09-01')).not.toBe('2026-09-01')
+  })
+
+  /**
+   * "12/5/2026" was 5 December in US order and read as 12 May (2026-09-15). The
+   * month is a word in both languages, and English puts the day first.
+   */
+  it('writes the month as a word, day first, in both languages', () => {
+    expect(dateFormatter('ro')('2026-12-05')).toBe('5 decembrie 2026')
+    expect(dateFormatter('en')('2026-12-05')).toBe('5 December 2026')
+  })
+
+  /**
+   * A date-only string is UTC midnight, and in a timezone west of Greenwich that
+   * instant is still the previous evening. Node applies a change to `TZ` at
+   * runtime, which is what lets `vi.stubEnv` run the formatter in Los Angeles.
+   */
+  it('keeps the day west of Greenwich', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+
+    try {
+      expect(dateFormatter('ro')('2026-12-05')).toBe('5 decembrie 2026')
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
   })
 })

@@ -199,6 +199,7 @@ export const en: typeof ro = {
       lapsed: 'Expired {{days}} days ago.',
       lapsedUntil: 'Expired {{days}} days ago. Cover resumes on {{date}}.',
       startsOn: 'You are not covered today. Cover starts on {{date}}.',
+      notStarted: 'Takes effect on {{date}}.',
       notCovered: 'You are not covered today.',
       notConfigured: 'Not configured.',
     },

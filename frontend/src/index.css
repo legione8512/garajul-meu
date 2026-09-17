@@ -881,6 +881,32 @@ textarea {
 }
 
 /*
+ * iOS draws date and time inputs as native controls with a width of their own,
+ * and `width: 100%` does not hold them. Found first on the certificate, on the
+ * iPad simulator on 2026-09-14, and fixed there alone; found again on
+ * 2026-09-17 in the App Review recording, on the add-document form, and then
+ * measured on the iOS 27 simulator: both date inputs and the notification time
+ * were 354 pixels wide in a form whose fields are 331, so they ran 23 pixels
+ * past its edge, while every text field fitted. So the rule is no longer scoped
+ * to the certificate. Without the native appearance the value is ordinary text
+ * in the box, and tapping still opens the system picker. Chrome keeps its
+ * calendar button and its width - measured the same day, and unchanged.
+ *
+ * WebKit then centres the value, where every other field starts its text on
+ * the left, and the second rule puts it where they put theirs.
+ */
+input[type='date'],
+input[type='time'] {
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input::-webkit-date-and-time-value {
+  text-align: start;
+}
+
+/*
  * Twenty-four pixels rather than the eighteen this was, which is the smallest
  * a control may be under WCAG 2.2. The comfortable forty-four comes from the
  * label beside it rather than from the box: a checkbox stretched to 44x44 is
@@ -1421,19 +1447,6 @@ summary:focus-visible {
 
 [data-certificate] input[type='checkbox']:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 19' preserveAspectRatio='none'%3E%3Crect x='1.5' y='2.5' width='16' height='15' fill='none' stroke='%23151321' stroke-width='1.3'/%3E%3Cpath d='M6.5 10 L10.5 15.5 L23.5 1.8' fill='none' stroke='%23151321' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-/*
- * iOS draws a date input as a native control with a width of its own, and on
- * the iPad simulator on 2026-09-14 B, I and I.1 each ran past the right edge of
- * their box by about a dozen pixels while every text field fitted. Without the
- * native appearance the value is ordinary text in the box, and tapping still
- * opens the date picker.
- */
-[data-certificate] input[type='date'] {
-  min-width: 0;
-  -webkit-appearance: none;
-  appearance: none;
 }
 
 /* ---------------------------------------------------------------------------

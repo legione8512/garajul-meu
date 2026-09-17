@@ -144,7 +144,7 @@ describe('dashboard', () => {
     expect(await screen.findByText(
       ro.documents.state.lapsedUntil
         .replace('{{days}}', '5')
-        .replace('{{date}}', new Date('2026-09-01').toLocaleDateString('ro')),
+        .replace('{{date}}', '1 septembrie 2026'),
     )).toBeInTheDocument()
   })
 
@@ -158,7 +158,7 @@ describe('dashboard', () => {
 
     expect(await screen.findByText(
       ro.documents.state.startsOn
-        .replace('{{date}}', new Date('2026-09-01').toLocaleDateString('ro')),
+        .replace('{{date}}', '1 septembrie 2026'),
     )).toBeInTheDocument()
   })
 })

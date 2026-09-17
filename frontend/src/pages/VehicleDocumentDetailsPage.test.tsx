@@ -164,7 +164,7 @@ describe('document details', () => {
     await userEvent.click(screen.getByRole('button', { name: ro.documents.saveRenewal }))
 
     await screen.findByText(
-      ro.documents.period.replace('{{until}}', new Date('2028-01-01').toLocaleDateString('ro')),
+      ro.documents.period.replace('{{until}}', '1 ianuarie 2028'),
     )
 
     expect(sent.renewals).toBe(1)
@@ -194,7 +194,7 @@ describe('document details', () => {
     await userEvent.click(screen.getByRole('button', { name: ro.documents.saveRenewal }))
 
     expect(await screen.findByText(
-      ro.documents.period.replace('{{until}}', new Date('2028-01-01').toLocaleDateString('ro')),
+      ro.documents.period.replace('{{until}}', '1 ianuarie 2028'),
     )).toBeInTheDocument()
 
     expect(renewalField(ro.documents.fields.validUntil)).toHaveValue('')

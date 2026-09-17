@@ -75,3 +75,27 @@ textarea`)
     expect(ticked.get('background-image')).toContain('path')
   })
 })
+
+/**
+ * The same kind of defect outside the certificate, and the reason the rule that
+ * fixed it there moved to every form: iOS gives a date or time input with its
+ * native appearance a width of its own, which ran 23 pixels past the
+ * add-document form on 2026-09-17. Measured on the iOS 27 simulator and in
+ * Chrome that day; jsdom has neither engine, so this reads the rule.
+ */
+describe('the date and time inputs', () => {
+  it('are drawn as text in a box in every form, not as native controls', () => {
+    const inputs = declarationsOf(`input[type='date'],
+input[type='time']`)
+
+    expect(inputs.get('appearance')).toBe('none')
+    expect(inputs.get('-webkit-appearance')).toBe('none')
+    expect(inputs.get('min-width')).toBe('0')
+  })
+
+  it('start their value on the left, as every other field does', () => {
+    const value = declarationsOf('input::-webkit-date-and-time-value')
+
+    expect(value.get('text-align')).toBe('start')
+  })
+})

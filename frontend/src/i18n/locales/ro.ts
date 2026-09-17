@@ -206,6 +206,9 @@ export const ro = {
       lapsed: 'Expirat de {{days}} zile.',
       lapsedUntil: 'Expirat de {{days}} zile. Acoperirea reîncepe pe {{date}}.',
       startsOn: 'Nu ești acoperit azi. Acoperirea începe pe {{date}}.',
+      // A stored document whose own period has not begun (2026-09-15). Not a
+      // coverage statement - the dashboard makes that one - so no "neacoperit".
+      notStarted: 'Intră în vigoare pe {{date}}.',
       notCovered: 'Nu ești acoperit azi.',
       notConfigured: 'Neconfigurat.',
     },

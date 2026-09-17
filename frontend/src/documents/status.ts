@@ -11,12 +11,12 @@ import type { DocumentStatus } from '../api/endpoints/documents.ts'
 export type DocumentTone = 'ok' | 'soon' | 'urgent' | 'gap' | 'unset'
 
 /**
- * The nine sentences a state can produce, as literals.
+ * The ten sentences a state can produce, as literals.
  *
  * <p>Not `string`. i18next types `t` over the keys that actually exist, so a key
  * assembled at runtime resolves to the overload whose second argument is a
- * default *string* and the call stops compiling. Naming the nine here keeps the
- * checking rather than casting it away - a tenth sentence added to the locale
+ * default *string* and the call stops compiling. Naming the ten here keeps the
+ * checking rather than casting it away - an eleventh sentence added to the locale
  * without being added here is a compile error, which is the point.
  */
 export type DocumentStateKey =
@@ -27,6 +27,7 @@ export type DocumentStateKey =
   | 'documents.state.lapsed'
   | 'documents.state.lapsedUntil'
   | 'documents.state.startsOn'
+  | 'documents.state.notStarted'
   | 'documents.state.notCovered'
   | 'documents.state.notConfigured'
 
@@ -45,6 +46,8 @@ export type DocumentState = {
  */
 export interface CoverageFacts {
   readonly status: DocumentStatus
+  /** A stored document's own start; a dashboard line has none. */
+  readonly validFrom?: string | null
   readonly validUntil?: string | null
   readonly daysRemaining?: number | null
   readonly upcomingFrom?: string | null
@@ -92,6 +95,14 @@ export function stateOf(facts: CoverageFacts, formatDate: (iso: string) => strin
 
   const days = facts.daysRemaining ?? 0
 
+  if (hasNotStarted(facts)) {
+    return {
+      tone: 'ok',
+      key: 'documents.state.notStarted',
+      values: { date: formatDate(facts.validFrom ?? '') },
+    }
+  }
+
   switch (facts.status) {
     case 'EXPIRES_TODAY':
       return { tone: 'urgent', key: 'documents.state.expiresToday', values: {} }
@@ -104,14 +115,74 @@ export function stateOf(facts: CoverageFacts, formatDate: (iso: string) => strin
   }
 }
 
+const DAY_MS = 86_400_000
+
 /**
- * A date as the reader writes them. Falls back to what arrived rather than
- * throwing: a malformed date from the server is a bad line on a screen, not a
- * blank one.
+ * Whether a stored document's period is still ahead of it.
+ *
+ * <p><strong>Found on 2026-09-15 on the demo account for App Review</strong>: an
+ * RCA running from 5 December 2026 read "Valabil încă 445 zile" on its card in
+ * September. The backend's per-document status is computed from `valid_until`
+ * alone, which is right for how long a document lasts and wrong for whether it
+ * has begun; section 11 forbids showing a policy that has not started as though
+ * it were active, and the dashboard already honoured that through
+ * `upcomingFrom`.
+ *
+ * <p><strong>Answered here without a clock.</strong> `daysRemaining` is the
+ * backend's count from the reader's today, in the reader's timezone, to the last
+ * valid day; the period's own length is the days from its first day to its last,
+ * both plain dates. The document has not started exactly when more days remain
+ * than the period holds. Two date-only strings subtracted as UTC midnights
+ * carry no timezone, so this cannot disagree with the backend about which day
+ * today is - reading a clock in the browser could.
+ *
+ * <p>The day a document starts is not "not started": remaining equals the
+ * length, and it reads as active from that morning.
+ */
+function hasNotStarted(facts: CoverageFacts): boolean {
+  const from = facts.validFrom ?? null
+  const until = facts.validUntil ?? null
+  const remaining = facts.daysRemaining ?? null
+
+  if (from === null || until === null || remaining === null) {
+    return false
+  }
+
+  const length = Math.round((Date.parse(until) - Date.parse(from)) / DAY_MS)
+  return !Number.isNaN(length) && remaining > length
+}
+
+/**
+ * The English the application writes is British in its dates: day, month in
+ * words, year - the order Romanian uses, for readers who mostly live here.
+ */
+const LOCALE_FOR_DATES: Record<string, string> = {
+  en: 'en-GB',
+}
+
+/**
+ * A date as the reader reads it: "5 decembrie 2026", "5 December 2026". Falls
+ * back to what arrived rather than throwing: a malformed date from the server is
+ * a bad line on a screen, not a blank one.
+ *
+ * <p><strong>Changed on 2026-09-15, for two reasons found the same day.</strong>
+ * `toLocaleDateString('en')` wrote US order, so "12/5/2026" meant 5 December and
+ * read as 12 May to anybody who writes dates as Romania does. The month is now a
+ * word, which no reader can take for a day. And the dates here are date-only
+ * strings, which `Date` parses as UTC midnight: formatted in the device's own
+ * timezone they showed the previous day anywhere west of Greenwich. They are
+ * formatted in UTC, the zone they were parsed in.
  */
 export function dateFormatter(language: string): (iso: string) => string {
+  const format = new Intl.DateTimeFormat(LOCALE_FOR_DATES[language] ?? language, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+
   return (iso: string) => {
     const parsed = new Date(iso)
-    return Number.isNaN(parsed.getTime()) ? iso : parsed.toLocaleDateString(language)
+    return Number.isNaN(parsed.getTime()) ? iso : format.format(parsed)
   }
 }
