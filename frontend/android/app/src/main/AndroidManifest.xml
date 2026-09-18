@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -70,4 +71,30 @@
         the line in a future version would put us back there.
     -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        Two permissions @capacitor/local-notifications declares for itself, and
+        this application uses neither. It posts a notification only at the moment
+        one arrives, never at a time in the future.
+
+        SCHEDULE_EXACT_ALARM is the one that would have cost something. From
+        Android 14, Google Play asks for a declaration justifying it and grants it
+        to little besides alarm clocks and calendars, so carrying it unused is a
+        review problem arriving through a dependency. RECEIVE_BOOT_COMPLETED lets
+        the plugin put scheduled notifications back after a restart, and there
+        are none to put back.
+
+        Removing them does not change what the plugin does here, and that was
+        read in its source on 2026-09-18 rather than assumed: a notification with
+        no schedule goes straight to NotificationManager.notify(), and
+        foregroundNotifications.ts marks each one isExactNotification false,
+        without which schedule() would open the Alarms and reminders settings
+        screen on Android 12 and later every time a push arrived with the
+        application open.
+
+        The merged manifest in app/build/intermediates is where to check that
+        both are gone after a plugin upgrade.
+    -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
 </manifest>

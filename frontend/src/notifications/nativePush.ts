@@ -23,6 +23,9 @@ import type { Push, PushPermission } from './push.ts'
  * Nor is it one that succeeds the first time on a fresh installation: asked
  * before APNs has answered, Firebase refuses at once, which is why
  * `reportDevice` asks again inside that same bound (2026-09-14).
+ *
+ * <p><strong>On Android the permission is not asked of this plugin at all</strong>
+ * (2026-09-18) - see `permission()` below.
  */
 
 /** See `PushPermission`: two of Capacitor's four states mean the same thing here. */
@@ -33,6 +36,12 @@ function simplified(receive: string): PushPermission {
   return receive === 'denied' ? 'denied' : 'prompt'
 }
 
+/** Which platform this build is running on, asked of it rather than assumed. */
+async function onAndroid(): Promise<boolean> {
+  const { Capacitor } = await import('@capacitor/core')
+  return Capacitor.getPlatform() === 'android'
+}
+
 /**
  * Imported inside each method and never handed onward - a Capacitor plugin is a
  * Proxy that looks thenable, and returning one from an `async` function makes
@@ -40,12 +49,64 @@ function simplified(receive: string): PushPermission {
  * `keystoreSecureStore.ts` carries the full account.
  */
 export const nativePush: Push = {
+  /**
+   * What the operating system allows - and on Android that question goes to
+   * `@capacitor/local-notifications`, because the messaging plugin does not ask
+   * it below Android 13.
+   *
+   * <p><strong>Seen on 2026-09-18, on a Moto G6 Plus running Android 9.</strong>
+   * Notifications switched off in the application's own Android settings;
+   * screen 18 still said they were active, and the registration it sent carried
+   * `notificationsEnabled: true`. `FirebaseMessagingPlugin.java` answers
+   * `granted` **unconditionally below API 33** (line 94) and never calls
+   * `areNotificationsEnabled()`. So the server went on believing it could
+   * deliver, `ReminderDispatcher` recorded every reminder as SENT, and nothing was
+   * shown - the lie `reportDevice` exists to prevent, arriving by a road it did
+   * not cover. It also made a sentence of the published privacy policy false:
+   * push is sent "numai după ce le permiți în sistemul dispozitivului", and
+   * withdrawing that in settings changed nothing.
+   *
+   * <p>`LocalNotifications.checkPermissions()` below API 33 answers from
+   * `NotificationManagerCompat.areNotificationsEnabled()` - read in
+   * `LocalNotificationsPlugin.kt` (8.3.1), lines 463 and 516, before choosing
+   * it. From API 33 both plugins read the same runtime permission,
+   * `POST_NOTIFICATIONS`, so asking this one on every Android version changes
+   * nothing there and keeps one source for the answer.
+   *
+   * <p><strong>The consent this reports is the system's</strong>, which is what the
+   * privacy policy promises. Below Android 13 the system allows notifications
+   * until the person turns them off, so a signed-in phone registers without
+   * being asked anything - decided with the developer on 2026-09-18 as the
+   * policy's own model, not an oversight. What the fix adds is that turning them
+   * off is now heard.
+   *
+   * <p>iOS keeps the messaging plugin, whose answer there comes from
+   * `UNUserNotificationCenter` and is true. It is also frozen at 1.0.1 until a
+   * Mac is available, and has no build carrying the new plugin yet.
+   */
   async permission() {
+    if (await onAndroid()) {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      return simplified((await LocalNotifications.checkPermissions()).display)
+    }
+
     const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
     return simplified((await FirebaseMessaging.checkPermissions()).receive)
   },
 
+  /**
+   * Raises the system dialog where one exists, for the same reason and from the
+   * same plugin as `permission()`. Below Android 13 there is no dialog to raise,
+   * and the answer is simply the state the person left their settings in - so a
+   * phone with notifications switched off reads `denied`, and screen 18 says
+   * where to change it instead of pretending it has done so.
+   */
   async request() {
+    if (await onAndroid()) {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      return simplified((await LocalNotifications.requestPermissions()).display)
+    }
+
     const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
     return simplified((await FirebaseMessaging.requestPermissions()).receive)
   },
