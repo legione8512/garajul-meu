@@ -1,5 +1,40 @@
 apply plugin: 'com.android.application'
 
+/*
+ * Release signing, set up on 2026-09-19 for the first Google Play upload.
+ *
+ * The key is the UPLOAD key, not the app signing key. Google Play holds that
+ * one (Play App Signing, the default for a new app), re-signs every release with
+ * it, and lets a lost upload key be reset from Play Console. Losing this key is
+ * therefore an afternoon with Google support rather than the end of the listing.
+ * It is still backed up the day it is made.
+ *
+ * The key lives outside the repository, in a `chei` folder in the developer's
+ * user profile, created with keytool by the developer, who alone knows its
+ * password. What the build needs to reach it is in
+ * frontend/android/keystore.properties, which .gitignore keeps out of the
+ * repository because it holds that password:
+ *
+ *   storeFile=C:/Users/<you>/chei/garajul-meu-upload.jks
+ *   storePassword=...
+ *   keyAlias=upload
+ *
+ * Forward slashes in storeFile, because a .properties file reads a backslash as
+ * an escape. No keyPassword: the store is PKCS12, where the key and the store
+ * share one password, so it is taken from storePassword unless set. Read as
+ * UTF-8 so a password is not mangled - and kept to ASCII all the same, since
+ * keytool read it from a console.
+ *
+ * Without the file, debug builds are exactly as before, and a release bundle
+ * stops at signing with a message naming the file - see the check after the
+ * android block, and why it exists. CI builds no Android, so it never needs one.
+ */
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "ro.in.garaj.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +51,42 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword'] ?: keystoreProperties['storePassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+/*
+ * A release bundle without keystore.properties stops here, by name. Without
+ * this, the Android Gradle Plugin (8.13) fails deep inside :app:signReleaseBundle
+ * with a NullPointerException and no message at all - observed on 2026-09-19,
+ * the first time a bundle was built - which says nothing about what is missing.
+ * Only the bundle needs it: an APK release fails in :app:packageRelease with
+ * 'SigningConfig "release" is missing required property "storeFile"', which at
+ * least names the problem - both observed that day, with no key present.
+ */
+tasks.configureEach { task ->
+    if (task.name == 'signReleaseBundle') {
+        task.doFirst {
+            if (!keystorePropertiesFile.exists()) {
+                throw new GradleException(
+                    'Cannot sign the release: frontend/android/keystore.properties is missing. '
+                    + 'See the comment at the top of frontend/android/app/build.gradle.')
+            }
         }
     }
 }

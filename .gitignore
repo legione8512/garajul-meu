@@ -27,6 +27,9 @@ application-local.yaml
 *.p12
 *.jks
 *.keystore
+# Release signing for frontend/android, added 2026-09-19: the path to the
+# upload key and its password. The key itself lives outside the repository.
+keystore.properties
 service-account*.json
 google-services.json
 GoogleService-Info.plist
