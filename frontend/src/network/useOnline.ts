@@ -1,28 +1,18 @@
 import { useSyncExternalStore } from 'react'
 
+import { getSnapshot, subscribe } from './connectivity.ts'
+
 /**
- * Subscribes to the browser's own online state.
+ * Whether there is a network - asked of Android on Android, and of the browser
+ * everywhere else.
  *
- * <p>Module-level so the reference is stable. A function defined inside the hook
- * would be a new value on every render, and React would unsubscribe and
- * resubscribe each time.
- */
-function subscribe(onStoreChange: () => void): () => void {
-  window.addEventListener('online', onStoreChange)
-  window.addEventListener('offline', onStoreChange)
-
-  return () => {
-    window.removeEventListener('online', onStoreChange)
-    window.removeEventListener('offline', onStoreChange)
-  }
-}
-
-function getSnapshot(): boolean {
-  return navigator.onLine
-}
-
-/**
- * Whether the browser believes it has a network.
+ * <p><strong>The answer lives in `connectivity.ts` since 2026-09-19</strong>, when
+ * an Android 7.0 WebView reported itself offline for as long as the application
+ * ran, on a network Android had validated. That file says why, and why Android
+ * only. What follows is about the browser's answer, which the web build and iOS
+ * still use. Both functions there are module-level so their references are
+ * stable: defined inside this hook they would be new on every render, and React
+ * would unsubscribe and resubscribe each time.
  *
  * <p>Specification section 25: V1 is online-required, and the UI "must detect
  * network loss and show clear retry/offline states instead of silently
