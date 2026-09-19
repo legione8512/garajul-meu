@@ -5,6 +5,7 @@ import { getAccessToken, setAccessToken } from './tokenStore.ts'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.useRealTimers()
   setAccessToken(null)
 })
 
@@ -68,6 +69,56 @@ describe('session refresh', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))))
 
     await expect(refreshSession()).resolves.toBe(false)
+    expect(getAccessToken()).toBeNull()
+  })
+
+  /**
+   * The Huawei MediaPad T3 of 2026-09-19: Android 7.0, a WebView stuck at
+   * Chrome 101, and `AbortSignal.timeout` arrived in 103. Calling it there threw
+   * before any request left, the `catch` read that as a failed refresh, and
+   * `endSession()` forgot the stored token - so the person was signed out at
+   * every launch. The engine is made to lack the function here, as that one
+   * does, and a refresh must still succeed.
+   */
+  it('refreshes on an engine without AbortSignal.timeout, as Chrome 101 is', async () => {
+    const original = Object.getOwnPropertyDescriptor(AbortSignal, 'timeout')
+    Reflect.deleteProperty(AbortSignal, 'timeout')
+
+    try {
+      // The premise, checked: had the deletion failed, this test would pass for
+      // the wrong reason.
+      expect(AbortSignal.timeout).toBeUndefined()
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(
+        jsonResponse(200, { accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null }),
+      )))
+
+      await expect(refreshSession()).resolves.toBe(true)
+      expect(getAccessToken()).toBe('fresh')
+    } finally {
+      if (original !== undefined) {
+        Object.defineProperty(AbortSignal, 'timeout', original)
+      }
+    }
+  })
+
+  /**
+   * What the bound is for, and what replacing `AbortSignal.timeout` must not
+   * lose: a refresh that is never answered ends rather than holding the slot
+   * for the life of the page. Twenty seconds is `REFRESH_TIMEOUT_MS`.
+   */
+  it('still gives up on a refresh nobody answers', async () => {
+    vi.useFakeTimers()
+    setAccessToken('stale')
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
+      })
+    })))
+
+    const outcome = refreshSession()
+    await vi.advanceTimersByTimeAsync(20_000)
+
+    await expect(outcome).resolves.toBe(false)
     expect(getAccessToken()).toBeNull()
   })
 })

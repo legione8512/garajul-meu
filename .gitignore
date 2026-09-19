@@ -31,6 +31,17 @@ service-account*.json
 google-services.json
 GoogleService-Info.plist
 
+# The one .pem that is not a secret, admitted on 2026-09-19. It is ISRG Root X1,
+# Let's Encrypt's public root certificate, bundled so that Android 7.0 - which
+# predates it - can reach the API at all; network_security_config.xml says why.
+# A root certificate is published by its owner and carried by every browser,
+# so committing it discloses nothing. The blanket rule above stays for
+# everything else, because a .pem is the usual shape of a private key: this
+# admits one path, it must come after that rule to override it, and
+# frontend/guards/trustAnchor.test.ts fails the build if the file ever holds
+# anything but this exact certificate.
+!frontend/android/app/src/main/res/raw/isrg_root_x1.pem
+
 # ---------------------------------------------------------------------------
 # Java / Maven
 # ---------------------------------------------------------------------------

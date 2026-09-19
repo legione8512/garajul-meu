@@ -19,6 +19,33 @@ export default defineConfig({
       ),
     },
   },
+
+  build: {
+    // Vite 8's default, `baseline-widely-available`, with Chrome lowered from 111
+    // to 101 - the oldest Android WebView measured on a device this application
+    // claims to support. A Huawei MediaPad T3 on Android 7.0, exactly the
+    // `minSdkVersion` of 24, runs Chrome 101 as its WebView and its Play Store
+    // offers nothing newer (2026-09-19).
+    //
+    // What the old target cost on that tablet, seen rather than predicted:
+    // `index.css` writes `min-height: 100vh` and then `100dvh`, saying the `vh`
+    // "stays as the fallback for anything that does not know the unit". The
+    // minifier removed it, because Chrome 111 knows `dvh` and the fallback looked
+    // dead. Chrome 101 does not, so the shell lost its height and the footer
+    // floated up the screen. A fallback written on purpose was deleted by the
+    // one setting that decides who needs it.
+    //
+    // The other four entries are the default's, unchanged - Safari and iOS 16.4
+    // are why the iOS deployment target is 16.4.
+    //
+    // **This lowers syntax and keeps CSS fallbacks; it polyfills nothing.** A
+    // browser API newer than Chrome 101 still breaks there, exactly as
+    // `AbortSignal.timeout` (Chrome 103) did in `api/refresh.ts`, and no tool in
+    // this project checks for one. TRIGGER: a new web API used anywhere, or a
+    // device whose WebView is older than 101.
+    target: ['chrome101', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'],
+  },
+
   test: {
     // Unit tests live in `src`; repository guards live in `guards`, because
     // they read files and `src` is deliberately typed as browser-only.

@@ -54,6 +54,25 @@ async function endSession(): Promise<false> {
 }
 
 async function attemptRefresh(): Promise<boolean> {
+  // Without a bound, a request that is never answered - a network that
+  // swallows rather than refuses - leaves the slot above occupied for the life
+  // of the page. Every later expiry would then await a promise that can never
+  // settle, and the session would appear frozen rather than expired. Scoped to
+  // refresh deliberately: one stuck request here disables refreshing for
+  // everything, while any other request failing affects only itself.
+  //
+  // A controller and a timer rather than `AbortSignal.timeout`, which is what
+  // this used until 2026-09-19. That function arrived in Chrome 103, and the
+  // oldest WebView this application runs on is Chrome 101 - a Huawei MediaPad
+  // T3 on Android 7.0, which cannot update past it. There it threw inside the
+  // `try` below, before any request left, so every refresh ended in
+  // `endSession()`, which also forgets the stored token: signed out at every
+  // launch and at every access-token expiry, and nothing on screen to say why.
+  // The signal covers the response body too, so the timer is cleared only once
+  // the whole attempt is over.
+  const controller = new AbortController()
+  const timer = setTimeout(() => { controller.abort() }, REFRESH_TIMEOUT_MS)
+
   try {
     // Null on the web, where the cookie carries it; the stored token on a
     // native client. Read before the request rather than inside the body
@@ -73,14 +92,9 @@ async function attemptRefresh(): Promise<boolean> {
       // which is the native path - one endpoint, two channels, no header, as
       // section 14 requires.
       body: presented === null ? '{}' : JSON.stringify({ refreshToken: presented }),
-      // Without a bound, a request that is never answered - a network that
-      // swallows rather than refuses - leaves the slot above occupied for the
-      // life of the page. Every later expiry would then await a promise that
-      // can never settle, and the session would appear frozen rather than
-      // expired. Scoped to refresh deliberately: one stuck request here
-      // disables refreshing for everything, while any other request failing
-      // affects only itself.
-      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
+      // See the top of this function for the bound, and for why it is not
+      // `AbortSignal.timeout`.
+      signal: controller.signal,
     })
 
     if (!response.ok) {
@@ -110,5 +124,7 @@ async function attemptRefresh(): Promise<boolean> {
     // store refused the token it was handed. Either way there is no usable
     // session; treating it as one would loop.
     return await endSession()
+  } finally {
+    clearTimeout(timer)
   }
 }

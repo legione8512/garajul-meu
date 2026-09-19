@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adds one root certificate to those the application trusts, so that Android
+    7.0 can reach the API at all.
+
+    Found on 2026-09-19 on a Huawei MediaPad T3 running Android 7.0, which is
+    exactly minSdkVersion 24: signing in answered only "A aparut o problema",
+    and the tablet's own Chrome showed "Conexiunea nu este privata" for
+    https://api.cyber-half.com/actuator/health. The API's certificate is from
+    Let's Encrypt, and Android 7.0 does not carry ISRG Root X1, the root it ends
+    in. That root reached Android in 7.1.1. So on 7.0 every request failed before
+    a byte of it mattered, and the application could show nothing but the
+    screens that need no server.
+
+    The chain was read rather than assumed, through SSL Labs, since this
+    laptop's antivirus re-signs every connection it makes: the server sends
+    api.cyber-half.com, then YR1, then Root YR cross-signed by ISRG Root X1. One
+    root is therefore enough. The file in res/raw was exported from the Windows
+    trust store by its SHA-256 fingerprint, and checked with openssl against
+    the value Let's Encrypt publishes:
+    96:BC:EC:06:26:49:76:F3:74:60:77:9A:CF:28:C5:A7:CF:E8:A3:C0:AA:E1:1A:8F:FC:EE:05:C0:BD:DF:08:C6.
+    It expires on 2035-06-04.
+
+    The system's own anchors are kept, and listed first: this adds trust and
+    removes none, so nothing any other Android version already trusts is
+    affected. Cleartext stays refused, the default for this target SDK.
+
+    TRIGGER for revisiting: the API failing on Android 7.0 again, which would
+    mean Railway stopped sending the cross-signed Root YR and Root YR itself
+    must be added here; the root approaching 2035; or minSdkVersion rising to 25
+    or above, after which this file has nothing left to do.
+-->
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/isrg_root_x1" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
