@@ -3,6 +3,7 @@ package ro.garajulmeu.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,6 +31,7 @@ import jakarta.servlet.http.Cookie;
 import ro.garajulmeu.TestcontainersConfiguration;
 import ro.garajulmeu.common.RequestIdFilter;
 import ro.garajulmeu.email.EmailProvider;
+import ro.garajulmeu.email.EmailRecipientRejectedException;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 
@@ -147,6 +149,22 @@ class AuthFlowTest {
 		mockMvc.perform(post("/api/v1/auth/login").contentType("application/json")
 				.content("{\"email\":\"unverified@example.com\",\"password\":\"%s\"}".formatted(PASSWORD)))
 				.andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"));
+	}
+
+	/**
+	 * What Google Play's pre-launch robot did on 2026-09-19, through the real
+	 * HTTP surface: an address the email provider refuses answers with its own
+	 * code, which the application can explain, instead of INTERNAL_ERROR.
+	 */
+	@Test
+	void registeringWithAnAddressThatCannotReceiveMailSaysSo() throws Exception {
+		doThrow(new EmailRecipientRejectedException("Resend refused the recipient of a verification code", null))
+				.when(emailProvider).sendVerificationCode(eq("robot@example.com"), any(), any());
+
+		mockMvc.perform(post("/api/v1/auth/register").contentType("application/json").content("""
+				{"fullName":"Pre Launch","email":"robot@example.com",
+				 "password":"a-sufficiently-long-password","preferredLanguage":"ro"}"""))
+				.andExpect(status().is(422)).andExpect(jsonPath("$.code").value("EMAIL_UNDELIVERABLE"));
 	}
 
 	private MvcResultHolder loginRaw(boolean tokenInBody) throws Exception {

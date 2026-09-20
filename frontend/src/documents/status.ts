@@ -1,4 +1,5 @@
 import type { DocumentStatus } from '../api/endpoints/documents.ts'
+import { countForm, type CountForm } from '../i18n/countForm.ts'
 
 /**
  * How urgent something is, for styling only.
@@ -10,26 +11,31 @@ import type { DocumentStatus } from '../api/endpoints/documents.ts'
  */
 export type DocumentTone = 'ok' | 'soon' | 'urgent' | 'gap' | 'unset'
 
+/** The five sentences that count days, each in the three forms countForm names. */
+type CountedState = 'active' | 'soon' | 'urgent' | 'lapsed' | 'lapsedUntil'
+
 /**
- * The ten sentences a state can produce, as literals.
+ * The twenty sentences a state can produce, as literals.
  *
  * <p>Not `string`. i18next types `t` over the keys that actually exist, so a key
  * assembled at runtime resolves to the overload whose second argument is a
- * default *string* and the call stops compiling. Naming the ten here keeps the
- * checking rather than casting it away - an eleventh sentence added to the locale
- * without being added here is a compile error, which is the point.
+ * default *string* and the call stops compiling. Naming them here keeps the
+ * checking rather than casting it away - the template below expands to fifteen
+ * literal keys, and a form missing from either locale is a compile error, which
+ * is the point.
  */
 export type DocumentStateKey =
-  | 'documents.state.active'
-  | 'documents.state.soon'
-  | 'documents.state.urgent'
+  | `documents.state.${CountedState}.${CountForm}`
   | 'documents.state.expiresToday'
-  | 'documents.state.lapsed'
-  | 'documents.state.lapsedUntil'
   | 'documents.state.startsOn'
   | 'documents.state.notStarted'
   | 'documents.state.notCovered'
   | 'documents.state.notConfigured'
+
+/** The key for a counted sentence in the form its number needs. */
+function counted(state: CountedState, days: number): DocumentStateKey {
+  return `documents.state.${state}.${countForm(days)}` as const
+}
 
 /** A type alias, not an interface: `values` is handed straight to i18next. */
 export type DocumentState = {
@@ -85,10 +91,10 @@ export function stateOf(facts: CoverageFacts, formatDate: (iso: string) => strin
     const days = Math.abs(facts.daysRemaining ?? 0)
 
     return resumes === null
-      ? { tone: 'gap', key: 'documents.state.lapsed', values: { days } }
+      ? { tone: 'gap', key: counted('lapsed', days), values: { days } }
       : {
           tone: 'gap',
-          key: 'documents.state.lapsedUntil',
+          key: counted('lapsedUntil', days),
           values: { days, date: formatDate(resumes) },
         }
   }
@@ -107,11 +113,11 @@ export function stateOf(facts: CoverageFacts, formatDate: (iso: string) => strin
     case 'EXPIRES_TODAY':
       return { tone: 'urgent', key: 'documents.state.expiresToday', values: {} }
     case 'URGENT':
-      return { tone: 'urgent', key: 'documents.state.urgent', values: { days } }
+      return { tone: 'urgent', key: counted('urgent', days), values: { days } }
     case 'EXPIRING_SOON':
-      return { tone: 'soon', key: 'documents.state.soon', values: { days } }
+      return { tone: 'soon', key: counted('soon', days), values: { days } }
     default:
-      return { tone: 'ok', key: 'documents.state.active', values: { days } }
+      return { tone: 'ok', key: counted('active', days), values: { days } }
   }
 }
 

@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import ro.garajulmeu.user.Language;
@@ -30,6 +31,15 @@ import ro.garajulmeu.user.Language;
  * {@code GlobalExceptionHandler}, which logs it at ERROR, which is what Sentry
  * reports. An email provider that has stopped answering is precisely the sort of
  * thing worth being told about at once.
+ *
+ * <p><strong>One refusal is translated rather than passed on, since
+ * 2026-09-19</strong>: Resend declining the recipient itself. That is what the
+ * person typed, not an outage, and passed on untouched it answered
+ * INTERNAL_ERROR and raised a high-priority alert - found when Google Play's
+ * pre-launch robot registered at example.com. It becomes
+ * EmailRecipientRejectedException, which still rolls the transaction back and
+ * which GlobalExceptionHandler answers with its own code. Everything else
+ * reaches the handler as before.
  */
 @Component
 @ConditionalOnProperty(name = "garajul-meu.email.provider", havingValue = "resend")
@@ -42,6 +52,13 @@ public class ResendEmailProvider implements EmailProvider {
 	}
 
 	private record Sent(String id) {
+	}
+
+	/**
+	 * Resend's documented error shape. All three fields are declared so that
+	 * reading the body does not depend on the mapper tolerating unknown ones.
+	 */
+	private record Refusal(Integer statusCode, String name, String message) {
 	}
 
 	private final RestClient client;
@@ -104,13 +121,47 @@ public class ResendEmailProvider implements EmailProvider {
 	}
 
 	private void send(String purpose, String recipient, EmailMessages.Message message) {
-		Sent sent = client.post()
-				.uri("/emails")
-				.contentType(MediaType.APPLICATION_JSON)
-				.body(new Payload(from, List.of(recipient), message.subject(), message.body()))
-				.retrieve()
-				.body(Sent.class);
+		Sent sent;
+
+		try {
+			sent = client.post()
+					.uri("/emails")
+					.contentType(MediaType.APPLICATION_JSON)
+					.body(new Payload(from, List.of(recipient), message.subject(), message.body()))
+					.retrieve()
+					.body(Sent.class);
+		}
+		catch (HttpClientErrorException refused) {
+			if (!refusesTheRecipient(refused)) {
+				throw refused;
+			}
+			log.info("Resend refused the recipient of a {} as an address it will not send to", purpose);
+			throw new EmailRecipientRejectedException("Resend refused the recipient of a " + purpose, refused);
+		}
 
 		log.info("Sent a {} through Resend as message {}", purpose, sent == null ? "unknown" : sent.id());
+	}
+
+	/**
+	 * Resend answers 422 {@code validation_error} for a recipient it will not send
+	 * to - example.com and its siblings, or an address it cannot parse. The
+	 * recipient is the only part of the request a person typed: the sender is
+	 * configuration, and the subject and body are this application's own. So that
+	 * pair, and only that pair, is the person's mistake. A 422 under any other
+	 * name - {@code invalid_from_address} is one - is a fault on this side, and so
+	 * is a body that cannot be read; both keep reaching Sentry as they always did.
+	 */
+	private static boolean refusesTheRecipient(HttpClientErrorException refused) {
+		if (refused.getStatusCode().value() != 422) {
+			return false;
+		}
+
+		try {
+			Refusal refusal = refused.getResponseBodyAs(Refusal.class);
+			return refusal != null && "validation_error".equals(refusal.name());
+		}
+		catch (RuntimeException unreadable) {
+			return false;
+		}
 	}
 }

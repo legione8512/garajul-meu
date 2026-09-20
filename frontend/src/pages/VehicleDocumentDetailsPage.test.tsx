@@ -124,7 +124,7 @@ describe('document details', () => {
     await open()
 
     expect(screen.getByText(
-      ro.documents.state.active.replace('{{days}}', '137'),
+      ro.documents.state.active.many.replace('{{days}}', '137'),
     )).toBeInTheDocument()
     expect(correctionField(ro.documents.fields.provider)).toHaveValue('Allianz')
     expect(correctionField(ro.documents.fields.validUntil)).toHaveValue('2027-01-01')

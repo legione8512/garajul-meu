@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import ro.garajulmeu.email.EmailRecipientRejectedException;
+
 /**
  * Uses a throwaway controller rather than a real endpoint, so the handler can be
  * verified before any production endpoint exists.
@@ -40,6 +42,12 @@ class GlobalExceptionHandlerTest {
 		@GetMapping("/test/unexpected-failure")
 		void unexpectedFailure() {
 			throw new IllegalStateException("connection to 10.0.0.7 refused for user db_admin");
+		}
+
+		@GetMapping("/test/refused-recipient")
+		void refusedRecipient() {
+			throw new EmailRecipientRejectedException("Resend refused the recipient of a verification code",
+					new IllegalStateException("Invalid `to` field. Please use our testing email address"));
 		}
 	}
 
@@ -67,5 +75,19 @@ class GlobalExceptionHandlerTest {
 				.andExpect(content().string(not(containsString("10.0.0.7"))))
 				.andExpect(content().string(not(containsString("db_admin"))))
 				.andExpect(content().string(not(containsString("IllegalStateException"))));
+	}
+
+	/**
+	 * Its own code rather than INTERNAL_ERROR, and still nothing of the
+	 * provider's wording: the frontend says what happened, in the reader's
+	 * language.
+	 */
+	@Test
+	void aRefusedRecipientIsNamedAndNothingOfTheProviderLeaks() throws Exception {
+		mockMvc.perform(get("/test/refused-recipient"))
+				.andExpect(status().is(422))
+				.andExpect(jsonPath("$.code").value("EMAIL_UNDELIVERABLE"))
+				.andExpect(content().string(not(containsString("Resend"))))
+				.andExpect(content().string(not(containsString("`to`"))));
 	}
 }

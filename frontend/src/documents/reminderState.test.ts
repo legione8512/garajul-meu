@@ -31,6 +31,18 @@ describe('reminder lines', () => {
     expect(leadKeyFor(3)).toBe('reminders.lead.fewDays')
   })
 
+  /**
+   * The rule reads the last two digits. "Below twenty", what this used to test
+   * for, would have written "cu 101 de zile" - no such offset exists today, and
+   * the rule is the language's, not the offset set's.
+   */
+  it('drops "de" again from 101 to 119', () => {
+    expect(leadKeyFor(100)).toBe('reminders.lead.manyDays')
+    expect(leadKeyFor(101)).toBe('reminders.lead.fewDays')
+    expect(leadKeyFor(119)).toBe('reminders.lead.fewDays')
+    expect(leadKeyFor(120)).toBe('reminders.lead.manyDays')
+  })
+
   it('says one day and the day itself in words rather than numbers', () => {
     expect(leadKeyFor(1)).toBe('reminders.lead.oneDay')
     expect(leadKeyFor(0)).toBe('reminders.lead.onTheDay')

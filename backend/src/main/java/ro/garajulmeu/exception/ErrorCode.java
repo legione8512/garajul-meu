@@ -33,6 +33,17 @@ public enum ErrorCode {
 	EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT), USER_NOT_FOUND(HttpStatus.NOT_FOUND),
 	INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST),
 
+	/**
+	 * The email provider refused the address itself - a domain reserved for
+	 * examples, or one it will not parse - before sending anything. What the
+	 * person typed, not a failure here, so it names the problem instead of
+	 * collapsing to INTERNAL_ERROR. Added on 2026-09-19, when Google Play's
+	 * pre-launch robot registered at example.com and the catch-all turned it into
+	 * a high-priority Sentry alert. Raised from EmailRecipientRejectedException,
+	 * never as an ApiException - that class says why.
+	 */
+	EMAIL_UNDELIVERABLE(HttpStatus.UNPROCESSABLE_CONTENT),
+
 	// Vehicle
 	VEHICLE_NOT_FOUND(HttpStatus.NOT_FOUND), VEHICLE_ACCESS_DENIED(HttpStatus.FORBIDDEN),
 	VEHICLE_DUPLICATE_VIN(HttpStatus.CONFLICT),

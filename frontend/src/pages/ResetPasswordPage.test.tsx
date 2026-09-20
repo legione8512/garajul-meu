@@ -32,7 +32,7 @@ describe('reset password', () => {
     await userEvent.click(screen.getByRole('button', { name: ro.resetPassword.submit }))
 
     expect(screen.getByLabelText(ro.fields.newPassword))
-      .toHaveAccessibleDescription('Lungime minimă: 12 caractere.')
+      .toHaveAccessibleDescription('Numărul minim de caractere: 12.')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

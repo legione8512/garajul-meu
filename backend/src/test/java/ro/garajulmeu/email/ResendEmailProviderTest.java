@@ -1,5 +1,6 @@
 package ro.garajulmeu.email;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.time.Duration;
@@ -15,12 +17,15 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import ro.garajulmeu.auth.AuthProperties;
+import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.user.Language;
 
 /**
@@ -88,6 +93,63 @@ class ResendEmailProviderTest {
 
 		assertThatThrownBy(() -> provider().sendVerificationCode("marius@example.com", "602431", Language.RO))
 				.isInstanceOf(RestClientException.class);
+	}
+
+	/**
+	 * Resend's answer to Google Play's pre-launch robot on 2026-09-19, byte for
+	 * byte. The address is what the person typed, so it is their mistake to be
+	 * told about - not an outage to be paged about - and the exception names the
+	 * message that was refused without naming the address.
+	 */
+	@Test
+	void anAddressResendWillNotSendToIsThePersonsMistake() {
+		resend.expect(requestTo("https://api.resend.com/emails"))
+				.andRespond(withStatus(HttpStatus.UNPROCESSABLE_CONTENT).contentType(MediaType.APPLICATION_JSON)
+						.body("{\"statusCode\":422,\"name\":\"validation_error\",\"message\":\"Invalid `to` field. "
+								+ "Please use our testing email address instead of domains like `example.com`. "
+								+ "See our documentation for more information.\"}"));
+
+		assertThatThrownBy(() -> provider().sendVerificationCode("robot@example.com", "602431", Language.RO))
+				.isInstanceOf(EmailRecipientRejectedException.class).hasMessageContaining("verification code")
+				.hasMessageNotContaining("robot@example.com");
+	}
+
+	/**
+	 * A 422 under another name is about this side's request - here the sender,
+	 * which is configuration - and must stay a failure that reaches Sentry.
+	 */
+	@Test
+	void aRefusalOfTheSenderIsStillAFailureOfOurs() {
+		resend.expect(requestTo("https://api.resend.com/emails"))
+				.andRespond(withStatus(HttpStatus.UNPROCESSABLE_CONTENT).contentType(MediaType.APPLICATION_JSON)
+						.body("{\"statusCode\":422,\"name\":\"invalid_from_address\",\"message\":\"Invalid `from` field.\"}"));
+
+		assertThatThrownBy(() -> provider().sendVerificationCode("marius@example.com", "602431", Language.RO))
+				.isInstanceOf(HttpClientErrorException.class)
+				.isNotInstanceOf(EmailRecipientRejectedException.class);
+	}
+
+	/** A 422 whose body cannot be read proves nothing about the recipient. */
+	@Test
+	void anUnreadableRefusalIsStillAFailureOfOurs() {
+		resend.expect(requestTo("https://api.resend.com/emails"))
+				.andRespond(withStatus(HttpStatus.UNPROCESSABLE_CONTENT).contentType(MediaType.TEXT_PLAIN)
+						.body("unprocessable"));
+
+		assertThatThrownBy(() -> provider().sendVerificationCode("marius@example.com", "602431", Language.RO))
+				.isInstanceOf(HttpClientErrorException.class);
+	}
+
+	/**
+	 * Why the refusal is its own type. Confirming an email change sends to the
+	 * new address and runs with {@code noRollbackFor = ApiException.class}; as an
+	 * ApiException, a refused new address would be committed to the account
+	 * while the caller was told the change had failed.
+	 */
+	@Test
+	void theRefusalRollsBackWhereABusinessFailureWouldNot() {
+		assertThat(RuntimeException.class.isAssignableFrom(EmailRecipientRejectedException.class)).isTrue();
+		assertThat(ApiException.class.isAssignableFrom(EmailRecipientRejectedException.class)).isFalse();
 	}
 
 	/**

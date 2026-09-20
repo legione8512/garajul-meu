@@ -8,7 +8,31 @@ const asIs = (iso: string) => iso
 describe('document state', () => {
   it('names the days left while cover holds', () => {
     expect(stateOf({ status: 'ACTIVE', validUntil: '2027-01-01', daysRemaining: 200 }, asIs))
-      .toEqual({ tone: 'ok', key: 'documents.state.active', values: { days: 200 } })
+      .toEqual({ tone: 'ok', key: 'documents.state.active.many', values: { days: 200 } })
+  })
+
+  /**
+   * The Play screenshots of 2026-09-19 read "Expiră în 1 zile" and "Valabil
+   * încă 223 zile". Each count now picks the sentence that agrees with it.
+   */
+  it('chooses the sentence whose form agrees with the count', () => {
+    const key = (status: 'ACTIVE' | 'EXPIRING_SOON' | 'URGENT', daysRemaining: number) =>
+      stateOf({ status, daysRemaining }, asIs).key
+
+    expect(key('URGENT', 1)).toBe('documents.state.urgent.one')
+    expect(key('URGENT', 6)).toBe('documents.state.urgent.few')
+    expect(key('EXPIRING_SOON', 19)).toBe('documents.state.soon.few')
+    expect(key('EXPIRING_SOON', 20)).toBe('documents.state.soon.many')
+    expect(key('ACTIVE', 101)).toBe('documents.state.active.few')
+    expect(key('ACTIVE', 223)).toBe('documents.state.active.many')
+  })
+
+  it('says yesterday rather than one day ago', () => {
+    expect(stateOf({ status: 'EXPIRED', validUntil: '2026-09-18', daysRemaining: -1 }, asIs).key)
+      .toBe('documents.state.lapsed.one')
+    expect(stateOf({
+      status: 'EXPIRED', validUntil: '2026-09-18', daysRemaining: -1, upcomingFrom: '2026-10-01',
+    }, asIs).key).toBe('documents.state.lapsedUntil.one')
   })
 
   /**
@@ -26,7 +50,7 @@ describe('document state', () => {
 
   it('counts elapsed days as a positive number', () => {
     expect(stateOf({ status: 'EXPIRED', validUntil: '2026-08-12', daysRemaining: -5 }, asIs))
-      .toEqual({ tone: 'gap', key: 'documents.state.lapsed', values: { days: 5 } })
+      .toEqual({ tone: 'gap', key: 'documents.state.lapsed.few', values: { days: 5 } })
   })
 
   /**
@@ -64,7 +88,7 @@ describe('document state', () => {
     expect(stateOf({ status: 'ACTIVE', ...period, daysRemaining: 365 }, asIs).key)
       .toBe('documents.state.notStarted')
     expect(stateOf({ status: 'ACTIVE', ...period, daysRemaining: 364 }, asIs).key)
-      .toBe('documents.state.active')
+      .toBe('documents.state.active.many')
   })
 
   /** A short document can start tomorrow and still sit in an urgent band. */
@@ -76,7 +100,7 @@ describe('document state', () => {
 
   it('treats a document with no start date as started', () => {
     expect(stateOf({ status: 'ACTIVE', validUntil: '2027-12-04', daysRemaining: 445 }, asIs).key)
-      .toBe('documents.state.active')
+      .toBe('documents.state.active.many')
   })
 
   it('reports a type nothing was ever entered for as unset', () => {

@@ -40,7 +40,7 @@ describe('create account', () => {
     await userEvent.click(screen.getByRole('button', { name: ro.register.submit }))
 
     expect(screen.getByLabelText(ro.fields.password))
-      .toHaveAccessibleDescription('Lungime minimă: 12 caractere.')
+      .toHaveAccessibleDescription('Numărul minim de caractere: 12.')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

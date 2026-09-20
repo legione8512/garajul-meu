@@ -3,6 +3,7 @@ package ro.garajulmeu.exception;
 import java.util.List;
 import org.slf4j.MDC;
 import ro.garajulmeu.common.RequestIdFilter;
+import ro.garajulmeu.email.EmailRecipientRejectedException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -119,6 +120,19 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(HttpServletRequest request) {
 		log.info("Method not allowed for {} {}", request.getMethod(), request.getRequestURI());
 		return respond(ErrorCode.METHOD_NOT_ALLOWED, request);
+	}
+
+	/**
+	 * An address the email provider will not send to - what the person typed, so
+	 * INFO like every other business failure. Until 2026-09-19 it reached the
+	 * catch-all below as the provider's own exception, answered INTERNAL_ERROR, and
+	 * raised a high-priority Sentry alert when Google Play's pre-launch robot
+	 * registered at example.com.
+	 */
+	@ExceptionHandler(EmailRecipientRejectedException.class)
+	public ResponseEntity<ApiErrorResponse> handleRefusedRecipient(HttpServletRequest request) {
+		log.info("Email recipient refused on {} {}", request.getMethod(), request.getRequestURI());
+		return respond(ErrorCode.EMAIL_UNDELIVERABLE, request);
 	}
 
 	@ExceptionHandler(Exception.class)

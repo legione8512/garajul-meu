@@ -198,13 +198,39 @@ export const ro = {
       referenceNumber: 'Număr poliță sau referință',
       notes: 'Observații',
     },
+    // Every sentence that counts days has three forms, because Romanian counts
+    // in three: "o zi", "5 zile", "20 de zile". countForm() picks the form; see
+    // it for the rule. Until 2026-09-19 each had one, and every card read
+    // "Expiră în 1 zile" or "Valabil încă 223 zile". Some forms cannot occur
+    // with today's bands - nothing "active" has one day left - and are written
+    // anyway, because the bands are the backend's to move.
     state: {
-      active: 'Valabil încă {{days}} zile.',
-      soon: 'Expiră în {{days}} zile.',
-      urgent: 'Expiră în {{days}} zile — urgent.',
+      active: {
+        one: 'Valabil încă o zi.',
+        few: 'Valabil încă {{days}} zile.',
+        many: 'Valabil încă {{days}} de zile.',
+      },
+      soon: {
+        one: 'Expiră mâine.',
+        few: 'Expiră în {{days}} zile.',
+        many: 'Expiră în {{days}} de zile.',
+      },
+      urgent: {
+        one: 'Expiră mâine — urgent.',
+        few: 'Expiră în {{days}} zile — urgent.',
+        many: 'Expiră în {{days}} de zile — urgent.',
+      },
       expiresToday: 'Expiră astăzi.',
-      lapsed: 'Expirat de {{days}} zile.',
-      lapsedUntil: 'Expirat de {{days}} zile. Acoperirea reîncepe pe {{date}}.',
+      lapsed: {
+        one: 'Expirat ieri.',
+        few: 'Expirat de {{days}} zile.',
+        many: 'Expirat de {{days}} de zile.',
+      },
+      lapsedUntil: {
+        one: 'Expirat ieri. Acoperirea reîncepe pe {{date}}.',
+        few: 'Expirat de {{days}} zile. Acoperirea reîncepe pe {{date}}.',
+        many: 'Expirat de {{days}} de zile. Acoperirea reîncepe pe {{date}}.',
+      },
       startsOn: 'Nu ești acoperit azi. Acoperirea începe pe {{date}}.',
       // A stored document whose own period has not begun (2026-09-15). Not a
       // coverage statement - the dashboard makes that one - so no "neacoperit".
@@ -221,7 +247,9 @@ export const ro = {
     none: 'Aici vei vedea toate documentele păstrate, inclusiv cele înlocuite '
       + 'prin reînnoire. Deocamdată nu e niciunul.',
     page: 'Pagina {{page}} din {{pages}}.',
-    total: '{{total}} înregistrări în total.',
+    // The number last, standing alone, so that no count needs agreeing with:
+    // "1 înregistrări" and "20 înregistrări" were both wrong until 2026-09-19.
+    total: 'Înregistrări în total: {{total}}.',
     previous: 'Pagina anterioară',
     next: 'Pagina următoare',
   },
@@ -456,17 +484,18 @@ export const ro = {
     privacy: 'Politica de confidențialitate',
   },
   /**
-   * Phrased as labels rather than sentences on purpose. Romanian requires "de"
-   * before a noun after numbers of twenty and above - "12 caractere" but "120
-   * de caractere" - and interpolation cannot choose between them. i18next can,
-   * through plural forms, and that is worth doing when real copy is written;
-   * until then this phrasing is correct for every number.
+   * The number stands last and alone on purpose. Romanian requires "de" before
+   * a noun after numbers of twenty and above - "12 caractere" but "120 de
+   * caractere" - and every maximum here is above twenty. This note claimed the
+   * earlier label phrasing, "Lungime maximă: {{max}} caractere", was correct
+   * for every number; it was not, since "120 caractere" still lacks the "de".
+   * Put after the noun, the number agrees with nothing (2026-09-19).
    */
   validation: {
     required: 'Completează acest câmp.',
     email: 'Adresa de email nu pare validă.',
-    minLength: 'Lungime minimă: {{min}} caractere.',
-    maxLength: 'Lungime maximă: {{max}} caractere.',
+    minLength: 'Numărul minim de caractere: {{min}}.',
+    maxLength: 'Numărul maxim de caractere: {{max}}.',
     sixDigits: 'Codul are exact șase cifre.',
     invalid: 'Valoarea nu este acceptată.',
   },
@@ -490,6 +519,9 @@ export const ro = {
     VERIFICATION_CODE_INVALID: 'Codul nu este corect.',
     VERIFICATION_CODE_EXPIRED: 'Codul a expirat. Cere unul nou.',
     EMAIL_ALREADY_EXISTS: 'Există deja un cont cu această adresă de email.',
+    // The provider refused the address itself (2026-09-19). Said for the two
+    // places it can arrive: creating an account, and moving one to a new address.
+    EMAIL_UNDELIVERABLE: 'Nu putem trimite emailuri la această adresă. Verifică dacă e scrisă corect.',
     USER_NOT_FOUND: 'Contul nu a fost găsit.',
     INVALID_CURRENT_PASSWORD: 'Parola actuală nu este corectă.',
     VEHICLE_NOT_FOUND: 'Vehiculul nu a fost găsit.',

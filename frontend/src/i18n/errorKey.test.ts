@@ -39,6 +39,7 @@ describe('backend error codes', () => {
       'VERIFICATION_CODE_INVALID',
       'VERIFICATION_CODE_EXPIRED',
       'EMAIL_ALREADY_EXISTS',
+      'EMAIL_UNDELIVERABLE',
       'USER_NOT_FOUND',
       'INVALID_CURRENT_PASSWORD',
       'VEHICLE_NOT_FOUND',

@@ -91,7 +91,7 @@ describe('vehicle documents', () => {
     expect(screen.getByText('Allianz')).toBeInTheDocument()
     expect(screen.getByText('POL-12345')).toBeInTheDocument()
     expect(screen.getByText(
-      ro.documents.state.active.replace('{{days}}', '137'),
+      ro.documents.state.active.many.replace('{{days}}', '137'),
     )).toBeInTheDocument()
   })
 
@@ -109,7 +109,7 @@ describe('vehicle documents', () => {
     expect(await screen.findByText(
       ro.documents.state.notStarted.replace('{{date}}', '5 decembrie 2026'),
     )).toBeInTheDocument()
-    expect(screen.queryByText(ro.documents.state.active.replace('{{days}}', '445'))).toBeNull()
+    expect(screen.queryByText(ro.documents.state.active.many.replace('{{days}}', '445'))).toBeNull()
   })
 
   /** The four section 8 requires of a period: only the end date is mandatory. */

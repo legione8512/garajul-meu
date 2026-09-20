@@ -1,4 +1,5 @@
 import type { ReminderStatus, ReminderView } from '../api/endpoints/reminders.ts'
+import { countForm } from '../i18n/countForm.ts'
 import type { DocumentTone } from './status.ts'
 
 /**
@@ -9,7 +10,9 @@ import type { DocumentTone } from './status.ts'
  * this offset set's, so the split is written generally - adding a sixty-day
  * offset later must not produce "cu 60 zile", which reads as a mistake to every
  * Romanian speaker and to no test. English needs no such split and gets the same
- * sentence twice, which is cheaper than a second mechanism.
+ * sentence twice, which is cheaper than a second mechanism. **The split is
+ * countForm's since 2026-09-19**, shared with the document states; until then it
+ * was "below twenty" here, which is right up to 100 and wrong from 101 to 119.
  *
  * <p>i18next could do this with CLDR plurals, and Romanian's few/other boundary
  * is exactly where these keys divide. It is not used because `t` is typed over
@@ -54,7 +57,7 @@ export function leadKeyFor(offsetDays: number): ReminderLeadKey {
   if (offsetDays === 1) {
     return 'reminders.lead.oneDay'
   }
-  return offsetDays < 20 ? 'reminders.lead.fewDays' : 'reminders.lead.manyDays'
+  return countForm(offsetDays) === 'many' ? 'reminders.lead.manyDays' : 'reminders.lead.fewDays'
 }
 
 /**

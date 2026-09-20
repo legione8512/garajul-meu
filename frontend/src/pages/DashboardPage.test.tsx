@@ -64,7 +64,7 @@ describe('dashboard', () => {
 
     expect(await screen.findByRole('link', { name: 'Dacia Logan' })).toBeInTheDocument()
     expect(screen.getByText(
-      ro.documents.state.active.replace('{{days}}', '200'),
+      ro.documents.state.active.many.replace('{{days}}', '200'),
     )).toBeInTheDocument()
   })
 
@@ -142,7 +142,7 @@ describe('dashboard', () => {
     renderApp(paths.dashboard)
 
     expect(await screen.findByText(
-      ro.documents.state.lapsedUntil
+      ro.documents.state.lapsedUntil.few
         .replace('{{days}}', '5')
         .replace('{{date}}', '1 septembrie 2026'),
     )).toBeInTheDocument()

@@ -191,13 +191,35 @@ export const en: typeof ro = {
       referenceNumber: 'Policy or reference number',
       notes: 'Notes',
     },
+    // Romanian's three forms; English tells only one from the rest, so "few"
+    // and "many" say the same. See ro.ts.
     state: {
-      active: 'Valid for another {{days}} days.',
-      soon: 'Expires in {{days}} days.',
-      urgent: 'Expires in {{days}} days — urgent.',
+      active: {
+        one: 'Valid for one more day.',
+        few: 'Valid for another {{days}} days.',
+        many: 'Valid for another {{days}} days.',
+      },
+      soon: {
+        one: 'Expires tomorrow.',
+        few: 'Expires in {{days}} days.',
+        many: 'Expires in {{days}} days.',
+      },
+      urgent: {
+        one: 'Expires tomorrow — urgent.',
+        few: 'Expires in {{days}} days — urgent.',
+        many: 'Expires in {{days}} days — urgent.',
+      },
       expiresToday: 'Expires today.',
-      lapsed: 'Expired {{days}} days ago.',
-      lapsedUntil: 'Expired {{days}} days ago. Cover resumes on {{date}}.',
+      lapsed: {
+        one: 'Expired yesterday.',
+        few: 'Expired {{days}} days ago.',
+        many: 'Expired {{days}} days ago.',
+      },
+      lapsedUntil: {
+        one: 'Expired yesterday. Cover resumes on {{date}}.',
+        few: 'Expired {{days}} days ago. Cover resumes on {{date}}.',
+        many: 'Expired {{days}} days ago. Cover resumes on {{date}}.',
+      },
       startsOn: 'You are not covered today. Cover starts on {{date}}.',
       notStarted: 'Takes effect on {{date}}.',
       notCovered: 'You are not covered today.',
@@ -212,7 +234,7 @@ export const en: typeof ro = {
     none: 'Every document you have kept will appear here, including the ones a '
       + 'renewal replaced. There are none yet.',
     page: 'Page {{page}} of {{pages}}.',
-    total: '{{total}} records in total.',
+    total: 'Records in total: {{total}}.',
     previous: 'Previous page',
     next: 'Next page',
   },
@@ -444,6 +466,7 @@ export const en: typeof ro = {
     VERIFICATION_CODE_INVALID: 'That code is not correct.',
     VERIFICATION_CODE_EXPIRED: 'That code has expired. Request a new one.',
     EMAIL_ALREADY_EXISTS: 'An account with this email address already exists.',
+    EMAIL_UNDELIVERABLE: 'We cannot send email to this address. Check that it is spelled correctly.',
     USER_NOT_FOUND: 'Account not found.',
     INVALID_CURRENT_PASSWORD: 'Your current password is not correct.',
     VEHICLE_NOT_FOUND: 'Vehicle not found.',
