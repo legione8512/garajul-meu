@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DashboardView } from '../api/endpoints/dashboard.ts'
 import { ro } from '../i18n/locales/ro.ts'
@@ -25,6 +25,14 @@ function stubDashboard(answer: () => Response) {
         accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
       }))
     }
+    // Before the dashboard branch: a thumbnail's address is a vehicle's, not the
+    // dashboard's, but it is easy to add a branch in the wrong order.
+    if (input.includes('/image/thumbnail')) {
+      return Promise.resolve(new Response(new Blob(['bytes'], { type: 'image/jpeg' }), {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg' },
+      }))
+    }
     if (input.includes('/dashboard')) {
       return Promise.resolve(answer())
     }
@@ -40,12 +48,24 @@ function garage(...documents: DashboardView['vehicles'][number]['documents']): D
       registrationNumber: 'B 100 ABC',
       make: 'Dacia',
       commercialDescription: 'Logan',
+      hasImage: false,
       documents,
     }],
   }
 }
 
+/** The same vehicle, photographed. */
+function photographed(view: DashboardView): DashboardView {
+  return { vehicles: view.vehicles.map(vehicle => ({ ...vehicle, hasImage: true })) }
+}
+
 describe('dashboard', () => {
+  // jsdom has neither, and the card's picture is an object URL like any other.
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:card-photograph')
+    URL.revokeObjectURL = vi.fn()
+  })
+
   it('offers a way in when the garage is empty', async () => {
     stubDashboard(() => jsonResponse(200, { vehicles: [] }))
 
@@ -141,6 +161,34 @@ describe('dashboard', () => {
     await waitFor(() => {
       expect(card?.querySelector('svg[data-brand-mark]')).not.toBeNull()
     })
+  })
+
+  /** The owner's own photograph beside the name, since 1.0.2. */
+  it('shows the photograph on the card of a vehicle that has one', async () => {
+    stubDashboard(() => jsonResponse(200, photographed(
+      garage({ type: 'RCA', status: 'NOT_CONFIGURED' }),
+    )))
+
+    renderApp(paths.dashboard)
+
+    const card = (await screen.findByRole('link', { name: 'Dacia Logan' })).closest('section')
+
+    await waitFor(() => {
+      expect(card?.querySelector('[data-card-head] img'))
+        .toHaveAttribute('src', 'blob:card-photograph')
+    })
+  })
+
+  /** And the circle stays empty where there is none, rather than the card losing a row. */
+  it('keeps the circle empty for a vehicle nobody has photographed', async () => {
+    stubDashboard(() => jsonResponse(200, garage({ type: 'RCA', status: 'NOT_CONFIGURED' })))
+
+    renderApp(paths.dashboard)
+
+    const card = (await screen.findByRole('link', { name: 'Dacia Logan' })).closest('section')
+
+    expect(card?.querySelector('[data-thumbnail="empty"]')).not.toBeNull()
+    expect(card?.querySelector('img')).toBeNull()
   })
 
   /**

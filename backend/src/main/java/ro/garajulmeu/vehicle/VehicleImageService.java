@@ -2,6 +2,7 @@ package ro.garajulmeu.vehicle;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import ro.garajulmeu.common.Thumbnail;
 import ro.garajulmeu.exception.ApiException;
 import ro.garajulmeu.exception.ErrorCode;
 import ro.garajulmeu.storage.FileStorageProvider;
@@ -34,6 +36,13 @@ import ro.garajulmeu.vehicle.dto.VehicleImageContent;
  * row already says there is no photograph, which is what was asked for. Both
  * choices prefer a leaked object over a wrong answer, because an orphan costs
  * storage and a wrong answer costs trust.
+ *
+ * <p><strong>Every photograph has a second object beside it since 1.0.2</strong>:
+ * the thumbnail the cards draw. It is derived, never uploaded, and its key is the
+ * photograph's with a suffix - so nothing has to be stored to find it, and every
+ * place that removes a photograph removes it in the same breath. Making one is
+ * always best-effort: a picture the owner can see beats a circle they cannot,
+ * and no failure of ours may cost them an upload.
  *
  * <p><strong>This class also owns the cleanup that happens when the row is taken
  * away by somebody else</strong> - a deleted vehicle, or a deleted account whose
@@ -67,12 +76,14 @@ public class VehicleImageService {
 		String objectKey = keyFor(vehicleId);
 
 		storage.put(objectKey, image.bytes(), image.contentType());
+		writeThumbnail(vehicleId, objectKey, image.bytes());
 
 		vehicle.setImage(objectKey, image.contentType(), image.sizeBytes());
 		vehicleRepository.saveAndFlush(vehicle);
 
 		if (previous != null) {
 			storage.delete(previous);
+			storage.delete(thumbnailKeyOf(previous));
 		}
 
 		log.info("Stored an image for vehicle {} ({} bytes, {})", vehicleId, image.sizeBytes(),
@@ -92,6 +103,7 @@ public class VehicleImageService {
 		vehicle.clearImage();
 		vehicleRepository.saveAndFlush(vehicle);
 		storage.delete(objectKey);
+		storage.delete(thumbnailKeyOf(objectKey));
 
 		log.info("Removed the image of vehicle {}", vehicleId);
 	}
@@ -121,6 +133,82 @@ public class VehicleImageService {
 		});
 
 		return new VehicleImageContent(bytes, vehicle.getImageContentType());
+	}
+
+	/**
+	 * The small square the cards draw, made on the way past when the store has not
+	 * got one yet.
+	 *
+	 * <p><strong>This GET writes, and that is the point.</strong> The read above
+	 * refuses to repair its row and says why; this is a different thing entirely -
+	 * nothing is corrected, a derived object is filled in from bytes we already
+	 * have. It is also what spares this feature a migration: every photograph
+	 * uploaded before 1.0.2 has no thumbnail, and rather than a batch job walking
+	 * a bucket, the first card that asks for one makes it, once. A failed write
+	 * costs the next reader another decode and nothing else, which is why it is
+	 * not allowed to fail the request.
+	 *
+	 * <p>A photograph no reader can decode answers 404 rather than 500: the card
+	 * then draws the empty circle, which is the same thing it draws for a vehicle
+	 * nobody has photographed, and a picture that cannot be shrunk is not a server
+	 * fault.
+	 */
+	@Transactional(readOnly = true)
+	public VehicleImageContent readThumbnail(UUID accountId, UUID vehicleId) {
+		Vehicle vehicle = owned(accountId, vehicleId);
+		String objectKey = vehicle.getImageObjectKey();
+
+		if (objectKey == null) {
+			throw new ApiException(ErrorCode.RESOURCE_NOT_FOUND);
+		}
+
+		Optional<byte[]> stored = storage.get(thumbnailKeyOf(objectKey));
+
+		if (stored.isPresent()) {
+			return new VehicleImageContent(stored.get(), Thumbnail.CONTENT_TYPE);
+		}
+
+		byte[] original = storage.get(objectKey).orElseThrow(() -> {
+			log.warn("Vehicle {} points at an object the store does not have", vehicleId);
+			return new ApiException(ErrorCode.RESOURCE_NOT_FOUND);
+		});
+
+		byte[] thumbnail = writeThumbnail(vehicleId, objectKey, original)
+				.orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND));
+
+		return new VehicleImageContent(thumbnail, Thumbnail.CONTENT_TYPE);
+	}
+
+	/**
+	 * Makes the thumbnail and stores it, and lets neither step fail the caller.
+	 *
+	 * <p>The bytes are returned so that the reader above can answer with what it
+	 * just made even when the store would not take it.
+	 */
+	private Optional<byte[]> writeThumbnail(UUID vehicleId, String objectKey, byte[] original) {
+		Optional<byte[]> thumbnail = Thumbnail.of(original);
+
+		if (thumbnail.isEmpty()) {
+			log.warn("No thumbnail could be made of the image of vehicle {}", vehicleId);
+			return thumbnail;
+		}
+
+		try {
+			storage.put(thumbnailKeyOf(objectKey), thumbnail.get(), Thumbnail.CONTENT_TYPE);
+		} catch (RuntimeException exception) {
+			log.warn("Could not store the thumbnail of vehicle {}", vehicleId, exception);
+		}
+
+		return thumbnail;
+	}
+
+	/**
+	 * Derived rather than stored, so that a row written before 1.0.2 names its
+	 * thumbnail as surely as one written after it. Still UUID-derived, per section
+	 * 22, because the photograph's key is.
+	 */
+	static String thumbnailKeyOf(String objectKey) {
+		return objectKey + "-thumbnail";
 	}
 
 	/**
@@ -154,6 +242,7 @@ public class VehicleImageService {
 		for (String objectKey : objectKeys) {
 			try {
 				storage.delete(objectKey);
+				storage.delete(thumbnailKeyOf(objectKey));
 			} catch (RuntimeException exception) {
 				log.error("Could not remove object {}, whose row has already been deleted",
 						objectKey, exception);

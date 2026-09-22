@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 
 import { ApiError } from '../api/ApiError.ts'
-import { fetchVehicleImage } from '../api/endpoints/vehicles.ts'
+import { fetchVehicleImage, fetchVehicleThumbnail } from '../api/endpoints/vehicles.ts'
+
+/** Which of the two stored pictures: the photograph, or the card's small square. */
+type Size = 'full' | 'thumbnail'
 
 export interface VehicleImageState {
   /** An object URL, or null while there is nothing to show. */
@@ -41,13 +44,37 @@ export function useVehicleImage(
   present: boolean,
   version: number,
 ): VehicleImageState {
+  return useStoredImage(vehicleId, present, version, 'full')
+}
+
+/**
+ * The same thing for the card's thumbnail (1.0.2), which has no version because
+ * nothing replaces a picture from a card: the screen that does is the vehicle's,
+ * and coming back to a card mounts this afresh.
+ */
+export function useVehicleThumbnail(vehicleId: string, present: boolean): VehicleImageState {
+  return useStoredImage(vehicleId, present, 0, 'thumbnail')
+}
+
+/**
+ * The size travels as a value rather than as a fetcher function, deliberately: a
+ * function argument would be a new identity on every render and the effect below
+ * keys on its dependencies, so the screen would fetch itself in a loop. A string
+ * is stable, which is the same reason the API exposes reads as paths.
+ */
+function useStoredImage(
+  vehicleId: string,
+  present: boolean,
+  version: number,
+  size: Size,
+): VehicleImageState {
   const [settled, setSettled] = useState<{
     key: string
     url: string | null
     error: ApiError | null
   }>({ key: '', url: null, error: null })
 
-  const key = `${vehicleId}#${String(version)}`
+  const key = `${vehicleId}#${size}#${String(version)}`
 
   useEffect(() => {
     if (!present) {
@@ -59,7 +86,11 @@ export function useVehicleImage(
     let current = true
     let created: string | null = null
 
-    fetchVehicleImage(vehicleId)
+    const asked = size === 'full'
+      ? fetchVehicleImage(vehicleId)
+      : fetchVehicleThumbnail(vehicleId)
+
+    asked
       .then(blob => {
         if (!current) {
           return
@@ -83,7 +114,7 @@ export function useVehicleImage(
         URL.revokeObjectURL(created)
       }
     }
-  }, [key, present, vehicleId])
+  }, [key, present, size, vehicleId])
 
   const answered = settled.key === key
 

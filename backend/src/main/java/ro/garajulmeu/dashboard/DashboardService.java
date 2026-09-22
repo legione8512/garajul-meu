@@ -71,6 +71,7 @@ public class DashboardService {
 					summary.registrationNumber(),
 					summary.make(),
 					summary.commercialDescription(),
+					summary.hasImage(),
 					lines(documents, today)));
 		}
 

@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ro } from '../i18n/locales/ro.ts'
 import { paths } from '../routes/paths.ts'
@@ -13,6 +13,7 @@ const PROFILE = {
 
 const LOGAN = {
   id: 'a', registrationNumber: 'B 100 ABC', make: 'Dacia', commercialDescription: 'Logan',
+  hasImage: false,
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -32,6 +33,14 @@ function stubGarage(garage: (attempt: number) => Response) {
         accessToken: 'fresh', expiresInSeconds: 600, refreshToken: null,
       }))
     }
+    // A card's thumbnail is also under /api/v1/vehicles, so it is answered
+    // before the list branch or it would be counted as another load of it.
+    if (input.includes('/image/thumbnail')) {
+      return Promise.resolve(new Response(new Blob(['bytes'], { type: 'image/jpeg' }), {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg' },
+      }))
+    }
     if (!input.includes('/api/v1/vehicles')) {
       return Promise.resolve(jsonResponse(200, PROFILE))
     }
@@ -41,6 +50,12 @@ function stubGarage(garage: (attempt: number) => Response) {
 }
 
 describe('garage', () => {
+  // jsdom has neither, and a card's picture is an object URL like any other.
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:card-photograph')
+    URL.revokeObjectURL = vi.fn()
+  })
+
   /**
    * Both labelling rules in one test, because the rule is the choice between
    * them: a nickname wins, and its absence falls back to make and description
@@ -74,6 +89,37 @@ describe('garage', () => {
     expect(card, 'the card is not marked for the stretched link').not.toBeNull()
     expect(name.parentElement?.tagName).toBe('H2')
     expect(within(card as HTMLElement).getAllByRole('link')).toHaveLength(1)
+  })
+
+  /**
+   * The owner's photograph on the card, since 1.0.2, beside the name and the
+   * plate rather than above them - the card keeps the height it had.
+   */
+  it('shows the photograph of a vehicle that has one, beside its name', async () => {
+    stubGarage(() => jsonResponse(200, [{ ...LOGAN, hasImage: true }]))
+
+    renderApp(paths.garage)
+
+    const card = (await screen.findByRole('link', { name: 'Dacia Logan' })).closest('li')
+
+    await waitFor(() => {
+      expect(card?.querySelector('[data-card-head] img'))
+        .toHaveAttribute('src', 'blob:card-photograph')
+    })
+
+    expect(within(card as HTMLElement).getByText('B 100 ABC')).toBeInTheDocument()
+    expect(within(card as HTMLElement).getAllByRole('link')).toHaveLength(1)
+  })
+
+  it('keeps the circle empty for a vehicle nobody has photographed', async () => {
+    stubGarage(() => jsonResponse(200, [LOGAN]))
+
+    renderApp(paths.garage)
+
+    const card = (await screen.findByRole('link', { name: 'Dacia Logan' })).closest('li')
+
+    expect(card?.querySelector('[data-thumbnail="empty"]')).not.toBeNull()
+    expect(card?.querySelector('img')).toBeNull()
   })
 
     it('says the garage is empty', async () => {

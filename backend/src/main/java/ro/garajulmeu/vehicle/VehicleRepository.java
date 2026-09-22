@@ -28,9 +28,11 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
 	Optional<Vehicle> findByIdAndUserId(UUID id, UUID userId);
 
+	/** The {@code case} is the one described below, for the same reason. */
 	@Query("""
 			select new ro.garajulmeu.vehicle.dto.VehicleSummary(
-				v.id, v.displayName, c.registrationNumber, c.make, c.commercialDescription)
+				v.id, v.displayName, c.registrationNumber, c.make, c.commercialDescription,
+				case when v.imageObjectKey is not null then true else false end)
 			from Vehicle v
 			join RegistrationCertificate c on c.vehicleId = v.id
 			where v.userId = :userId

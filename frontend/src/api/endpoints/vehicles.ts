@@ -21,6 +21,16 @@ export function vehicleImagePath(vehicleId: string): string {
 }
 
 /**
+ * The small square the cards draw, since 1.0.2. Made and stored by the backend,
+ * so this is a second resource rather than the same one shrunk here: a garage of
+ * five cars would otherwise pull twenty-five megabytes over a telephone
+ * connection to fill five circles.
+ */
+export function vehicleThumbnailPath(vehicleId: string): string {
+  return `${vehicleImagePath(vehicleId)}/thumbnail`
+}
+
+/**
  * How a vehicle is used, since 1.0.2 - the backend's VehicleUsage, in its
  * order. Plain information for now; later features, the ITP interval first, may
  * read it.
@@ -42,11 +52,6 @@ export interface VehicleSummary {
   readonly registrationNumber: string
   readonly make: string
   readonly commercialDescription: string
-}
-
-export interface VehicleDetails extends VehicleSummary {
-  readonly vin: string
-  readonly createdAt: string
   /**
    * Whether a photograph exists - not where it is.
    *
@@ -56,8 +61,17 @@ export interface VehicleDetails extends VehicleSummary {
    * When the R2 provider arrives it can produce a genuine signed URL, which
    * needs no header and would belong in a field of its own; this flag stays
    * useful either way, being the one thing the client cannot work out itself.
+   *
+   * <p>On the summary since 1.0.2, where it tells a card whether to ask for a
+   * thumbnail. Most vehicles have no photograph, and asking anyway would be a
+   * request and a 404 per card per visit.
    */
   readonly hasImage: boolean
+}
+
+export interface VehicleDetails extends VehicleSummary {
+  readonly vin: string
+  readonly createdAt: string
   /** Since 1.0.2; every vehicle has one, NORMAL until its owner says otherwise. */
   readonly usageType: VehicleUsage
 }
@@ -115,6 +129,11 @@ export function deleteVehicle(vehicleId: string): Promise<void> {
 /** The bytes, fetched with the token. The caller makes the object URL. */
 export function fetchVehicleImage(vehicleId: string): Promise<Blob> {
   return apiFetchBlob(vehicleImagePath(vehicleId))
+}
+
+/** The same, for the card's small square. */
+export function fetchVehicleThumbnail(vehicleId: string): Promise<Blob> {
+  return apiFetchBlob(vehicleThumbnailPath(vehicleId))
 }
 
 /**

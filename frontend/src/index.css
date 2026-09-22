@@ -722,6 +722,87 @@ ul[data-features] > li[data-card] {
 }
 
 /*
+ * The top of a vehicle's card since 1.0.2: the owner's photograph, and beside it
+ * the name - with the plate under the name in the garage, where there is one.
+ *
+ * A row rather than a block above the rest, and that is the whole reason this
+ * wrapper exists. On a telephone the card is about 360 pixels wide and the
+ * emblem already takes a hundred of them; a picture on its own line would push
+ * the document lines down the screen, and a picture beside all of them would
+ * leave the lines 150 pixels to wrap in. Beside the name only, the lines keep
+ * every pixel they had.
+ *
+ * No bottom margin: the dashboard's list brings its own top margin, which is
+ * what separated it from the heading before this row existed.
+ */
+[data-card-head] {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+[data-card-head] h2 {
+  margin: 0;
+}
+
+/* Lets a long nickname wrap inside the row instead of squeezing the circle. */
+[data-card-head] > :last-child {
+  min-width: 0;
+}
+
+/*
+ * The photograph itself, round and the same size whether it has arrived, failed
+ * or never existed: it is fetched after the card is drawn, and a shape that grew
+ * when the bytes landed would move the name under the reader's eye.
+ *
+ * `object-fit: cover` on a square image is belt and braces - the backend already
+ * crops the middle square - and is what keeps a photograph from an older release
+ * or another client from arriving stretched.
+ *
+ * `pointer-events: none` for the same reason as the emblem: the picture is drawn
+ * over the stretched link and would otherwise be the one spot on the card that
+ * does not open the vehicle.
+ */
+[data-thumbnail] {
+  --thumbnail-size: 3rem;
+
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--thumbnail-size);
+  height: var(--thumbnail-size);
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+[data-thumbnail] img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+[data-thumbnail] svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+@media (min-width: 36rem) {
+  [data-thumbnail] {
+    --thumbnail-size: 3.5rem;
+  }
+
+  [data-thumbnail] svg {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+}
+
+/*
  * A vehicle's emblem, on the right of its card where the space was empty
  * (2026-09-14, at the developer's request). See vehicles/brandMarks.ts.
  *

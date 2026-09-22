@@ -76,6 +76,26 @@ public class VehicleImageController {
 				.body(content.bytes());
 	}
 
+	/**
+	 * The small square the dashboard and garage cards draw, since 1.0.2.
+	 *
+	 * <p>A route of its own rather than a {@code ?size=} on the one above, because
+	 * they are two resources: this one is always a JPEG, is generated rather than
+	 * uploaded, and exists only where a photograph does. {@code no-store} for the
+	 * same two reasons as the photograph - the address never changes while what is
+	 * behind it does, and it is somebody's car outside their house.
+	 */
+	@GetMapping("/thumbnail")
+	public ResponseEntity<byte[]> thumbnail(@AuthenticationPrincipal Jwt token,
+			@PathVariable UUID vehicleId) {
+		VehicleImageContent content = imageService.readThumbnail(accountOf(token), vehicleId);
+
+		return ResponseEntity.ok()
+				.contentType(MediaType.parseMediaType(content.contentType()))
+				.cacheControl(CacheControl.noStore())
+				.body(content.bytes());
+	}
+
 	@PutMapping
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void replace(@AuthenticationPrincipal Jwt token, @PathVariable UUID vehicleId,

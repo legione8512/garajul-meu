@@ -6,6 +6,7 @@ import { useResource } from '../api/useResource.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
 import { BrandMark } from '../vehicles/BrandMark.tsx'
+import { VehicleThumbnail } from '../vehicles/VehicleThumbnail.tsx'
 
 /**
  * Screen 7 in specification section 5.
@@ -49,15 +50,25 @@ export function GaragePage() {
         The whole card opens the vehicle, as on the dashboard: the name is the
         one link, stretched over the card by data-card-link in index.css. The
         make's emblem, when there is one, sits on the right as it does there.
+
+        Since 1.0.2 the owner's photograph sits on the left of both lines. The
+        name and the plate go in a column beside it rather than under it, so the
+        picture stands against the pair of them and a card of two lines keeps the
+        height it had.
       */}
       {data !== null && data.length > 0 && (
         <ul>
           {data.map(vehicle => (
             <li data-card data-card-link key={vehicle.id}>
-              <h2>
-                <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
-              </h2>
-              <p data-subtitle>{vehicle.registrationNumber}</p>
+              <div data-card-head>
+                <VehicleThumbnail vehicleId={vehicle.id} hasImage={vehicle.hasImage} />
+                <div>
+                  <h2>
+                    <Link to={paths.vehicle(vehicle.id)}>{vehicleLabel(vehicle)}</Link>
+                  </h2>
+                  <p data-subtitle>{vehicle.registrationNumber}</p>
+                </div>
+              </div>
               <BrandMark make={vehicle.make} />
             </li>
           ))}

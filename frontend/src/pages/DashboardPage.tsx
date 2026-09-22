@@ -8,6 +8,7 @@ import { dateFormatter, stateOf } from '../documents/status.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
 import { paths } from '../routes/paths.ts'
 import { BrandMark } from '../vehicles/BrandMark.tsx'
+import { VehicleThumbnail } from '../vehicles/VehicleThumbnail.tsx'
 
 /**
  * Screen 6 in specification section 5, with the content section 27 asks of it:
@@ -29,6 +30,11 @@ import { BrandMark } from '../vehicles/BrandMark.tsx'
  * <p>The make's emblem sits on the right of the card when the make is one
  * `vehicles/brandMarks.ts` knows, and nothing sits there when it is not
  * (2026-09-14, at the developer's request).
+ *
+ * <p>The owner's photograph sits on the left of the name, round and small, since
+ * 1.0.2 - beside the name rather than above the lines, because a picture on its
+ * own row would push four document lines off a telephone screen and indenting
+ * the lines behind it would wrap every one of them.
  */
 export function DashboardPage() {
   const { t, i18n } = useTranslation()
@@ -53,9 +59,12 @@ export function DashboardPage() {
 
       {data !== null && data.vehicles.map(vehicle => (
         <section data-card data-card-link key={vehicle.vehicleId}>
-          <h2>
-            <Link to={paths.vehicle(vehicle.vehicleId)}>{vehicleLabel(vehicle)}</Link>
-          </h2>
+          <div data-card-head>
+            <VehicleThumbnail vehicleId={vehicle.vehicleId} hasImage={vehicle.hasImage} />
+            <h2>
+              <Link to={paths.vehicle(vehicle.vehicleId)}>{vehicleLabel(vehicle)}</Link>
+            </h2>
+          </div>
 
           <ul>
             {vehicle.documents.map((line) => {

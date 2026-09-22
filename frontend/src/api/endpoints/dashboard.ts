@@ -27,6 +27,11 @@ export interface DashboardVehicle {
   readonly registrationNumber: string
   readonly make: string
   readonly commercialDescription: string
+  /**
+   * Whether the card should ask for a thumbnail (1.0.2). The garage's field,
+   * meaning the same thing - see VehicleSummary, where the reasoning is.
+   */
+  readonly hasImage: boolean
   readonly documents: readonly DocumentStatusLine[]
 }
 

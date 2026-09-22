@@ -5,7 +5,11 @@ import java.util.UUID;
 
 /**
  * One vehicle on the dashboard, named as the garage names it and followed by its
- * four document lines in the order {@code DocumentType} declares them.
+ * document lines in the order {@code DocumentType} declares them.
+ *
+ * <p>{@code hasImage} is the garage's field, meaning the same thing for the same
+ * reason: since 1.0.2 the card draws the owner's photograph, and this is what
+ * tells it whether to ask for one.
  */
 public record DashboardVehicle(
 		UUID vehicleId,
@@ -13,5 +17,6 @@ public record DashboardVehicle(
 		String registrationNumber,
 		String make,
 		String commercialDescription,
+		boolean hasImage,
 		List<DocumentStatusLine> documents) {
 }

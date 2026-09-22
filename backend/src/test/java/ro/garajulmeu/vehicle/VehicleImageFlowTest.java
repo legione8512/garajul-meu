@@ -1,6 +1,7 @@
 package ro.garajulmeu.vehicle;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
@@ -117,6 +118,10 @@ class VehicleImageFlowTest {
 		return "/api/v1/vehicles/" + garage.vehicleId() + "/image";
 	}
 
+	private String thumbnailPath(Garage garage) {
+		return imagePath(garage) + "/thumbnail";
+	}
+
 	private String storedKeyOf(Garage garage) {
 		return vehicleRepository.findById(garage.vehicleId()).orElseThrow().getImageObjectKey();
 	}
@@ -194,6 +199,31 @@ class VehicleImageFlowTest {
 	}
 
 	/**
+	 * The two screens that draw the thumbnail are told the same thing the vehicle
+	 * screen is, since 1.0.2. Without it every card would ask for a photograph, and
+	 * most vehicles have none - which is a request and a 404 per card per visit.
+	 */
+	@Test
+	void theGarageAndTheDashboardSayWhichVehiclesHaveAPhotograph() throws Exception {
+		Garage garage = givenVehicle("cards@example.com", "VIN000000000CARDS1");
+		String authorization = "Bearer " + garage.token();
+
+		mockMvc.perform(get("/api/v1/vehicles").header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(jsonPath("$[0].hasImage").value(false));
+
+		mockMvc.perform(get("/api/v1/dashboard").header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(jsonPath("$.vehicles[0].hasImage").value(false));
+
+		givenAPhotograph(garage);
+
+		mockMvc.perform(get("/api/v1/vehicles").header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(jsonPath("$[0].hasImage").value(true));
+
+		mockMvc.perform(get("/api/v1/dashboard").header(HttpHeaders.AUTHORIZATION, authorization))
+				.andExpect(jsonPath("$.vehicles[0].hasImage").value(true));
+	}
+
+	/**
 	 * A replacement writes a new key and removes the old object. Asserted on the
 	 * store rather than on the row, because the row would look right either way -
 	 * and an orphan per replacement is exactly the sort of leak nobody notices
@@ -253,6 +283,97 @@ class VehicleImageFlowTest {
 						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+		mockMvc.perform(get(thumbnailPath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+	}
+
+	/**
+	 * The thumbnail the cards draw, since 1.0.2. Made during the upload, so that
+	 * the first dashboard after it costs nothing, and served as a square JPEG
+	 * whatever was uploaded - here a PNG, to prove the conversion rather than
+	 * assume it.
+	 */
+	@Test
+	void anUploadLeavesASquareThumbnailBesideThePhotograph() throws Exception {
+		Garage garage = givenVehicle("thumb@example.com", "VIN000000000THUMB1");
+
+		mockMvc.perform(put(imagePath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token())
+						.content(photograph("png")))
+				.andExpect(status().isNoContent());
+
+		assertThat(storage.get(VehicleImageService.thumbnailKeyOf(storedKeyOf(garage))))
+				.isPresent();
+
+		byte[] served = mockMvc.perform(get(thumbnailPath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.IMAGE_JPEG))
+				.andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+				.andReturn().getResponse().getContentAsByteArray();
+
+		BufferedImage thumbnail = ImageIO.read(new ByteArrayInputStream(served));
+
+		assertThat(thumbnail).isNotNull();
+		assertThat(thumbnail.getWidth()).isEqualTo(192);
+		assertThat(thumbnail.getHeight()).isEqualTo(192);
+	}
+
+	/**
+	 * Every photograph uploaded before 1.0.2 is in this state, and there are
+	 * several of them in production. The first card that asks makes the thumbnail
+	 * and leaves it behind, which is what this feature has instead of a migration
+	 * that walks a bucket.
+	 */
+	@Test
+	void aPhotographWithNoThumbnailGetsOneTheFirstTimeACardAsks() throws Exception {
+		Garage garage = givenVehicle("older@example.com", "VIN000000000OLDER1");
+
+		String objectKey = givenAPhotograph(garage);
+		String thumbnailKey = VehicleImageService.thumbnailKeyOf(objectKey);
+
+		storage.delete(thumbnailKey);
+		assertThat(storage.get(thumbnailKey)).isEmpty();
+
+		mockMvc.perform(get(thumbnailPath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.IMAGE_JPEG));
+
+		assertThat(storage.get(thumbnailKey)).isPresent();
+	}
+
+	/**
+	 * A derived object is still an object: whatever removes the photograph removes
+	 * it, or a replaced picture would leave its small copy behind for good.
+	 */
+	@Test
+	void thePhotographAndItsThumbnailGoTogether() throws Exception {
+		Garage garage = givenVehicle("pair@example.com", "VIN0000000000PAIR1");
+
+		String first = givenAPhotograph(garage);
+
+		mockMvc.perform(put(imagePath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token())
+						.content(photograph("png")))
+				.andExpect(status().isNoContent());
+
+		assertThat(storage.get(VehicleImageService.thumbnailKeyOf(first))).isEmpty();
+
+		String second = storedKeyOf(garage);
+
+		mockMvc.perform(delete(imagePath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
+				.andExpect(status().isNoContent());
+
+		assertThat(storage.get(VehicleImageService.thumbnailKeyOf(second))).isEmpty();
+
+		mockMvc.perform(get(thumbnailPath(garage))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + garage.token()))
+				.andExpect(status().isNotFound());
 	}
 
 	/** Section 15, on all three verbs: knowing the identifier is never enough. */
@@ -269,6 +390,10 @@ class VehicleImageFlowTest {
 		String stranger = "Bearer " + theirs.token();
 
 		mockMvc.perform(get(imagePath(mine)).header(HttpHeaders.AUTHORIZATION, stranger))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("VEHICLE_NOT_FOUND"));
+
+		mockMvc.perform(get(thumbnailPath(mine)).header(HttpHeaders.AUTHORIZATION, stranger))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("VEHICLE_NOT_FOUND"));
 
@@ -351,6 +476,7 @@ class VehicleImageFlowTest {
 
 		assertThat(vehicleRepository.findById(garage.vehicleId())).isEmpty();
 		assertThat(storage.get(objectKey)).isEmpty();
+		assertThat(storage.get(VehicleImageService.thumbnailKeyOf(objectKey))).isEmpty();
 	}
 
 	/**
