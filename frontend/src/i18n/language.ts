@@ -43,33 +43,24 @@ export function rememberLanguage(language: SupportedLanguage): void {
 }
 
 /**
- * Romanian unless the browser clearly asks for English.
+ * Romanian, unless this device has been told otherwise.
  *
- * The candidate list is a parameter with a real default rather than a direct
- * read of navigator, so this stays a pure function: the tests pass it a list
- * instead of rewriting a global the whole environment shares.
+ * <p>A remembered choice wins, because someone who has switched language once
+ * has said what they want. Nothing else is consulted - not the phone's
+ * language, not the browser's.
+ *
+ * <p><strong>Until 2026-09-22 the browser's language came second</strong>, and
+ * a phone set to English - a great many Romanian phones are - opened this
+ * Romanian application in English: the Moto G6 Plus it is tested on did, and so,
+ * very likely, did the devices Apple and Google review it on, whose sign-in
+ * instructions say it is in Romanian by default. Changed at the developer's
+ * request, on the web and in the application alike. The application is
+ * Romanian-first - its listing, the documents it is about, and the backend's
+ * default for a new account - and the language switcher is on every screen,
+ * the sign-in screen included, for anybody who wants English. An account's own
+ * language still takes over at sign-in (`AuthProvider`), so nobody who chose
+ * English on their account loses it.
  */
-export function browserLanguage(
-  candidates: readonly string[] = navigator.languages ?? [navigator.language],
-): SupportedLanguage {
-  for (const candidate of candidates) {
-    // 'en-GB' and 'en-US' are both English as far as this application cares.
-    const base = candidate.split('-')[0]
-    if (isSupportedLanguage(base)) {
-      return base
-    }
-  }
-
-  return 'ro'
-}
-
-/**
- * A remembered choice outranks the browser, because someone who has switched
- * language once has said something more specific than their operating system
- * did. Romanian is the last word: the application is Romanian-first and the
- * backend defaults new accounts to RO, so an ambiguous case resolves the same
- * way on both sides rather than differently.
- */
-export function initialLanguage(candidates?: readonly string[]): SupportedLanguage {
-  return rememberedLanguage() ?? browserLanguage(candidates)
+export function initialLanguage(): SupportedLanguage {
+  return rememberedLanguage() ?? 'ro'
 }

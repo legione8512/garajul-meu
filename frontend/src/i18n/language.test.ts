@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
-  browserLanguage,
   initialLanguage,
   languageStorageKey,
   rememberLanguage,
@@ -25,17 +24,21 @@ describe('language preference', () => {
     expect(rememberedLanguage()).toBeNull()
   })
 
-  it('prefers the remembered choice over what the browser asks for', () => {
+  it('starts in the language this device was told to use', () => {
     rememberLanguage('en')
 
-    expect(initialLanguage(['ro-RO'])).toBe('en')
+    expect(initialLanguage()).toBe('en')
   })
 
-  it('takes the first language the browser asks for that we actually have', () => {
-    expect(browserLanguage(['fr-FR', 'en-GB', 'ro'])).toBe('en')
-  })
+  /**
+   * The environment asks for English - jsdom's navigator reports en-US - which
+   * is exactly the phone the application is tested on. Until 2026-09-22 this
+   * started in English, and the instructions given to Apple and Google said it
+   * starts in Romanian.
+   */
+  it('starts in Romanian whatever the phone or the browser asks for', () => {
+    expect(navigator.language.startsWith('en')).toBe(true)
 
-  it('falls back to Romanian when the browser asks for neither', () => {
-    expect(browserLanguage(['fr-FR', 'de-DE'])).toBe('ro')
+    expect(initialLanguage()).toBe('ro')
   })
 })

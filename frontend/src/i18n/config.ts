@@ -31,8 +31,8 @@ i18n.on('languageChanged', (language) => {
 })
 
 // index.html ships `lang="ro"`, which is right for the served default and wrong
-// the moment the browser asked for English. The event above does not fire for
-// the language `init` started with, so the two are reconciled here.
+// the moment this device was told to use English. The event above does not
+// fire for the language `init` started with, so the two are reconciled here.
 //
 // This is not decoration: `lang` is what tells a screen reader which voice to
 // use, what stops the browser offering to translate a page already in the
