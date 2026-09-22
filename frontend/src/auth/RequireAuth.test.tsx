@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { dashboardPath } from '../api/endpoints/dashboard.ts'
@@ -120,6 +120,27 @@ describe('primary navigation', () => {
       .toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: ro.navigation.home }))
       .not.toHaveAttribute('aria-current')
+  })
+
+  /**
+   * Tabs since 1.0.2, each with a picture - which must add nothing to what a
+   * screen reader says, or every destination would be announced with a shape
+   * before its own name, and the journey's exact-name click would miss.
+   */
+  it('gives each destination a picture that adds nothing to its name', async () => {
+    stubSignedIn()
+
+    renderApp(paths.dashboard)
+
+    const nav = await screen.findByRole('navigation', { name: ro.navigation.label })
+
+    for (const name of [ro.navigation.home, ro.navigation.garage, ro.navigation.profile]) {
+      const link = within(nav).getByRole('link', { name })
+
+      expect(link).toHaveAccessibleName(name)
+      expect(link.querySelectorAll('svg')).toHaveLength(1)
+      expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    }
   })
 
   it('is absent on the public side', async () => {

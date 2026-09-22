@@ -6,6 +6,7 @@ import { SiteHeader } from '../components/SiteHeader.tsx'
 import { OfflineNotice } from '../network/OfflineNotice.tsx'
 import { paths } from '../routes/paths.ts'
 import { useDeviceRegistration } from '../notifications/useDeviceRegistration.ts'
+import { NavIcon } from './NavIcon.tsx'
 
 /**
  * The authenticated frame. Section 5 fixes the primary navigation at exactly
@@ -17,6 +18,10 @@ import { useDeviceRegistration } from '../notifications/useDeviceRegistration.ts
  * aria-current="page" on the active destination by itself: without that a
  * screen reader announces three identical links and never says which page the
  * reader is on.
+ *
+ * <p>Tabs since 1.0.2 (2026-09-22), at the developer's request: the same three
+ * links, each with a picture above its word - see `NavIcon.tsx` - laid out and
+ * marked by the stylesheet's `nav` rules. The words did not change.
  */
 export function AppLayout() {
   const { t } = useTranslation()
@@ -32,11 +37,18 @@ export function AppLayout() {
       <SiteHeader />
       <OfflineNotice />
       <nav aria-label={t('navigation.label')}>
-        <NavLink to={paths.dashboard}>{t('navigation.home')}</NavLink>
-        {' '}
-        <NavLink to={paths.garage}>{t('navigation.garage')}</NavLink>
-        {' '}
-        <NavLink to={paths.profile}>{t('navigation.profile')}</NavLink>
+        <NavLink to={paths.dashboard}>
+          <NavIcon name="home" />
+          {t('navigation.home')}
+        </NavLink>
+        <NavLink to={paths.garage}>
+          <NavIcon name="garage" />
+          {t('navigation.garage')}
+        </NavLink>
+        <NavLink to={paths.profile}>
+          <NavIcon name="profile" />
+          {t('navigation.profile')}
+        </NavLink>
       </nav>
       <main>
         <Outlet />
