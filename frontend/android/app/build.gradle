@@ -45,10 +45,11 @@ android {
         // Play refuses a bundle whose versionCode it has already seen, so every
         // upload raises it by one. 1 was the first closed-test release
         // (2026-09-19); 2 carries the Romanian plurals and the refused-address
-        // message. versionName is what a person sees and is the iOS numbering's
-        // sibling only in spirit: iOS 1.0.1 shipped on 2026-09-17 with other fixes.
-        versionCode 2
-        versionName "1.0.1"
+        // message; 3 the application's own notification channel. versionName is
+        // what a person sees and is the iOS numbering's sibling only in spirit:
+        // iOS 1.0.1 shipped on 2026-09-17 with other fixes.
+        versionCode 3
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

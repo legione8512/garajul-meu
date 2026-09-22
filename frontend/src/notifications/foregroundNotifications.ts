@@ -26,6 +26,13 @@
  * shown it. With no schedule, the plugin goes straight to
  * `NotificationManager.notify()`.
  *
+ * <p><strong>Into the application's own channel since 1.0.2.</strong> Without a
+ * `channelId` the plugin posts into the one it makes for itself, named
+ * "Default" in English - while the same reminder arriving with the application
+ * closed went to Firebase's fallback channel instead. `reminderChannel.ts` says
+ * why there is now one, and `main.tsx` starts this listener only once that
+ * channel exists.
+ *
  * <p><strong>Android only.</strong> iOS already presents a push in the
  * foreground, by `presentationOptions`, so doing this there would show every
  * reminder twice.
@@ -38,6 +45,8 @@
  * <p>Both plugins are imported inside the function and never returned - see
  * `backButton.ts` for why.
  */
+
+import { REMINDER_CHANNEL_ID } from './reminderChannel.ts'
 
 /** Java's `int` range, which a local notification's identifier must fit. */
 const POSITIVE_INT = 0x7fffffff
@@ -83,6 +92,7 @@ export async function showForegroundNotifications(): Promise<void> {
         id: id === undefined ? Date.now() & POSITIVE_INT : notificationId(id),
         title: title ?? '',
         body: body ?? '',
+        channelId: REMINDER_CHANNEL_ID,
         isExactNotification: false,
       }],
     }).catch(() => {

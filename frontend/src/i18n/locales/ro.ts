@@ -266,6 +266,13 @@ export const ro = {
     // Names the channel, not the state of this phone - see PushChannelNote.
     byNotification: 'Memento-urile ajung ca notificări pe dispozitivul tău, dacă sunt pornite.',
     manage: 'Vezi setările de notificare',
+    // The Android notification channel, as the phone's own settings show it
+    // under the application's notifications (since 1.0.2). The same word the
+    // application uses everywhere else for what it sends.
+    channel: {
+      name: 'Memento-uri',
+      description: 'Anunțurile despre documentele mașinilor tale care urmează să expire.',
+    },
     none: 'Niciun reminder programat pentru acest document.',
     lead: {
       onTheDay: 'În ziua expirării:',

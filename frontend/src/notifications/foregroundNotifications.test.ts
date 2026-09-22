@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { REMINDER_CHANNEL_ID } from './reminderChannel.ts'
+
 interface Received {
   notification: { id?: string, title?: string, body?: string }
 }
 
 interface Posted {
-  notifications: { id: number, title: string, body: string, isExactNotification?: boolean }[]
+  notifications: {
+    id: number
+    title: string
+    body: string
+    channelId?: string
+    isExactNotification?: boolean
+  }[]
 }
 
 type Listener = (event: Received) => void
@@ -104,6 +112,19 @@ describe('a push arriving while the application is open', () => {
     push({ notification: REMINDER })
 
     expect(posted().isExactNotification).toBe(false)
+  })
+
+  /**
+   * Without it the plugin filed the reminder in its own channel, "Default" in
+   * English, while the same reminder arriving with the application closed went
+   * to Firebase's - two switches in the phone's settings for one thing.
+   */
+  it('files it in the application\'s own channel', async () => {
+    const push = await deliver()
+
+    push({ notification: REMINDER })
+
+    expect(posted().channelId).toBe(REMINDER_CHANNEL_ID)
   })
 
   /** FCM may deliver a message twice; the second should replace the first, not join it. */

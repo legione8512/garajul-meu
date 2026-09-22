@@ -244,6 +244,10 @@ export const en: typeof ro = {
       + 'document status is always visible on the dashboard.',
     byNotification: 'Reminders arrive as notifications on your device, when they are turned on.',
     manage: 'See notification settings',
+    channel: {
+      name: 'Reminders',
+      description: 'Notices about your vehicles\' documents that are about to expire.',
+    },
     none: 'No reminders scheduled for this document.',
     lead: {
       onTheDay: 'On the day it expires:',

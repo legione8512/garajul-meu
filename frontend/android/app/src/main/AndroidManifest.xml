@@ -50,6 +50,23 @@
         -->
         <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
         <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+
+        <!--
+            Where a reminder goes when it arrives with the application closed:
+            the application's own channel, which reminderChannel.ts creates at
+            launch and the foreground listener posts into as well, so the
+            same reminder lands in the same place whether or not the
+            application is open (since 1.0.2, 2026-09-22). Without this line
+            Firebase made a fallback channel of its own, and a person switching
+            one of the two off silenced half of the reminders.
+
+            The backend sends no channel of its own, so this is the only place
+            the choice is made. The value must equal REMINDER_CHANNEL_ID, and
+            guards/notificationChannel.test.ts fails the build if it does not.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="reminders" />
     </application>
 
     <!-- Permissions -->
