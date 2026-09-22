@@ -69,6 +69,22 @@ describe('dashboard', () => {
   })
 
   /**
+   * Since 1.0.2 the backend sends the extinguisher and the first-aid kit once
+   * somebody has entered them; each arrives as a line like any other and is
+   * named in the reader's language.
+   */
+  it('names the equipment as it names the documents', async () => {
+    stubDashboard(() => jsonResponse(200, garage(
+      { type: 'EXTINGUISHER', status: 'EXPIRING_SOON', documentId: 'd9', validUntil: '2026-10-12', daysRemaining: 20 },
+    )))
+
+    renderApp(paths.dashboard)
+
+    expect(await screen.findByText(ro.documents.type.EXTINGUISHER)).toBeInTheDocument()
+    expect(screen.getByText(ro.documents.state.soon.many.replace('{{days}}', '20'))).toBeInTheDocument()
+  })
+
+  /**
    * The common case for a new account, and the reason every vehicle carries a
    * link: four lines saying nothing is set up would be an alarm without one, and
    * an invitation with it.

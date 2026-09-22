@@ -37,6 +37,7 @@ export const en: typeof ro = {
     commercialDescription: 'Model',
     vin: 'VIN (chassis number)',
     displayName: 'Nickname (optional)',
+    usageType: 'Use',
     timezone: 'Time zone',
     showPassword: 'Show',
     hidePassword: 'Hide',
@@ -69,6 +70,12 @@ export const en: typeof ro = {
   vehicle: {
     backToGarage: 'Back to the garage',
     rename: 'Save nickname',
+    usage: {
+      NORMAL: 'Normal',
+      TAXI: 'Taxi',
+      TRANSPORT: 'Transport',
+    },
+    saveUsage: 'Save use',
     delete: 'Delete this vehicle',
     confirmDelete: 'Delete this vehicle? Its data is lost for good.',
     confirmDeleteYes: 'Yes, delete it',
@@ -182,6 +189,8 @@ export const en: typeof ro = {
       CASCO: 'CASCO',
       ITP: 'ITP',
       ROVINIETA: 'Road tax',
+      EXTINGUISHER: 'Fire extinguisher',
+      FIRST_AID_KIT: 'First aid kit',
     },
     fields: {
       type: 'Document type',

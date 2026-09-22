@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -18,8 +20,8 @@ import org.hibernate.annotations.UpdateTimestamp;
  * <p>Deliberately thin. Section 9 makes the registration certificate the source
  * of truth for registration number, VIN, make and commercial description, and
  * forbids duplicating them here for convenience - so this entity knows who owns
- * the vehicle and what its owner chose to call it, and nothing else about what
- * the vehicle is.
+ * the vehicle and what its owner chose to call it - and, since 1.0.2, how its
+ * owner says it is used, which the certificate does not state either.
  *
  * <p>The three image columns are mapped as of 12.3, after four phases of
  * existing in the table unmapped. They hold <strong>metadata and never
@@ -45,6 +47,11 @@ public class Vehicle {
 	/** Optional nickname. When absent the client labels the vehicle from its certificate. */
 	@Column(name = "display_name", length = 120)
 	private String displayName;
+
+	/** Declared by the owner, since 1.0.2; see VehicleUsage. NORMAL until said otherwise. */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "usage_type", nullable = false, length = 16)
+	private VehicleUsage usage = VehicleUsage.NORMAL;
 
 	/** An object key, never a URL and never a path on this machine. */
 	@Column(name = "image_object_key", length = 255)
@@ -87,6 +94,14 @@ public class Vehicle {
 
 	public void setDisplayName(String displayName) {
 		this.displayName = displayName;
+	}
+
+	public VehicleUsage getUsage() {
+		return usage;
+	}
+
+	public void setUsage(VehicleUsage usage) {
+		this.usage = usage;
 	}
 
 	public String getImageObjectKey() {

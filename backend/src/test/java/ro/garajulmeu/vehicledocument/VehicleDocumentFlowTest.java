@@ -208,6 +208,33 @@ class VehicleDocumentFlowTest {
 	}
 
 	/**
+	 * The equipment added in 1.0.2 is a document like the others: added by name,
+	 * returned with it, and scheduled the same reminders - nothing about it is
+	 * special below the dashboard.
+	 */
+	@Test
+	void theExtinguisherAndTheFirstAidKitAreDocumentsLikeTheRest() throws Exception {
+		Account account = givenAccount("equipment-docs@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "VF1AAAAAAAA000006");
+
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("EXTINGUISHER", null, today().plusDays(200), "")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.type").value("EXTINGUISHER"))
+				.andExpect(jsonPath("$.status").value("ACTIVE"));
+
+		mockMvc.perform(post(path(vehicleId))
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body("first_aid_kit", null, today().plusDays(10), "")))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.type").value("FIRST_AID_KIT"))
+				.andExpect(jsonPath("$.status").value("EXPIRING_SOON"));
+	}
+
+	/**
 	 * A correction replaces the record. The note is not mentioned in the second
 	 * body, so it is cleared - which is the only way screen 13 can delete one.
 	 */

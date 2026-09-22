@@ -13,12 +13,14 @@ const PROFILE = {
 
 const LOGAN = {
   id: 'a', registrationNumber: 'B 100 ABC', make: 'Dacia', commercialDescription: 'Logan',
-  vin: 'VF1AAAAAAAA000001', createdAt: '2026-08-15T10:00:00Z',
+  vin: 'VF1AAAAAAAA000001', createdAt: '2026-08-15T10:00:00Z', usageType: 'NORMAL',
 }
 
 interface Stored {
   vehicle: Record<string, unknown>
   deletes: number
+  /** Every PATCH body, as sent - so a test can say what a form did not send. */
+  patches: Record<string, unknown>[]
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -32,9 +34,12 @@ function jsonResponse(status: number, body: unknown): Response {
  * Keeps the vehicle in memory so a PATCH is visible to the GET that follows it.
  * A stub that always answered the same thing could not tell a rename that worked
  * from one that was silently discarded.
+ *
+ * <p>A PATCH changes only what its body names, as the backend's does - which
+ * matters since 1.0.2, when a body can carry the use without the nickname.
  */
 function stubVehicle(initial: Record<string, unknown>): Stored {
-  const stored: Stored = { vehicle: { ...initial }, deletes: 0 }
+  const stored: Stored = { vehicle: { ...initial }, deletes: 0, patches: [] }
 
   vi.stubGlobal('fetch', vi.fn((input: string, init?: RequestInit) => {
     if (input.includes('/auth/refresh')) {
@@ -44,10 +49,17 @@ function stubVehicle(initial: Record<string, unknown>): Stored {
     }
     if (input.includes('/api/v1/vehicles/')) {
       if (init?.method === 'PATCH') {
-        const sent = JSON.parse(init.body as string) as { displayName: string }
-        stored.vehicle = sent.displayName === ''
-          ? { ...stored.vehicle, displayName: undefined }
-          : { ...stored.vehicle, displayName: sent.displayName }
+        const sent = JSON.parse(init.body as string) as { displayName?: string, usageType?: string }
+        stored.patches.push(sent)
+        if (sent.displayName !== undefined) {
+          stored.vehicle = {
+            ...stored.vehicle,
+            displayName: sent.displayName === '' ? undefined : sent.displayName,
+          }
+        }
+        if (sent.usageType !== undefined) {
+          stored.vehicle = { ...stored.vehicle, usageType: sent.usageType }
+        }
         return Promise.resolve(jsonResponse(200, stored.vehicle))
       }
       if (init?.method === 'DELETE') {
@@ -99,6 +111,31 @@ describe('vehicle details', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(ro.errors.VEHICLE_NOT_FOUND)
     expect(screen.queryByRole('button', { name: ro.vehicle.delete })).not.toBeInTheDocument()
+  })
+
+  /**
+   * Since 1.0.2. The use is shown as it stands and saved on its own: its form
+   * sends the use and nothing else, so a nickname half-typed in the form above
+   * is neither saved nor lost by it.
+   */
+  it('shows the use and saves a change to it alone', async () => {
+    const stored = stubVehicle({ ...LOGAN, displayName: 'Taxiul' })
+
+    renderApp(paths.vehicle('a'))
+    await screen.findByRole('heading', { level: 1, name: 'Taxiul' })
+
+    const use = screen.getByLabelText(ro.fields.usageType)
+    expect(use).toHaveValue('NORMAL')
+
+    await userEvent.type(screen.getByLabelText(ro.fields.displayName), ' nou')
+    await userEvent.selectOptions(use, 'TAXI')
+    await userEvent.click(screen.getByRole('button', { name: ro.vehicle.saveUsage }))
+
+    await vi.waitFor(() => { expect(stored.patches).toHaveLength(1) })
+    expect(stored.patches[0]).toEqual({ usageType: 'TAXI' })
+    expect(screen.getByLabelText(ro.fields.usageType)).toHaveValue('TAXI')
+    expect(screen.getByRole('heading', { level: 1, name: 'Taxiul' })).toBeInTheDocument()
+    expect(screen.getByLabelText(ro.fields.displayName)).toHaveValue('Taxiul nou')
   })
 
   it('renaming shows the new name', async () => {

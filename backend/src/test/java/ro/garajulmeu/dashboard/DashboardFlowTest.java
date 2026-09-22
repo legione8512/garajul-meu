@@ -31,6 +31,7 @@ import ro.garajulmeu.vehicledocument.DocumentType;
 import ro.garajulmeu.vehicledocument.VehicleDocument;
 import ro.garajulmeu.vehicledocument.VehicleDocumentRepository;
 
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -190,6 +191,44 @@ class DashboardFlowTest {
 				.andExpect(jsonPath(RCA + ".validUntil").doesNotExist())
 				.andExpect(jsonPath(RCA + ".documentId").doesNotExist())
 				.andExpect(jsonPath(RCA + ".upcomingFrom").value(today().plusDays(10).toString()));
+	}
+
+	/**
+	 * The owner's decision for the equipment added in 1.0.2: the four always
+	 * appear, the extinguisher and the first-aid kit only once entered - so a
+	 * vehicle nobody tracks them for carries no line saying so, and a client
+	 * built before 1.0.2 meets them only if somebody entered one.
+	 */
+	@Test
+	void theEquipmentAppearsOnlyOnceEntered() throws Exception {
+		Account account = givenAccount("equipment@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "B 106 ABC", "VF1AAAAAAAA000026");
+
+		mockMvc.perform(get(PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(jsonPath("$.vehicles[0].documents.length()").value(4))
+				.andExpect(jsonPath("$.vehicles[0].documents[*].type",
+						contains("RCA", "CASCO", "ITP", "ROVINIETA")));
+
+		given(vehicleId, DocumentType.EXTINGUISHER, null, today().plusDays(20));
+
+		mockMvc.perform(get(PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(jsonPath("$.vehicles[0].documents[*].type",
+						contains("RCA", "CASCO", "ITP", "ROVINIETA", "EXTINGUISHER")))
+				.andExpect(jsonPath("$.vehicles[0].documents[4].status").value("EXPIRING_SOON"))
+				.andExpect(jsonPath("$.vehicles[0].documents[4].daysRemaining").value(20));
+	}
+
+	/** Once entered it stays, lapsed or not: an expired extinguisher is exactly the news. */
+	@Test
+	void anExpiredPieceOfEquipmentIsShownAsTheLapseItIs() throws Exception {
+		Account account = givenAccount("lapsed-kit@example.com");
+		UUID vehicleId = givenVehicle(account.id(), "B 107 ABC", "VF1AAAAAAAA000027");
+		given(vehicleId, DocumentType.FIRST_AID_KIT, null, today().minusDays(3));
+
+		mockMvc.perform(get(PATH).header(HttpHeaders.AUTHORIZATION, "Bearer " + account.token()))
+				.andExpect(jsonPath("$.vehicles[0].documents[4].type").value("FIRST_AID_KIT"))
+				.andExpect(jsonPath("$.vehicles[0].documents[4].status").value("EXPIRED"))
+				.andExpect(jsonPath("$.vehicles[0].documents[4].daysRemaining").value(-3));
 	}
 
 	@Test

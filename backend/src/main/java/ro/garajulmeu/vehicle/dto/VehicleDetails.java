@@ -3,6 +3,8 @@ package ro.garajulmeu.vehicle.dto;
 import java.time.Instant;
 import java.util.UUID;
 
+import ro.garajulmeu.vehicle.VehicleUsage;
+
 /**
  * One vehicle, with the identity its certificate carries.
  *
@@ -19,6 +21,9 @@ import java.util.UUID;
  *
  * <p>The object key is deliberately absent. Nothing outside the backend has any
  * use for it, and a key in a response is a key in a log somewhere later.
+ *
+ * <p>{@code usageType} last, since 1.0.2: a client built before it ignores a
+ * field it does not know, so adding it breaks nobody.
  */
 public record VehicleDetails(
 		UUID id,
@@ -28,5 +33,6 @@ public record VehicleDetails(
 		String commercialDescription,
 		String vin,
 		Instant createdAt,
-		boolean hasImage) {
+		boolean hasImage,
+		VehicleUsage usageType) {
 }

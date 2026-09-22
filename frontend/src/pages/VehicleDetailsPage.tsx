@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import {
-  deleteVehicle, renameVehicle, vehicleLabel, vehiclePath, type VehicleDetails,
+  changeVehicleUsage, deleteVehicle, renameVehicle, vehicleLabel, vehiclePath, vehicleUsages,
+  type VehicleDetails, type VehicleUsage,
 } from '../api/endpoints/vehicles.ts'
 import { useResource } from '../api/useResource.ts'
 import { FormError } from '../components/FormError.tsx'
+import { SelectField } from '../components/SelectField.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { maxLength, type ValidationMessage } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
@@ -32,6 +34,10 @@ const nicknameRules = { displayName: [maxLength(120)] }
  *
  * <p>The photograph is mounted with the flag the vehicle arrived with and owns
  * its own state afterwards, so uploading one does not reload this screen.
+ *
+ * <p>The vehicle's use has a form of its own since 1.0.2, beside the
+ * nickname's rather than inside it: each sends only its own field, so saving
+ * one can never carry an unsaved edit of the other along with it.
  */
 export function VehicleDetailsPage() {
   const { t } = useTranslation()
@@ -41,30 +47,34 @@ export function VehicleDetailsPage() {
   const { data, error, loading } = useResource<VehicleDetails>(vehiclePath(vehicleId))
 
   const rename = useSubmission()
+  const usageChange = useSubmission()
   const removal = useSubmission()
 
   // Null means "showing whatever the server last said". Deriving the input's
   // value this way avoids copying server state into state with an effect, which
   // is the usual way this screen goes wrong.
   const [draft, setDraft] = useState<string | null>(null)
+  const [usageDraft, setUsageDraft] = useState<VehicleUsage | null>(null)
   const [message, setMessage] = useState<ValidationMessage | undefined>(undefined)
   const [confirming, setConfirming] = useState(false)
 
   /**
-   * The renamed vehicle, once the server has confirmed it.
+   * The vehicle as the server last confirmed a change to it - a nickname, or
+   * since 1.0.2 a use.
    *
    * <p>Held here rather than fetched again. Reloading would empty the resource
    * while the request was in flight - useResource reports data only for the
    * request currently on screen - and the whole page, list, form and delete
-   * button, would vanish and come back on every rename. The PATCH already
+   * button, would vanish and come back on every save. The PATCH already
    * answers with the vehicle; asking twice is both slower and a window in which
    * the screen shows nothing.
    */
-  const [renamed, setRenamed] = useState<VehicleDetails | null>(null)
+  const [saved, setSaved] = useState<VehicleDetails | null>(null)
   const fresh = useRef<VehicleDetails | null>(null)
 
-  const vehicle = renamed ?? data
+  const vehicle = saved ?? data
   const nickname = draft ?? vehicle?.displayName ?? ''
+  const usage = usageDraft ?? vehicle?.usageType ?? 'NORMAL'
 
   async function handleRename(event: FormEvent) {
     event.preventDefault()
@@ -81,8 +91,21 @@ export function VehicleDetailsPage() {
     })
 
     if (failure === null && fresh.current !== null) {
-      setRenamed(fresh.current)
+      setSaved(fresh.current)
       setDraft(null)
+    }
+  }
+
+  async function handleUsage(event: FormEvent) {
+    event.preventDefault()
+
+    const failure = await usageChange.submit(async () => {
+      fresh.current = await changeVehicleUsage(vehicleId, usage)
+    })
+
+    if (failure === null && fresh.current !== null) {
+      setSaved(fresh.current)
+      setUsageDraft(null)
     }
   }
 
@@ -147,6 +170,19 @@ export function VehicleDetailsPage() {
             />
 
             <button type="submit" disabled={rename.pending}>{t('vehicle.rename')}</button>
+          </form>
+
+          <form data-card onSubmit={(event) => { void handleUsage(event) }} noValidate>
+            <FormError error={usageChange.error} />
+
+            <SelectField
+              label={t('fields.usageType')}
+              value={usage}
+              options={vehicleUsages.map(one => ({ value: one, label: t(`vehicle.usage.${one}`) }))}
+              onChange={(value) => { setUsageDraft(vehicleUsages.find(one => one === value) ?? null) }}
+            />
+
+            <button type="submit" disabled={usageChange.pending}>{t('vehicle.saveUsage')}</button>
           </form>
 
           <FormError error={removal.error} />

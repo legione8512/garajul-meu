@@ -70,6 +70,7 @@ public class VehicleService {
 	@Transactional
 	public VehicleDetails create(UUID accountId, CreateVehicleRequest request) {
 		String vin = CertificateValues.normalisedVin(request.vin());
+		VehicleUsage usage = usageFrom(request.usageType(), VehicleUsage.NORMAL);
 
 		if (certificateRepository.existsByUserIdAndVin(accountId, vin)) {
 			throw new ApiException(ErrorCode.VEHICLE_DUPLICATE_VIN);
@@ -77,6 +78,7 @@ public class VehicleService {
 
 		Vehicle vehicle = new Vehicle(accountId);
 		vehicle.setDisplayName(CertificateValues.trimmedOrNull(request.displayName()));
+		vehicle.setUsage(usage);
 
 		// Flushed rather than merely saved. The two entities are not linked by a
 		// mapped association, so Hibernate has nothing telling it which insert
@@ -104,21 +106,43 @@ public class VehicleService {
 		return new VehicleDetails(vehicle.getId(), vehicle.getDisplayName(),
 				certificate.getRegistrationNumber(), certificate.getMake(),
 				certificate.getCommercialDescription(), certificate.getVin(),
-				vehicle.getCreatedAt(), false);
+				vehicle.getCreatedAt(), false, vehicle.getUsage());
 	}
 
+	/**
+	 * The nickname and, since 1.0.2, the use - each only when the body names it.
+	 * Was {@code rename} until the use joined the nickname; the endpoint is the
+	 * same PATCH.
+	 */
 	@Transactional
-	public VehicleDetails rename(UUID accountId, UUID vehicleId, UpdateVehicleRequest request) {
+	public VehicleDetails update(UUID accountId, UUID vehicleId, UpdateVehicleRequest request) {
 		Vehicle vehicle = vehicleRepository.findByIdAndUserId(vehicleId, accountId)
 				.orElseThrow(() -> new ApiException(ErrorCode.VEHICLE_NOT_FOUND));
+
+		// Read before anything on the entity changes: a refused use must leave the
+		// nickname sent beside it untouched, not merely unsaved.
+		VehicleUsage usage = usageFrom(request.usageType(), vehicle.getUsage());
 
 		if (request.displayName() != null) {
 			vehicle.setDisplayName(CertificateValues.trimmedOrNull(request.displayName()));
 		}
+		vehicle.setUsage(usage);
 		vehicleRepository.saveAndFlush(vehicle);
 
 		return vehicleRepository.detailsOf(vehicleId, accountId)
 				.orElseThrow(() -> new ApiException(ErrorCode.VEHICLE_NOT_FOUND));
+	}
+
+	/**
+	 * The use a request named, or {@code absent} when it named none. A name that
+	 * is not one of the uses answers VALIDATION_ERROR - what any other field the
+	 * client got wrong answers - and is checked before anything is written.
+	 */
+	private static VehicleUsage usageFrom(String raw, VehicleUsage absent) {
+		if (raw == null) {
+			return absent;
+		}
+		return VehicleUsage.of(raw).orElseThrow(() -> new ApiException(ErrorCode.VALIDATION_ERROR));
 	}
 
 	/**

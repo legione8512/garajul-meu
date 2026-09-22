@@ -44,6 +44,7 @@ export const ro = {
     commercialDescription: 'Model',
     vin: 'VIN (serie de șasiu)',
     displayName: 'Poreclă (opțional)',
+    usageType: 'Utilizare',
     timezone: 'Fus orar',
     showPassword: 'Arată',
     hidePassword: 'Ascunde',
@@ -76,6 +77,15 @@ export const ro = {
   vehicle: {
     backToGarage: 'Înapoi la garaj',
     rename: 'Salvează porecla',
+    // How the vehicle is used, since 1.0.2: plain information for now, which
+    // later features - the ITP interval first - may read. Keyed by the
+    // backend's VehicleUsage names.
+    usage: {
+      NORMAL: 'Normală',
+      TAXI: 'Taxi',
+      TRANSPORT: 'Transport',
+    },
+    saveUsage: 'Salvează utilizarea',
     delete: 'Șterge vehiculul',
     confirmDelete: 'Ștergi acest vehicul? Datele lui se pierd definitiv.',
     confirmDeleteYes: 'Da, șterge',
@@ -189,6 +199,9 @@ export const ro = {
       CASCO: 'CASCO',
       ITP: 'ITP',
       ROVINIETA: 'Rovinietă',
+      // Since 1.0.2. "Extinctor", with the c, is the standard spelling.
+      EXTINGUISHER: 'Extinctor',
+      FIRST_AID_KIT: 'Trusă medicală',
     },
     fields: {
       type: 'Tipul documentului',

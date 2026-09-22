@@ -119,7 +119,21 @@ describe('add vehicle', () => {
       registrationNumber: 'B 100 ABC',
       vin: 'VF1AAAAAAAA000001',
       displayName: 'Mașina de teren',
+      // Since 1.0.2: normal unless somebody chose otherwise.
+      usageType: 'NORMAL',
     })
+  })
+
+  it('sends the use that was chosen', async () => {
+    const sent = stubVehicles(() => jsonResponse(201, CREATED))
+
+    await openAddVehicle()
+    await fillInRequired()
+    await userEvent.selectOptions(screen.getByLabelText(ro.fields.usageType), 'TRANSPORT')
+    await userEvent.click(screen.getByRole('button', { name: ro.addVehicle.submit }))
+
+    await screen.findByRole('heading', { level: 1, name: 'Dacia Logan' })
+    expect(sent.body).toMatchObject({ usageType: 'TRANSPORT' })
   })
 
   /**

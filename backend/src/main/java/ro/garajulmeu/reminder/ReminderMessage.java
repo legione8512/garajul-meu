@@ -109,9 +109,11 @@ public final class ReminderMessage {
 	}
 
 	/**
-	 * The same four labels the frontend's locale files carry, and the same
-	 * choices: only ROVINIETA has an English form, because RCA, CASCO and ITP are
-	 * the names Romanian drivers use and translating them would help nobody.
+	 * The same labels the frontend's locale files carry, and the same choices:
+	 * RCA, CASCO and ITP stay as they are in English too, because they are the
+	 * names Romanian drivers use and translating them would help nobody; the
+	 * road tax and the equipment added in 1.0.2 are ordinary words, and read in
+	 * the reader's language.
 	 */
 	private static String label(DocumentType type, Language language) {
 		return switch (type) {
@@ -119,6 +121,8 @@ public final class ReminderMessage {
 			case CASCO -> "CASCO";
 			case ITP -> "ITP";
 			case ROVINIETA -> language == Language.RO ? "Rovinietă" : "Road tax";
+			case EXTINGUISHER -> language == Language.RO ? "Extinctor" : "Fire extinguisher";
+			case FIRST_AID_KIT -> language == Language.RO ? "Trusă medicală" : "First aid kit";
 		};
 	}
 }

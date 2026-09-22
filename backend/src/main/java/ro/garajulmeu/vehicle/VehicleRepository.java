@@ -48,7 +48,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 			select new ro.garajulmeu.vehicle.dto.VehicleDetails(
 				v.id, v.displayName, c.registrationNumber, c.make, c.commercialDescription,
 				c.vin, v.createdAt,
-				case when v.imageObjectKey is not null then true else false end)
+				case when v.imageObjectKey is not null then true else false end,
+				v.usage)
 			from Vehicle v
 			join RegistrationCertificate c on c.vehicleId = v.id
 			where v.id = :vehicleId and v.userId = :userId

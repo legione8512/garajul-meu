@@ -15,8 +15,19 @@ export function documentPath(vehicleId: string, documentId: string): string {
   return `${documentsPath(vehicleId)}/${documentId}`
 }
 
-/** The four types section 1 names. Sent as text; the backend refuses anything else by name. */
-export const documentTypes = ['RCA', 'CASCO', 'ITP', 'ROVINIETA'] as const
+/**
+ * The types the backend accepts, in the backend's order. Sent as text; it
+ * refuses anything else by name.
+ *
+ * <p>The first four are the ones section 1 names. The fire extinguisher and the
+ * first-aid kit joined them in 1.0.2 (2026-09-22) by the owner's decision -
+ * compulsory equipment with an expiry of its own. The dashboard lists those two
+ * only once one has been entered; that is the backend's choice, made in
+ * `DocumentType.alwaysShown`, and this side shows whatever lines arrive.
+ */
+export const documentTypes = [
+  'RCA', 'CASCO', 'ITP', 'ROVINIETA', 'EXTINGUISHER', 'FIRST_AID_KIT',
+] as const
 
 export type DocumentType = (typeof documentTypes)[number]
 

@@ -49,15 +49,27 @@ class ReminderMessageTest {
 				.isEqualTo("ITP expires today");
 	}
 
-	/** The same four labels the frontend carries, including the one that translates. */
+	/**
+	 * The labels the frontend carries: the acronyms stay acronyms in English, the
+	 * ordinary words translate. Until 1.0.2 the road tax was the only one of the
+	 * latter; the extinguisher and the first-aid kit joined it.
+	 */
 	@Test
-	void onlyRovinietaHasAnEnglishName() {
+	void theWordsTranslateAndTheAcronymsDoNot() {
 		assertThat(ReminderMessage.title(DocumentType.ROVINIETA, 7, Language.RO))
 				.startsWith("Rovinietă");
 		assertThat(ReminderMessage.title(DocumentType.ROVINIETA, 7, Language.EN))
 				.startsWith("Road tax");
 		assertThat(ReminderMessage.title(DocumentType.CASCO, 7, Language.EN))
 				.startsWith("CASCO");
+		assertThat(ReminderMessage.title(DocumentType.EXTINGUISHER, 7, Language.RO))
+				.isEqualTo("Extinctor expiră în 7 zile");
+		assertThat(ReminderMessage.title(DocumentType.EXTINGUISHER, 1, Language.EN))
+				.isEqualTo("Fire extinguisher expires tomorrow");
+		assertThat(ReminderMessage.title(DocumentType.FIRST_AID_KIT, 30, Language.RO))
+				.isEqualTo("Trusă medicală expiră în 30 de zile");
+		assertThat(ReminderMessage.title(DocumentType.FIRST_AID_KIT, 0, Language.EN))
+				.isEqualTo("First aid kit expires today");
 	}
 
 	/** Day-first in both, and a named month in English so 03/12 cannot be misread. */

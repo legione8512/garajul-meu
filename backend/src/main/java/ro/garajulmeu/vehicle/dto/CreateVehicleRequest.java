@@ -30,5 +30,14 @@ public record CreateVehicleRequest(
 		@NotBlank @Size(max = 32) String vin,
 
 		/** Optional from the start: a vehicle is identified by its certificate. */
-		@Size(max = 120) String displayName) {
+		@Size(max = 120) String displayName,
+
+		/**
+		 * NORMAL, TAXI or TRANSPORT, since 1.0.2; absent means NORMAL, which is
+		 * also what every client built before 1.0.2 sends by sending nothing.
+		 * Text rather than the enum, and read by {@code VehicleUsage.of} in the
+		 * service, for the reason {@code DocumentType.of} gives - and so that the
+		 * list of uses is written once.
+		 */
+		String usageType) {
 }

@@ -77,7 +77,16 @@ public class DashboardService {
 		return new DashboardView(List.copyOf(vehicles));
 	}
 
-	/** Every type, in the order the enum declares them, whether configured or not. */
+	/**
+	 * In the order the enum declares them: every type that is always shown,
+	 * configured or not, and the others only where a record of them exists - the
+	 * owner's decision for the equipment added in 1.0.2, so that a vehicle whose
+	 * extinguisher nobody tracks carries no line saying so.
+	 *
+	 * <p>This is also what keeps an application built before 1.0.2 - the iOS
+	 * release among them - from meeting a type it has no name for, unless
+	 * somebody has entered one from a newer client.
+	 */
 	private static List<DocumentStatusLine> lines(List<VehicleDocument> documents, LocalDate today) {
 		Map<DocumentType, List<VehicleDocument>> byType = documents.stream()
 				.collect(Collectors.groupingBy(VehicleDocument::getType));
@@ -85,7 +94,9 @@ public class DashboardService {
 		List<DocumentStatusLine> lines = new ArrayList<>();
 
 		for (DocumentType type : DocumentType.values()) {
-			lines.add(line(type, byType.getOrDefault(type, List.of()), today));
+			if (type.alwaysShown() || byType.containsKey(type)) {
+				lines.add(line(type, byType.getOrDefault(type, List.of()), today));
+			}
 		}
 
 		return List.copyOf(lines);

@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 
 import { scanCertificate, type OcrScan, type ScanStatus } from '../api/endpoints/ocr.ts'
-import { createVehicle } from '../api/endpoints/vehicles.ts'
+import { createVehicle, vehicleUsages, type VehicleUsage } from '../api/endpoints/vehicles.ts'
 import { proposalsFor, tally } from '../certificate/scan.ts'
 import { FormError } from '../components/FormError.tsx'
+import { SelectField } from '../components/SelectField.tsx'
 import { TextField } from '../components/TextField.tsx'
 import { maxLength, required } from '../forms/rules.ts'
 import { useSubmission } from '../forms/useSubmission.ts'
@@ -72,6 +73,10 @@ export function AddVehiclePage() {
   const scan = useSubmission()
 
   const [values, setValues] = useState<Record<Field, string>>(EMPTY)
+  // Beside the text fields rather than among them: it is a choice of three,
+  // never empty and never read from a photograph. NORMAL is what nearly every
+  // car is, and what the backend stores when nothing is said (since 1.0.2).
+  const [usage, setUsage] = useState<VehicleUsage>('NORMAL')
   const [messages, setMessages] = useState<FieldMessages<Field>>({})
   const [statuses, setStatuses] = useState<Partial<Record<Field, ScanStatus>>>({})
 
@@ -124,7 +129,7 @@ export function AddVehiclePage() {
       // The nickname goes as typed, blank included. The backend already turns a
       // blank one into nothing stored, and duplicating that decision here would
       // put the definition of "no nickname" in two places.
-      createdId.current = (await createVehicle(values)).id
+      createdId.current = (await createVehicle({ ...values, usageType: usage })).id
     })
 
     if (failure === null && createdId.current !== null) {
@@ -204,6 +209,13 @@ export function AddVehiclePage() {
           value={values.displayName}
           onChange={(displayName) => { setValues({ ...values, displayName }) }}
           message={messages.displayName}
+        />
+
+        <SelectField
+          label={t('fields.usageType')}
+          value={usage}
+          options={vehicleUsages.map(one => ({ value: one, label: t(`vehicle.usage.${one}`) }))}
+          onChange={(value) => { setUsage(vehicleUsages.find(one => one === value) ?? 'NORMAL') }}
         />
 
         <button type="submit" disabled={pending}>{t('addVehicle.submit')}</button>

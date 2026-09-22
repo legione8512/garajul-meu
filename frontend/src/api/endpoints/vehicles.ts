@@ -20,6 +20,15 @@ export function vehicleImagePath(vehicleId: string): string {
   return `${vehiclePath(vehicleId)}/image`
 }
 
+/**
+ * How a vehicle is used, since 1.0.2 - the backend's VehicleUsage, in its
+ * order. Plain information for now; later features, the ITP interval first, may
+ * read it.
+ */
+export const vehicleUsages = ['NORMAL', 'TAXI', 'TRANSPORT'] as const
+
+export type VehicleUsage = (typeof vehicleUsages)[number]
+
 export interface VehicleSummary {
   readonly id: string
   /**
@@ -49,11 +58,14 @@ export interface VehicleDetails extends VehicleSummary {
    * useful either way, being the one thing the client cannot work out itself.
    */
   readonly hasImage: boolean
+  /** Since 1.0.2; every vehicle has one, NORMAL until its owner says otherwise. */
+  readonly usageType: VehicleUsage
 }
 
 /**
  * The four fields section 8 names as the minimum to save a vehicle, plus the
- * optional nickname. The rest of the certificate arrives in Phase 8.
+ * optional nickname and, since 1.0.2, the use. The rest of the certificate
+ * arrives in Phase 8.
  */
 export interface NewVehicle {
   readonly registrationNumber: string
@@ -61,6 +73,7 @@ export interface NewVehicle {
   readonly commercialDescription: string
   readonly vin: string
   readonly displayName?: string
+  readonly usageType?: VehicleUsage
 }
 
 export function createVehicle(vehicle: NewVehicle): Promise<VehicleDetails> {
@@ -80,6 +93,18 @@ export function renameVehicle(vehicleId: string, displayName: string): Promise<V
   return apiFetch<VehicleDetails>(vehiclePath(vehicleId), {
     method: 'PATCH',
     body: JSON.stringify({ displayName }),
+  })
+}
+
+/**
+ * The use on its own. The same PATCH as the nickname, and the backend leaves
+ * whatever a body does not mention alone - so this cannot disturb the nickname,
+ * and the nickname's form cannot disturb this.
+ */
+export function changeVehicleUsage(vehicleId: string, usageType: VehicleUsage): Promise<VehicleDetails> {
+  return apiFetch<VehicleDetails>(vehiclePath(vehicleId), {
+    method: 'PATCH',
+    body: JSON.stringify({ usageType }),
   })
 }
 

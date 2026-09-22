@@ -65,9 +65,9 @@ public class VehicleController {
 	}
 
 	@PatchMapping("/{vehicleId}")
-	public VehicleDetails rename(@AuthenticationPrincipal Jwt token, @PathVariable UUID vehicleId,
+	public VehicleDetails update(@AuthenticationPrincipal Jwt token, @PathVariable UUID vehicleId,
 			@Valid @RequestBody UpdateVehicleRequest request) {
-		return vehicleService.rename(accountOf(token), vehicleId, request);
+		return vehicleService.update(accountOf(token), vehicleId, request);
 	}
 
 	@DeleteMapping("/{vehicleId}")

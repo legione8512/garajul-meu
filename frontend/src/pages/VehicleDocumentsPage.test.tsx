@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -93,6 +93,20 @@ describe('vehicle documents', () => {
     expect(screen.getByText(
       ro.documents.state.active.many.replace('{{days}}', '137'),
     )).toBeInTheDocument()
+  })
+
+  /** Since 1.0.2 the equipment can be added here like any document. */
+  it('offers the extinguisher and the first-aid kit among the types', async () => {
+    stubDocuments([() => jsonResponse(200, [])])
+
+    await open()
+    await screen.findByText(ro.documents.none)
+
+    const type = screen.getByLabelText(ro.documents.fields.type)
+    expect(within(type).getByRole('option', { name: ro.documents.type.EXTINGUISHER }))
+      .toHaveValue('EXTINGUISHER')
+    expect(within(type).getByRole('option', { name: ro.documents.type.FIRST_AID_KIT }))
+      .toHaveValue('FIRST_AID_KIT')
   })
 
   /**

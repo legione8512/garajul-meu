@@ -211,6 +211,81 @@ class VehicleWriteTest {
 	}
 
 	/**
+	 * Since 1.0.2. A vehicle nobody said anything about is in normal use - which
+	 * is also what every client built before 1.0.2 says, by saying nothing.
+	 */
+	@Test
+	void aVehicleIsInNormalUseUnlessToldOtherwise() throws Exception {
+		String token = tokenFor("usage@example.com");
+		String id = createVehicle(token, LOGAN);
+
+		mockMvc.perform(get("/api/v1/vehicles/" + id)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.usageType").value("NORMAL"));
+	}
+
+	/** Given at creation, changed later, and the nickname beside it left alone. */
+	@Test
+	void theUseCanBeGivenAtCreationAndChangedOnItsOwn() throws Exception {
+		String token = tokenFor("taxi@example.com");
+		String id = createVehicle(token, """
+				{"registrationNumber": "B 100 ABC", "make": "Dacia", "commercialDescription": "Logan",
+				 "vin": "VF1AAAAAAAA000001", "displayName": "Taxiul", "usageType": " taxi "}
+				""");
+
+		mockMvc.perform(get("/api/v1/vehicles/" + id)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.usageType").value("TAXI"));
+
+		mockMvc.perform(patch("/api/v1/vehicles/" + id)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"usageType\": \"TRANSPORT\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.usageType").value("TRANSPORT"))
+				.andExpect(jsonPath("$.displayName").value("Taxiul"));
+	}
+
+	/**
+	 * Anything but the three is refused as the field error it is, and refused
+	 * before a write: a vehicle is not created, and a nickname sent beside a bad
+	 * use is not applied either.
+	 */
+	@Test
+	void aUseThatIsNotOneOfTheThreeIsRefusedAndNothingIsWritten() throws Exception {
+		String token = tokenFor("rocket@example.com");
+
+		mockMvc.perform(post("/api/v1/vehicles")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"registrationNumber": "B 100 ABC", "make": "Dacia",
+								 "commercialDescription": "Logan", "vin": "VF1AAAAAAAA000001",
+								 "usageType": "AMBULANCE"}
+								"""))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+		mockMvc.perform(get("/api/v1/vehicles")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.length()").value(0));
+
+		String id = createVehicle(token, LOGAN);
+
+		mockMvc.perform(patch("/api/v1/vehicles/" + id)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"displayName\": \"Racheta\", \"usageType\": \"ROCKET\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+		mockMvc.perform(get("/api/v1/vehicles/" + id)
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.displayName").doesNotExist())
+				.andExpect(jsonPath("$.usageType").value("NORMAL"));
+	}
+
+	/**
 	 * Counted in the database rather than assumed. Nothing in Java removes the
 	 * certificate - only the foreign key does - so an assertion that the vehicle
 	 * is gone would say nothing about the row that carries its VIN, and a
