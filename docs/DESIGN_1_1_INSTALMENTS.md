@@ -30,6 +30,14 @@ documents:
   After the last one it reads "Toate ratele au trecut" and sends nothing more.
 - Edit and delete, like a document. Deleting the vehicle deletes its payments.
 
+**On *Acasă*** (decided by the developer, 2026-09-23): an instalment due **within the next
+7 days**, today included, appears on its vehicle's card below the document lines, in the same
+shape: *"Rată leasing — peste 3 zile (15 octombrie)."*, *"Rată CASCO — mâine."*, *"… — azi."*
+Further off, it stays on the vehicle's screen only, so the card does not grow with every contract.
+`DashboardVehicle` gains a list of these, computed in `DashboardService` with the documents; an
+application built before 1.1 ignores a field it does not know, so the iOS and Android versions
+already installed keep working unchanged.
+
 **The reminder text** carries no amount and no account detail:
 *"Rata la leasing pentru B 123 ABC este peste 3 zile (15 octombrie)."*
 The Romanian plural rule of 1.0.1 (`countForm` / `ReminderMessage.needsDe`) applies,
@@ -116,8 +124,6 @@ the design. Decide it with the developer before 1.1 is submitted.
 - marking an instalment as paid;
 - linking a CASCO instalment to the CASCO policy's expiry (a possible convenience later:
   the policy's `valid_until` as the default last date);
-- a line on the dashboard. **Open question for the developer:** show an instalment on *Acasă*
-  when it is due within the next 7 days, or keep instalments on the vehicle's screen only?
 
 ## Rough size
 
