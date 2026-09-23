@@ -32,6 +32,8 @@ export const paths = {
   documentPattern: '/garage/:vehicleId/documents/:documentId',
   document: (vehicleId: string, documentId: string) =>
     `/garage/${vehicleId}/documents/${documentId}`,
+  paymentsPattern: '/garage/:vehicleId/payments',
+  payments: (vehicleId: string) => `/garage/${vehicleId}/payments`,
   historyPattern: '/garage/:vehicleId/history',
   history: (vehicleId: string) => `/garage/${vehicleId}/history`,
   profile: '/profile',

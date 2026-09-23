@@ -6,6 +6,7 @@ import { vehicleLabel } from '../api/endpoints/vehicles.ts'
 import { useResource } from '../api/useResource.ts'
 import { dateFormatter, stateOf } from '../documents/status.ts'
 import { errorMessageKey } from '../i18n/errorKey.ts'
+import { dueStateOf } from '../payments/paymentState.ts'
 import { paths } from '../routes/paths.ts'
 import { BrandMark } from '../vehicles/BrandMark.tsx'
 import { VehicleThumbnail } from '../vehicles/VehicleThumbnail.tsx'
@@ -73,6 +74,22 @@ export function DashboardPage() {
               return (
                 <li key={line.type} data-tone={state.tone}>
                   <span>{t(`documents.type.${line.type}`)}</span>
+                  {' — '}
+                  <span>{t(state.key, state.values)}</span>
+                </li>
+              )
+            })}
+            {/*
+              1.1: an instalment due within seven days, below the documents in
+              the same shape, so it reads with the same urgency. The backend
+              decides which arrive; none arrives from one that predates them.
+            */}
+            {(vehicle.payments ?? []).map((line) => {
+              const state = dueStateOf(line.daysRemaining, line.dueDate, formatDate)
+
+              return (
+                <li key={line.paymentId} data-tone={state.tone}>
+                  <span>{t(`payments.kind.${line.kind}`)}</span>
                   {' — '}
                   <span>{t(state.key, state.values)}</span>
                 </li>

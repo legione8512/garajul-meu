@@ -1,4 +1,5 @@
 import type { DocumentStatus, DocumentType } from './documents.ts'
+import type { PaymentKind } from './payments.ts'
 
 export const dashboardPath = '/api/v1/dashboard'
 
@@ -21,6 +22,19 @@ export interface DocumentStatusLine {
   readonly upcomingFrom?: string | null
 }
 
+/**
+ * An instalment due within seven days, today included (1.1). The backend
+ * decides the horizon; this side shows whatever lines arrive, soonest first.
+ */
+export interface PaymentDueLine {
+  readonly kind: PaymentKind
+  readonly paymentId: string
+  readonly dueDate: string
+  readonly daysRemaining: number
+  readonly instalment: number
+  readonly instalments: number
+}
+
 export interface DashboardVehicle {
   readonly vehicleId: string
   readonly displayName?: string | null
@@ -33,6 +47,11 @@ export interface DashboardVehicle {
    */
   readonly hasImage: boolean
   readonly documents: readonly DocumentStatusLine[]
+  /**
+   * Since 1.1. Optional so that a backend answering without it - one not yet
+   * redeployed - reads as "nothing due" rather than breaking the card.
+   */
+  readonly payments?: readonly PaymentDueLine[]
 }
 
 export interface DashboardView {

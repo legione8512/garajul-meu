@@ -252,6 +252,69 @@ export const ro = {
       notConfigured: 'Neconfigurat.',
     },
   },
+  // 1.1: the car-loan or leasing instalment and the CASCO instalment, dates
+  // only, with a reminder before each (docs/DESIGN_1_1_INSTALMENTS.md).
+  payments: {
+    title: 'Rate',
+    open: 'Rate',
+    backToVehicle: 'Înapoi la vehicul',
+    intro: 'Rata la leasing sau credit și rata CASCO, cu un memento înainte de fiecare. '
+      + 'Se păstrează doar datele, niciodată sumele.',
+    none: 'Nicio rată înregistrată pentru acest vehicul.',
+    add: 'Adaugă o rată',
+    save: 'Salvează rata',
+    edit: 'Modifică',
+    saveCorrection: 'Salvează modificarea',
+    delete: 'Șterge',
+    confirmDelete: 'Ștergi această rată? Memento-urile ei nu mai vin.',
+    confirmDeleteYes: 'Da, șterge',
+    cancel: 'Renunță',
+    kind: {
+      LOAN: 'Rată leasing/credit',
+      CASCO: 'Rată CASCO',
+    },
+    frequency: {
+      MONTHLY: 'Lunar',
+      QUARTERLY: 'Trimestrial',
+      SEMIANNUAL: 'Semestrial',
+      ANNUAL: 'Anual',
+    },
+    fields: {
+      kind: 'Tipul ratei',
+      firstDueDate: 'Data primei rate',
+      frequency: 'Cât de des',
+      endBy: 'Până când',
+      lastDueDate: 'Data ultimei rate',
+      instalmentCount: 'Numărul de rate',
+      leads: 'Memento-uri',
+    },
+    endBy: {
+      date: 'Până la data ultimei rate',
+      count: 'Un număr de rate',
+    },
+    // Keyed by words rather than by the number, so the keys are identifiers.
+    lead: {
+      days7: 'Cu 7 zile înainte',
+      days3: 'Cu 3 zile înainte',
+      day1: 'Cu o zi înainte',
+      onTheDay: 'În ziua scadenței',
+    },
+    // "o rată", "3 rate", "20 de rate" - countForm picks, as for days.
+    schedule: {
+      one: '{{frequency}}, o singură rată, pe {{first}}.',
+      few: '{{frequency}}, {{count}} rate, de la {{first}} până la {{last}}.',
+      many: '{{frequency}}, {{count}} de rate, de la {{first}} până la {{last}}.',
+    },
+    next: 'Următoarea rată: {{date}} — rata {{number}} din {{count}}.',
+    finished: 'Toate ratele au trecut.',
+    reminders: 'Memento-uri: {{leads}}.',
+    due: {
+      today: 'Azi ({{date}}).',
+      one: 'Mâine ({{date}}).',
+      few: 'Peste {{days}} zile ({{date}}).',
+      many: 'Peste {{days}} de zile ({{date}}).',
+    },
+  },
   history: {
     title: 'Istoric',
     open: 'Istoricul documentelor',
@@ -518,6 +581,7 @@ export const ro = {
     maxLength: 'Numărul maxim de caractere: {{max}}.',
     sixDigits: 'Codul are exact șase cifre.',
     invalid: 'Valoarea nu este acceptată.',
+    instalmentCount: 'Între 1 și 120 de rate.',
   },
   /**
    * Keyed by the backend's error codes, letter for letter. That is the whole
@@ -564,5 +628,7 @@ export const ro = {
     DOCUMENT_NOT_FOUND: 'Documentul nu a fost găsit.',
     DOCUMENT_INVALID_DATE_RANGE: 'Data de început este după cea de sfârșit.',
     DOCUMENT_TYPE_INVALID: 'Tipul de document nu este recunoscut.',
+    PAYMENT_NOT_FOUND: 'Rata nu a fost găsită.',
+    PAYMENT_INVALID_SCHEDULE: 'Verifică ratele: ultima trebuie să fie după prima, și cel mult 120 de rate.',
   },
 }

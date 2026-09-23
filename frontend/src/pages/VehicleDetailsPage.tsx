@@ -138,6 +138,9 @@ export function VehicleDetailsPage() {
         <Link data-action="secondary" to={paths.documents(vehicleId)}>
           {t('documents.open')}
         </Link>
+        <Link data-action="secondary" to={paths.payments(vehicleId)}>
+          {t('payments.open')}
+        </Link>
       </p>
 
       {loading && <p role="status">{t('common.loading')}</p>}

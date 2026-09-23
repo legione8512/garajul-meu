@@ -47,6 +47,8 @@ describe('backend error codes', () => {
       'DOCUMENT_NOT_FOUND',
       'DOCUMENT_INVALID_DATE_RANGE',
       'DOCUMENT_TYPE_INVALID',
+      'PAYMENT_NOT_FOUND',
+      'PAYMENT_INVALID_SCHEDULE',
       'OCR_FILE_INVALID',
       'OCR_RATE_LIMITED',
       'OCR_PROVIDER_UNAVAILABLE',

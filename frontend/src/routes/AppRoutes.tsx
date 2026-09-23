@@ -22,6 +22,7 @@ import { TermsPage } from '../pages/TermsPage.tsx'
 import { VehicleDetailsPage } from '../pages/VehicleDetailsPage.tsx'
 import { VehicleDocumentDetailsPage } from '../pages/VehicleDocumentDetailsPage.tsx'
 import { VehicleDocumentsPage } from '../pages/VehicleDocumentsPage.tsx'
+import { VehiclePaymentsPage } from '../pages/VehiclePaymentsPage.tsx'
 import { VehicleHistoryPage } from '../pages/VehicleHistoryPage.tsx'
 import { VerifyEmailPage } from '../pages/VerifyEmailPage.tsx'
 import { WelcomePage } from '../pages/WelcomePage.tsx'
@@ -66,6 +67,7 @@ export function AppRoutes() {
           <Route path={paths.vehiclePattern} element={<VehicleDetailsPage />} />
           <Route path={paths.certificatePattern} element={<CertificatePage />} />
           <Route path={paths.documentsPattern} element={<VehicleDocumentsPage />} />
+          <Route path={paths.paymentsPattern} element={<VehiclePaymentsPage />} />
           <Route path={paths.documentPattern} element={<VehicleDocumentDetailsPage />} />
           <Route path={paths.historyPattern} element={<VehicleHistoryPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />

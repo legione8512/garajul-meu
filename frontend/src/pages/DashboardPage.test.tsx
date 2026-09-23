@@ -225,4 +225,45 @@ describe('dashboard', () => {
         .replace('{{date}}', '1 septembrie 2026'),
     )).toBeInTheDocument()
   })
+
+  /**
+   * 1.1: an instalment due within the week arrives under the documents, named
+   * and toned as a document line is. A backend that sends none leaves the card
+   * as it was.
+   */
+  it('lists an instalment due soon under the documents, with how far off it is', async () => {
+    const view = garage(
+      { type: 'RCA', status: 'ACTIVE', documentId: 'd1', validUntil: '2027-01-01', daysRemaining: 200 },
+    )
+    stubDashboard(() => jsonResponse(200, {
+      vehicles: view.vehicles.map(vehicle => ({
+        ...vehicle,
+        payments: [{
+          kind: 'LOAN', paymentId: 'p1', dueDate: '2026-10-15',
+          daysRemaining: 3, instalment: 4, instalments: 36,
+        }],
+      })),
+    }))
+
+    renderApp(paths.dashboard)
+
+    const line = (await screen.findByText(ro.payments.kind.LOAN)).closest('li')
+    expect(line).not.toBeNull()
+    expect(line).toHaveAttribute('data-tone', 'soon')
+    expect(line).toHaveTextContent(
+      ro.payments.due.few.replace('{{days}}', '3').replace('{{date}}', '15 octombrie 2026'),
+    )
+  })
+
+  it('shows no instalment line when none is due', async () => {
+    stubDashboard(() => jsonResponse(200, garage(
+      { type: 'RCA', status: 'ACTIVE', documentId: 'd1', validUntil: '2027-01-01', daysRemaining: 200 },
+    )))
+
+    renderApp(paths.dashboard)
+
+    await screen.findByRole('link', { name: 'Dacia Logan' })
+    expect(screen.queryByText(ro.payments.kind.LOAN)).toBeNull()
+    expect(screen.queryByText(ro.payments.kind.CASCO)).toBeNull()
+  })
 })
