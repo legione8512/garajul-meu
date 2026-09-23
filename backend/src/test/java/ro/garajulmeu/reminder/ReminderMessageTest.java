@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import ro.garajulmeu.push.PushNotification;
 import ro.garajulmeu.user.Language;
 import ro.garajulmeu.vehicledocument.DocumentType;
+import ro.garajulmeu.vehiclepayment.PaymentKind;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -105,5 +106,40 @@ class ReminderMessageTest {
 		assertThat(notification.data().get("documentId")).isEqualTo(subject.documentId().toString());
 		assertThat(notification.title()).isEqualTo("RCA expiră în 7 zile");
 		assertThat(notification.body()).isEqualTo("B 123 ABC — până la 01.12.2026");
+	}
+
+	@Test
+	void anInstalmentSaysWhenItIsDueInBothLanguages() {
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.LOAN, 3, Language.RO))
+				.isEqualTo("Rata la leasing/credit e peste 3 zile");
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.CASCO, 1, Language.RO))
+				.isEqualTo("Rata CASCO e mâine");
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.CASCO, 0, Language.RO))
+				.isEqualTo("Rata CASCO e azi");
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.LOAN, 7, Language.EN))
+				.isEqualTo("Loan instalment is due in 7 days");
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.CASCO, 1, Language.EN))
+				.isEqualTo("CASCO instalment is due tomorrow");
+	}
+
+	/** The rule is the language's, so a lead of twenty or more would read right too. */
+	@Test
+	void anInstalmentCountsInRomanian() {
+		assertThat(ReminderMessage.instalmentTitle(PaymentKind.LOAN, 20, Language.RO))
+				.endsWith("peste 20 de zile");
+	}
+
+	@Test
+	void anInstalmentCarriesNoAmountAndOnlyIdentifiers() {
+		UUID vehicleId = UUID.randomUUID();
+		UUID paymentId = UUID.randomUUID();
+
+		PushNotification notification = ReminderMessage.forInstalment(new ReminderMessage.Instalment(
+				vehicleId, paymentId, PaymentKind.LOAN, LocalDate.of(2026, 10, 15), "B 123 ABC"),
+				3, Language.RO);
+
+		assertThat(notification.body()).isEqualTo("B 123 ABC — scadentă pe 15.10.2026");
+		assertThat(notification.data()).containsOnlyKeys("vehicleId", "paymentId", "kind");
+		assertThat(notification.data().get("paymentId")).isEqualTo(paymentId.toString());
 	}
 }

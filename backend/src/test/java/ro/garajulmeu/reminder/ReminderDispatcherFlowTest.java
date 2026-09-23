@@ -43,6 +43,10 @@ import ro.garajulmeu.vehicle.VehicleRepository;
 import ro.garajulmeu.vehicledocument.DocumentType;
 import ro.garajulmeu.vehicledocument.VehicleDocument;
 import ro.garajulmeu.vehicledocument.VehicleDocumentRepository;
+import ro.garajulmeu.vehiclepayment.PaymentFrequency;
+import ro.garajulmeu.vehiclepayment.PaymentKind;
+import ro.garajulmeu.vehiclepayment.VehiclePayment;
+import ro.garajulmeu.vehiclepayment.VehiclePaymentRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -87,6 +91,9 @@ class ReminderDispatcherFlowTest {
 
 	@Autowired
 	private ReminderRepository reminderRepository;
+
+	@Autowired
+	private VehiclePaymentRepository paymentRepository;
 
 	@Autowired
 	private NotificationDeliveryRepository deliveryRepository;
@@ -511,5 +518,46 @@ class ReminderDispatcherFlowTest {
 		assertThat(dispatcher.releaseStalled()).isPositive();
 		assertThat(reload(fixture).getStatus()).isEqualTo(ReminderStatus.PENDING);
 		assertThat(claimOwn(dispatcher, fixture)).isNotNull();
+	}
+
+	/**
+	 * 1.1: an instalment's reminder is found by the second query, claimed in the
+	 * same pass, and sent with its own wording - no amount, the vehicle's name,
+	 * and the payment's identifier for the deep link.
+	 */
+	@Test
+	void anInstalmentReminderIsClaimedAndSentWithItsOwnWording() {
+		Fixture document = givenDueReminder("instalment@example.com", "VIN000INSTALMENT1");
+		givenDevice(document.userId(), "token-instalment", true);
+		UUID vehicleId = vehicleRepository.findAll().stream()
+				.filter(vehicle -> vehicle.getUserId().equals(document.userId()))
+				.findFirst().orElseThrow().getId();
+
+		VehiclePayment payment = new VehiclePayment(vehicleId);
+		payment.setKind(PaymentKind.LOAN);
+		LocalDate dueDate = LocalDate.now().plusDays(3);
+		payment.setSchedule(dueDate, PaymentFrequency.MONTHLY, dueDate);
+		payment.setRemindDaysBefore(List.of(3));
+		UUID paymentId = paymentRepository.saveAndFlush(payment).getId();
+
+		Reminder reminder = Reminder.forInstalment(paymentId, dueDate, 3,
+				Instant.now().minusSeconds(60));
+		Fixture instalment = new Fixture(document.userId(),
+				reminderRepository.saveAndFlush(reminder).getId());
+
+		Recorder provider = new Recorder();
+		ReminderDispatcher dispatcher = dispatcherWith(provider);
+
+		DueReminder due = claimOwn(dispatcher, instalment);
+		assertThat(due.isPayment()).isTrue();
+		dispatcher.dispatch(due);
+
+		assertThat(reload(instalment).getStatus()).isEqualTo(ReminderStatus.SENT);
+		assertThat(provider.notifications).hasSize(1);
+		PushNotification notification = provider.notifications.get(0);
+		assertThat(notification.title()).isEqualTo("Rata la leasing/credit e peste 3 zile");
+		assertThat(notification.body()).startsWith("Logan — scadentă pe ");
+		assertThat(notification.data()).containsOnlyKeys("vehicleId", "paymentId", "kind");
+		assertThat(notification.data().get("paymentId")).isEqualTo(paymentId.toString());
 	}
 }

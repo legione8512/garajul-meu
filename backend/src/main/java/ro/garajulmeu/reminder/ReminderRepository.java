@@ -26,6 +26,10 @@ public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
 
 	List<Reminder> findByVehicleDocumentIdOrderByScheduledAt(UUID vehicleDocumentId);
 
+	List<Reminder> findByVehiclePaymentIdAndStatus(UUID vehiclePaymentId, ReminderStatus status);
+
+	List<Reminder> findByVehiclePaymentIdOrderByScheduledAt(UUID vehiclePaymentId);
+
 	/**
 	 * What a reader is shown: everything except the cancelled, in firing order.
 	 *
@@ -71,6 +75,27 @@ public interface ReminderRepository extends JpaRepository<Reminder, UUID> {
 			""")
 	List<DueReminder> findDue(@Param("status") ReminderStatus status, @Param("now") Instant now,
 			Limit limit);
+
+	/**
+	 * {@link #findDue}'s counterpart for recurring payments, 1.1. A second query
+	 * rather than outer joins in the first, so each keeps its inner joins - and
+	 * with them the property that a reminder whose subject has gone is simply
+	 * not found. The scheduler asks both and sends whatever either answers.
+	 */
+	@Query("""
+			select new ro.garajulmeu.reminder.DueReminder(
+				r.id, r.offsetDays, v.userId, v.id, p.id, p.kind, r.dueDate,
+				coalesce(v.displayName, c.registrationNumber), u.preferredLanguage)
+			from Reminder r
+			join VehiclePayment p on p.id = r.vehiclePaymentId
+			join Vehicle v on v.id = p.vehicleId
+			join RegistrationCertificate c on c.vehicleId = v.id
+			join User u on u.id = v.userId
+			where r.status = :status and r.scheduledAt <= :now
+			order by r.scheduledAt
+			""")
+	List<DueReminder> findDuePayments(@Param("status") ReminderStatus status,
+			@Param("now") Instant now, Limit limit);
 
 	/**
 	 * The claim, and the status in the name is what makes it one: a row that

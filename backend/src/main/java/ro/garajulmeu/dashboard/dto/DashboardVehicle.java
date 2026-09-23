@@ -10,6 +10,9 @@ import java.util.UUID;
  * <p>{@code hasImage} is the garage's field, meaning the same thing for the same
  * reason: since 1.0.2 the card draws the owner's photograph, and this is what
  * tells it whether to ask for one.
+ *
+ * <p>{@code payments} arrived in 1.1. An application built before it ignores a
+ * field it does not know, so the versions already installed are unaffected.
  */
 public record DashboardVehicle(
 		UUID vehicleId,
@@ -18,5 +21,6 @@ public record DashboardVehicle(
 		String make,
 		String commercialDescription,
 		boolean hasImage,
-		List<DocumentStatusLine> documents) {
+		List<DocumentStatusLine> documents,
+		List<PaymentDueLine> payments) {
 }

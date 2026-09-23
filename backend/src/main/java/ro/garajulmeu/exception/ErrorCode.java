@@ -56,6 +56,10 @@ public enum ErrorCode {
 	DOCUMENT_NOT_FOUND(HttpStatus.NOT_FOUND), DOCUMENT_INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST),
 	DOCUMENT_TYPE_INVALID(HttpStatus.BAD_REQUEST),
 
+	// Vehicle payments (1.1): a series with no end, two ends, an end before its
+	// start, or more than the ceiling of instalments.
+	PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND), PAYMENT_INVALID_SCHEDULE(HttpStatus.BAD_REQUEST),
+
 	// OCR
 	OCR_FILE_INVALID(HttpStatus.BAD_REQUEST), OCR_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
 	OCR_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE), OCR_PROCESSING_FAILED(HttpStatus.UNPROCESSABLE_CONTENT),

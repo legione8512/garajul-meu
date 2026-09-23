@@ -9,6 +9,7 @@ import java.util.UUID;
 import ro.garajulmeu.push.PushNotification;
 import ro.garajulmeu.user.Language;
 import ro.garajulmeu.vehicledocument.DocumentType;
+import ro.garajulmeu.vehiclepayment.PaymentKind;
 
 /**
  * The words that reach a lock screen, in the reader's language. Specification
@@ -61,6 +62,57 @@ public final class ReminderMessage {
 				Map.of("vehicleId", subject.vehicleId().toString(),
 						"documentId", subject.documentId().toString(),
 						"type", subject.type().name()));
+	}
+
+	/**
+	 * One instalment of a recurring payment, 1.1. No amount, because none is
+	 * stored; the lock screen says which car and which day, and nothing about
+	 * the contract.
+	 */
+	public record Instalment(UUID vehicleId, UUID paymentId, PaymentKind kind, LocalDate dueDate,
+			String vehicleLabel) {
+	}
+
+	public static PushNotification forInstalment(Instalment instalment, int offsetDays,
+			Language language) {
+		return new PushNotification(
+				instalmentTitle(instalment.kind(), offsetDays, language),
+				instalmentBody(instalment.vehicleLabel(), instalment.dueDate(), language),
+				Map.of("vehicleId", instalment.vehicleId().toString(),
+						"paymentId", instalment.paymentId().toString(),
+						"kind", instalment.kind().name()));
+	}
+
+	static String instalmentTitle(PaymentKind kind, int offsetDays, Language language) {
+		String name = instalmentLabel(kind, language);
+
+		return switch (language) {
+			case RO -> switch (offsetDays) {
+				case 0 -> name + " e azi";
+				case 1 -> name + " e mâine";
+				default -> name + " e peste " + offsetDays + (needsDe(offsetDays) ? " de zile" : " zile");
+			};
+			case EN -> switch (offsetDays) {
+				case 0 -> name + " is due today";
+				case 1 -> name + " is due tomorrow";
+				default -> name + " is due in " + offsetDays + " days";
+			};
+		};
+	}
+
+	static String instalmentBody(String vehicleLabel, LocalDate dueDate, Language language) {
+		return switch (language) {
+			case RO -> named(vehicleLabel, "Vehiculul tău") + " — scadentă pe " + ROMANIAN.format(dueDate);
+			case EN -> named(vehicleLabel, "Your vehicle") + " — due on " + ENGLISH.format(dueDate);
+		};
+	}
+
+	/** The same names the frontend's locale files give the two kinds. */
+	private static String instalmentLabel(PaymentKind kind, Language language) {
+		return switch (kind) {
+			case LOAN -> language == Language.RO ? "Rata la leasing/credit" : "Loan instalment";
+			case CASCO -> language == Language.RO ? "Rata CASCO" : "CASCO instalment";
+		};
 	}
 
 	static String title(DocumentType type, int offsetDays, Language language) {

@@ -19,6 +19,8 @@ import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 import ro.garajulmeu.vehicledocument.VehicleDocument;
 import ro.garajulmeu.vehicledocument.VehicleDocumentRepository;
+import ro.garajulmeu.vehiclepayment.VehiclePayment;
+import ro.garajulmeu.vehiclepayment.VehiclePaymentRepository;
 
 /**
  * Keeps the reminders of a document agreeing with the document.
@@ -38,16 +40,19 @@ public class ReminderService {
 
 	private final ReminderRepository reminderRepository;
 	private final VehicleDocumentRepository documentRepository;
+	private final VehiclePaymentRepository paymentRepository;
 	private final NotificationPreferencesService preferencesService;
 	private final UserRepository userRepository;
 	private final Clock clock;
 
 	ReminderService(ReminderRepository reminderRepository,
 			VehicleDocumentRepository documentRepository,
+			VehiclePaymentRepository paymentRepository,
 			NotificationPreferencesService preferencesService,
 			UserRepository userRepository, Clock clock) {
 		this.reminderRepository = reminderRepository;
 		this.documentRepository = documentRepository;
+		this.paymentRepository = paymentRepository;
 		this.preferencesService = preferencesService;
 		this.userRepository = userRepository;
 		this.clock = clock;
@@ -107,6 +112,35 @@ public class ReminderService {
 		for (VehicleDocument document : documentRepository.ofGarage(accountId)) {
 			reconcile(accountId, document);
 		}
+		for (VehiclePayment payment : paymentRepository.ofGarage(accountId)) {
+			reconcilePayment(accountId, payment);
+		}
+	}
+
+	/**
+	 * A recurring payment's reminders, 1.1: the same cancel-then-regenerate as a
+	 * document's, over every instalment still ahead. The whole series is
+	 * generated at once - at most 120 instalments and four leads, so 480 rows -
+	 * rather than a rolling window that a daily job would have to keep topped up.
+	 */
+	@Transactional
+	public void reconcilePayment(UUID accountId, VehiclePayment payment) {
+		cancelPendingForPayment(payment.getId());
+
+		NotificationPreferences preferences = preferencesService.preferencesOf(accountId);
+		ZoneId zone = zoneOf(accountId);
+
+		List<ReminderSchedule.ScheduledInstalment> due = ReminderSchedule.futureForInstalments(
+				payment.series().dueDates(), payment.getRemindDaysBefore(), preferences, zone,
+				clock.instant());
+
+		for (ReminderSchedule.ScheduledInstalment instalment : due) {
+			reminderRepository.save(Reminder.forInstalment(payment.getId(), instalment.dueDate(),
+					instalment.offsetDays(), instalment.scheduledAt()));
+		}
+		reminderRepository.flush();
+
+		log.info("Scheduled {} reminders for payment {}", due.size(), payment.getId());
 	}
 
 	/**
@@ -150,6 +184,17 @@ public class ReminderService {
 		reminderRepository.saveAll(pending);
 
 		return pending.size();
+	}
+
+	/** The payment's counterpart of {@link #cancelPendingFor}, with the same PENDING-only rule. */
+	private void cancelPendingForPayment(UUID paymentId) {
+		List<Reminder> pending = reminderRepository
+				.findByVehiclePaymentIdAndStatus(paymentId, ReminderStatus.PENDING);
+
+		for (Reminder reminder : pending) {
+			reminder.setStatus(ReminderStatus.CANCELLED);
+		}
+		reminderRepository.saveAll(pending);
 	}
 
 	/**

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -117,5 +118,53 @@ class ReminderScheduleTest {
 		assertThat(ReminderSchedule.futureFor(EXPIRES, all(), BUCHAREST, justBeforeNine))
 				.extracting(ReminderSchedule.ScheduledOffset::offsetDays)
 				.containsExactly(0);
+	}
+
+	/** 1.1: every instalment still ahead, each at the payment's own leads, in the account's zone. */
+	@Test
+	void anInstalmentSeriesIsScheduledAtThePaymentsOwnLeads() {
+		List<LocalDate> dueDates = List.of(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 12, 15));
+
+		assertThat(ReminderSchedule.futureForInstalments(dueDates, List.of(3, 1), all(), BUCHAREST,
+				longBefore()))
+				.containsExactly(
+						new ReminderSchedule.ScheduledInstalment(LocalDate.of(2026, 11, 15), 3,
+								Instant.parse("2026-11-12T07:00:00Z")),
+						new ReminderSchedule.ScheduledInstalment(LocalDate.of(2026, 11, 15), 1,
+								Instant.parse("2026-11-14T07:00:00Z")),
+						new ReminderSchedule.ScheduledInstalment(LocalDate.of(2026, 12, 15), 3,
+								Instant.parse("2026-12-12T07:00:00Z")),
+						new ReminderSchedule.ScheduledInstalment(LocalDate.of(2026, 12, 15), 1,
+								Instant.parse("2026-12-14T07:00:00Z")));
+	}
+
+	/**
+	 * The payment carries its own leads, so the account's per-offset switches
+	 * are not read - only the switch that silences everything is.
+	 */
+	@Test
+	void instalmentsIgnoreTheDocumentSwitchesButObeyTheAccountSwitch() {
+		List<LocalDate> dueDates = List.of(LocalDate.of(2026, 11, 15));
+		NotificationPreferences preferences = all();
+		preferences.setRemind3Days(false);
+		preferences.setRemind1Day(false);
+
+		assertThat(ReminderSchedule.futureForInstalments(dueDates, List.of(3, 1), preferences,
+				BUCHAREST, longBefore())).hasSize(2);
+
+		preferences.setNotificationsEnabled(false);
+
+		assertThat(ReminderSchedule.futureForInstalments(dueDates, List.of(3, 1), preferences,
+				BUCHAREST, longBefore())).isEmpty();
+	}
+
+	@Test
+	void instalmentsAlreadyPastAreDropped() {
+		List<LocalDate> dueDates = List.of(LocalDate.of(2026, 11, 15), LocalDate.of(2026, 12, 15));
+
+		assertThat(ReminderSchedule.futureForInstalments(dueDates, List.of(3, 1), all(), BUCHAREST,
+				Instant.parse("2026-11-20T00:00:00Z")))
+				.extracting(ReminderSchedule.ScheduledInstalment::dueDate)
+				.containsOnly(LocalDate.of(2026, 12, 15));
 	}
 }

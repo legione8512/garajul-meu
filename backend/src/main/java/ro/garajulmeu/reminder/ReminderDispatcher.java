@@ -123,8 +123,13 @@ public class ReminderDispatcher {
 	public List<DueReminder> claimDue() {
 		Instant now = clock.instant();
 
-		List<DueReminder> due = reminderRepository.findDue(ReminderStatus.PENDING, now,
-				Limit.of(properties.batchSize()));
+		// Documents first, then instalments, each up to a batch. Two queries
+		// rather than one outer-joined one - see findDuePayments - so a pass may
+		// take up to twice the batch, which is still bounded.
+		List<DueReminder> due = new ArrayList<>(reminderRepository.findDue(ReminderStatus.PENDING,
+				now, Limit.of(properties.batchSize())));
+		due.addAll(reminderRepository.findDuePayments(ReminderStatus.PENDING, now,
+				Limit.of(properties.batchSize())));
 
 		if (due.isEmpty()) {
 			return List.of();
@@ -188,8 +193,7 @@ public class ReminderDispatcher {
 			return;
 		}
 
-		PushNotification notification = ReminderMessage.forSubject(due.subject(),
-				due.offsetDays(), due.language());
+		PushNotification notification = due.notification();
 
 		List<NotificationDelivery> results = new ArrayList<>();
 		List<UserDevice> rejected = new ArrayList<>();

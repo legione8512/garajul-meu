@@ -119,4 +119,38 @@ public final class ReminderSchedule {
 
 		return List.copyOf(scheduled);
 	}
+
+	/** One reminder of one instalment: which instalment, how far ahead, and when. */
+	public record ScheduledInstalment(LocalDate dueDate, int offsetDays, Instant scheduledAt) {
+	}
+
+	/**
+	 * Every reminder still worth scheduling for a recurring payment, 1.1.
+	 *
+	 * <p>The same rules as a document's, applied to each instalment: past
+	 * instants are dropped rather than backfilled, and the account-level switch
+	 * silences everything. What differs is where the offsets come from - the
+	 * payment carries its own, by the owner's decision, so the per-offset
+	 * switches on screen 18 stay the documents' and are not read here.
+	 */
+	public static List<ScheduledInstalment> futureForInstalments(List<LocalDate> dueDates,
+			List<Integer> offsets, NotificationPreferences preferences, ZoneId zone, Instant now) {
+		if (!preferences.isNotificationsEnabled()) {
+			return List.of();
+		}
+
+		List<ScheduledInstalment> scheduled = new ArrayList<>();
+
+		for (LocalDate dueDate : dueDates) {
+			for (int offset : offsets) {
+				Instant at = instantFor(dueDate, offset, preferences.getNotificationLocalTime(), zone);
+
+				if (at.isAfter(now)) {
+					scheduled.add(new ScheduledInstalment(dueDate, offset, at));
+				}
+			}
+		}
+
+		return List.copyOf(scheduled);
+	}
 }

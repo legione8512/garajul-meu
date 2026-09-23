@@ -3,6 +3,7 @@ package ro.garajulmeu.dashboard;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import ro.garajulmeu.exception.ErrorCode;
 import ro.garajulmeu.dashboard.dto.DashboardVehicle;
 import ro.garajulmeu.dashboard.dto.DashboardView;
 import ro.garajulmeu.dashboard.dto.DocumentStatusLine;
+import ro.garajulmeu.dashboard.dto.PaymentDueLine;
 import ro.garajulmeu.user.User;
 import ro.garajulmeu.user.UserRepository;
 import ro.garajulmeu.vehicle.VehicleRepository;
@@ -27,6 +29,9 @@ import ro.garajulmeu.vehicledocument.DocumentStatus;
 import ro.garajulmeu.vehicledocument.DocumentType;
 import ro.garajulmeu.vehicledocument.VehicleDocument;
 import ro.garajulmeu.vehicledocument.VehicleDocumentRepository;
+import ro.garajulmeu.vehiclepayment.InstalmentSeries;
+import ro.garajulmeu.vehiclepayment.VehiclePayment;
+import ro.garajulmeu.vehiclepayment.VehiclePaymentRepository;
 
 /**
  * The projection section 11 describes and section 16 names.
@@ -42,13 +47,16 @@ public class DashboardService {
 
 	private final VehicleRepository vehicleRepository;
 	private final VehicleDocumentRepository documentRepository;
+	private final VehiclePaymentRepository paymentRepository;
 	private final UserRepository userRepository;
 	private final Clock clock;
 
 	DashboardService(VehicleRepository vehicleRepository,
-			VehicleDocumentRepository documentRepository, UserRepository userRepository, Clock clock) {
+			VehicleDocumentRepository documentRepository, VehiclePaymentRepository paymentRepository,
+			UserRepository userRepository, Clock clock) {
 		this.vehicleRepository = vehicleRepository;
 		this.documentRepository = documentRepository;
+		this.paymentRepository = paymentRepository;
 		this.userRepository = userRepository;
 		this.clock = clock;
 	}
@@ -59,6 +67,10 @@ public class DashboardService {
 
 		Map<UUID, List<VehicleDocument>> byVehicle = documentRepository.ofGarage(accountId).stream()
 				.collect(Collectors.groupingBy(VehicleDocument::getVehicleId));
+
+		Map<UUID, List<VehiclePayment>> paymentsByVehicle = paymentRepository.ofGarage(accountId)
+				.stream()
+				.collect(Collectors.groupingBy(VehiclePayment::getVehicleId));
 
 		List<DashboardVehicle> vehicles = new ArrayList<>();
 
@@ -72,7 +84,8 @@ public class DashboardService {
 					summary.make(),
 					summary.commercialDescription(),
 					summary.hasImage(),
-					lines(documents, today)));
+					lines(documents, today),
+					paymentsDueSoon(paymentsByVehicle.getOrDefault(summary.id(), List.of()), today)));
 		}
 
 		return new DashboardView(List.copyOf(vehicles));
@@ -88,6 +101,38 @@ public class DashboardService {
 	 * release among them - from meeting a type it has no name for, unless
 	 * somebody has entered one from a newer client.
 	 */
+	/**
+	 * How far ahead an instalment appears on the card: seven days, today
+	 * included, as the owner decided for 1.1. Seven because it is the longest
+	 * lead a payment's reminder can have, so nothing is announced on a phone
+	 * before the dashboard shows it.
+	 */
+	static final int PAYMENT_HORIZON_DAYS = 7;
+
+	/** The next instalment of each payment, where it falls within the horizon; soonest first. */
+	static List<PaymentDueLine> paymentsDueSoon(List<VehiclePayment> payments, LocalDate today) {
+		List<PaymentDueLine> lines = new ArrayList<>();
+
+		for (VehiclePayment payment : payments) {
+			Optional<InstalmentSeries.Instalment> next = payment.series().nextOnOrAfter(today);
+
+			if (next.isEmpty()) {
+				continue;
+			}
+
+			InstalmentSeries.Instalment instalment = next.get();
+			long days = ChronoUnit.DAYS.between(today, instalment.dueDate());
+
+			if (days <= PAYMENT_HORIZON_DAYS) {
+				lines.add(new PaymentDueLine(payment.getKind(), payment.getId(),
+						instalment.dueDate(), days, instalment.number(), instalment.of()));
+			}
+		}
+
+		lines.sort((a, b) -> a.dueDate().compareTo(b.dueDate()));
+		return List.copyOf(lines);
+	}
+
 	private static List<DocumentStatusLine> lines(List<VehicleDocument> documents, LocalDate today) {
 		Map<DocumentType, List<VehicleDocument>> byType = documents.stream()
 				.collect(Collectors.groupingBy(VehicleDocument::getType));

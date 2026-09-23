@@ -1,6 +1,7 @@
 package ro.garajulmeu.reminder;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -23,8 +24,17 @@ public class Reminder {
 	@GeneratedValue
 	private UUID id;
 
-	@Column(name = "vehicle_document_id", nullable = false)
+	/** Set for a document's reminder; null for a payment's. V13 allows exactly one. */
+	@Column(name = "vehicle_document_id")
 	private UUID vehicleDocumentId;
+
+	/** Set for one instalment of a recurring payment, 1.1; null for a document's. */
+	@Column(name = "vehicle_payment_id")
+	private UUID vehiclePaymentId;
+
+	/** Which instalment a payment's reminder is about. Null for a document's. */
+	@Column(name = "due_date")
+	private LocalDate dueDate;
 
 	@Column(name = "offset_days", nullable = false)
 	private int offsetDays;
@@ -71,8 +81,25 @@ public class Reminder {
 		return id;
 	}
 
+	/** One instalment of a recurring payment, {@code offsetDays} before it falls due. */
+	public static Reminder forInstalment(UUID vehiclePaymentId, LocalDate dueDate, int offsetDays,
+			Instant scheduledAt) {
+		Reminder reminder = new Reminder(null, offsetDays, scheduledAt);
+		reminder.vehiclePaymentId = vehiclePaymentId;
+		reminder.dueDate = dueDate;
+		return reminder;
+	}
+
 	public UUID getVehicleDocumentId() {
 		return vehicleDocumentId;
+	}
+
+	public UUID getVehiclePaymentId() {
+		return vehiclePaymentId;
+	}
+
+	public LocalDate getDueDate() {
+		return dueDate;
 	}
 
 	public int getOffsetDays() {
