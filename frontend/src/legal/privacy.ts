@@ -23,10 +23,16 @@ import { CONTACT_EMAIL, OPERATOR_NAME, type LegalDocuments } from './document.ts
  * Railway plan or region, a Supabase plan with backups or a different region,
  * analytics or crash reporting inside the application, or email beyond the
  * account's own messages.
+ *
+ * <p><strong>Updated on 2026-09-23 for 1.1's recurring payments</strong> - V13's
+ * `vehicle_payments`, which the first trigger above names: the dates of a loan
+ * or CASCO instalment, and the reminders before them. No amount is stored, and
+ * the text says so. The document list gained the extinguisher and the first-aid
+ * kit, which 1.0.2 added without this file following.
  */
 export const privacyPolicy: LegalDocuments = {
   ro: {
-    updated: '16 septembrie 2026',
+    updated: '23 septembrie 2026',
     sections: [
       {
         title: '1. Cine suntem',
@@ -54,7 +60,8 @@ export const privacyPolicy: LegalDocuments = {
             list: [
               'datele vehiculului pe care le introduci sau pe care aplicația le citește din certificatul de înmatriculare: numărul de înmatriculare, seria de șasiu (VIN), marca, modelul, datele tehnice, datele de înmatriculare și celelalte câmpuri ale certificatului;',
               'opțional, numele și adresa proprietarului și ale utilizatorului, așa cum apar pe certificat (câmpurile C.2 și C.3); aceste câmpuri nu sunt obligatorii și nu sunt folosite niciodată pentru memento-uri;',
-              'documentele vehiculului (RCA, ITP, CASCO, rovinietă): perioada de valabilitate, emitentul, numărul documentului și notițele tale;',
+              'documentele vehiculului (RCA, ITP, CASCO, rovinietă, extinctor, trusă medicală): perioada de valabilitate, emitentul, numărul documentului și notițele tale;',
+              'ratele pe care le adaugi pentru un vehicul (rata la leasing sau credit auto și rata CASCO): data primei rate, cât de des vin, data ultimei rate și cu câte zile înainte vrei memento-ul; nu păstrăm sumele, contractul sau numele finanțatorului;',
               'o fotografie a vehiculului, dacă alegi să adaugi una.',
             ],
           },
@@ -66,7 +73,7 @@ export const privacyPolicy: LegalDocuments = {
           {
             list: [
               'preferințele tale de notificare: dacă memento-urile sunt pornite, cu câte zile înainte și la ce oră;',
-              'memento-urile programate pentru fiecare document și rezultatul trimiterii lor;',
+              'memento-urile programate pentru fiecare document și pentru fiecare rată, și rezultatul trimiterii lor;',
               'pentru fiecare dispozitiv pe care ai activat notificările: platforma (iOS sau Android) și tokenul de notificări emis de Firebase Cloud Messaging, păstrat criptat.',
             ],
           },
@@ -116,7 +123,7 @@ export const privacyPolicy: LegalDocuments = {
               'Datele contului, vehiculelor, documentelor și fotografiile: cât timp ai cont.',
               'Fotografia unui vehicul se șterge când o înlocuiești, când ștergi vehiculul sau când ștergi contul.',
               'Sesiunile de autentificare expiră după 30 de zile; codurile trimise prin email expiră după 15 minute.',
-              'Ștergerea contului este definitivă și imediată: odată cu contul se șterg vehiculele, certificatele, documentele, memento-urile, dispozitivele înregistrate și fotografiile.',
+              'Ștergerea contului este definitivă și imediată: odată cu contul se șterg vehiculele, certificatele, documentele, ratele, memento-urile, dispozitivele înregistrate și fotografiile.',
               'Nu păstrăm copii de siguranță ale bazei de date, deci datele șterse nu mai pot fi recuperate. Jurnalele tehnice ale serverului dispar automat după cel mult 7 zile.',
             ],
           },
@@ -167,7 +174,7 @@ export const privacyPolicy: LegalDocuments = {
   },
 
   en: {
-    updated: '16 September 2026',
+    updated: '23 September 2026',
     sections: [
       {
         title: '1. Who we are',
@@ -195,7 +202,8 @@ export const privacyPolicy: LegalDocuments = {
             list: [
               'the vehicle details you enter or that the application reads from the registration certificate: registration number, vehicle identification number (VIN), make, model, technical data, registration dates and the certificate\'s other fields;',
               'optionally, the name and address of the owner and of the user as they appear on the certificate (fields C.2 and C.3); these fields are not required and are never used for reminders;',
-              'the vehicle\'s documents (liability insurance, roadworthiness test, comprehensive cover, road tax): validity period, issuer, document number and your notes;',
+              'the vehicle\'s documents (liability insurance, roadworthiness test, comprehensive cover, road tax, fire extinguisher, first-aid kit): validity period, issuer, document number and your notes;',
+              'the instalments you add for a vehicle (a car-loan or leasing instalment and a CASCO instalment): the first due date, how often they fall due, the last due date and how many days ahead you want to be reminded; we keep no amounts, no contract and no lender\'s name;',
               'a photograph of the vehicle, if you choose to add one.',
             ],
           },
@@ -207,7 +215,7 @@ export const privacyPolicy: LegalDocuments = {
           {
             list: [
               'your notification preferences: whether reminders are on, how many days in advance and at what time;',
-              'the reminders scheduled for each document and the outcome of sending them;',
+              'the reminders scheduled for each document and each instalment, and the outcome of sending them;',
               'for each device on which you turned notifications on: its platform (iOS or Android) and the notification token issued by Firebase Cloud Messaging, stored encrypted.',
             ],
           },
@@ -257,7 +265,7 @@ export const privacyPolicy: LegalDocuments = {
               'Account, vehicle and document data, and photographs: for as long as you have an account.',
               'A vehicle\'s photograph is deleted when you replace it, when you delete the vehicle, or when you delete your account.',
               'Sign-in sessions expire after 30 days; codes sent by email expire after 15 minutes.',
-              'Deleting your account is permanent and immediate: the vehicles, certificates, documents, reminders, registered devices and photographs are deleted with it.',
+              'Deleting your account is permanent and immediate: the vehicles, certificates, documents, instalments, reminders, registered devices and photographs are deleted with it.',
               'We keep no backups of the database, so deleted data cannot be recovered. The server\'s technical logs disappear automatically after at most 7 days.',
             ],
           },
