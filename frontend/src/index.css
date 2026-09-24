@@ -338,7 +338,7 @@ header > a:first-child {
  * that pairing from two drawn variants, one raised and one underlined, by
  * asking for both.
  *
- * On a wide screen the three columns keep to the page's own measure, aligned
+ * On a wide screen the columns keep to the page's own measure, aligned
  * with the text of `main` below them, rather than stretching a tab to a third
  * of a monitor. On a phone the measure is wider than the screen and the
  * padding falls to its minimum, so they span it. No top inset: the header
@@ -347,7 +347,8 @@ header > a:first-child {
  */
 nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Four since 1.1, when Sugestii joined the three. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.375rem;
   padding:
     0.375rem

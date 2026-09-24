@@ -147,6 +147,11 @@ garajul-meu:
   # damages the reputation of mail nobody reads, rather than of the address a
   # person actually writes to. Resend verifies this domain by DNS.
     from: "${EMAIL_FROM:Garajul Meu <noreply@mail.cyber-half.com>}"
+  # The Sugestii tab (1.1): where its messages are emailed, and how many one
+  # account may send in twenty-four hours. The public contact address.
+  feedback:
+    recipient: ${FEEDBACK_RECIPIENT:in.garaj.meu@gmail.com}
+    daily-limit: 5
   push:
   # The only provider that exists. Section 18 makes push native-only and the
   # applications are phases 17 and 18; production overrides this with

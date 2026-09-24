@@ -29,6 +29,10 @@ import { CONTACT_EMAIL, OPERATOR_NAME, type LegalDocuments } from './document.ts
  * or CASCO instalment, and the reminders before them. No amount is stored, and
  * the text says so. The document list gained the extinguisher and the first-aid
  * kit, which 1.0.2 added without this file following.
+ *
+ * <p><strong>And for 1.1's Sugestii tab</strong> - V14's `feedback_messages`,
+ * and email beyond the account's own messages, both on the trigger list: what
+ * is kept, that it is emailed to the contact address, and the legal basis.
  */
 export const privacyPolicy: LegalDocuments = {
   ro: {
@@ -79,6 +83,7 @@ export const privacyPolicy: LegalDocuments = {
           },
           { paragraph: 'Scop: trimiterea memento-urilor înainte de expirarea documentelor. Temei: executarea contractului. Notificările push sunt trimise numai după ce le permiți în sistemul dispozitivului, iar permisiunea o poți retrage oricând din setări.' },
           { paragraph: 'Emailuri: îți trimitem emailuri numai pentru cont — confirmarea adresei de email, resetarea parolei și codul de schimbare a adresei. Nu trimitem newsletter sau publicitate.' },
+          { paragraph: 'Sugestiile: când ne scrii din fila Sugestii, păstrăm tipul mesajului, textul lui, platforma și versiunea aplicației și data trimiterii. Mesajul ne este trimis și pe email, prin Resend, la adresa de contact de mai sus, împreună cu numele și adresa de email a contului, ca să-ți putem răspunde. Scop: să îți răspundem și să îmbunătățim aplicația. Temei: interesul nostru legitim (art. 6 alin. (1) lit. f) GDPR). Nu scrie în mesaj date pe care nu vrei să ni le trimiți.' },
           { paragraph: 'Securitate și funcționare:' },
           {
             list: [
@@ -123,7 +128,7 @@ export const privacyPolicy: LegalDocuments = {
               'Datele contului, vehiculelor, documentelor și fotografiile: cât timp ai cont.',
               'Fotografia unui vehicul se șterge când o înlocuiești, când ștergi vehiculul sau când ștergi contul.',
               'Sesiunile de autentificare expiră după 30 de zile; codurile trimise prin email expiră după 15 minute.',
-              'Ștergerea contului este definitivă și imediată: odată cu contul se șterg vehiculele, certificatele, documentele, ratele, memento-urile, dispozitivele înregistrate și fotografiile.',
+              'Ștergerea contului este definitivă și imediată: odată cu contul se șterg vehiculele, certificatele, documentele, ratele, memento-urile, dispozitivele înregistrate, fotografiile și mesajele trimise din fila Sugestii. Copia unui mesaj primită pe email o păstrăm cât este nevoie pentru a-ți răspunde.',
               'Nu păstrăm copii de siguranță ale bazei de date, deci datele șterse nu mai pot fi recuperate. Jurnalele tehnice ale serverului dispar automat după cel mult 7 zile.',
             ],
           },
@@ -221,6 +226,7 @@ export const privacyPolicy: LegalDocuments = {
           },
           { paragraph: 'Purpose: sending reminders before documents expire. Legal basis: performance of a contract. Push notifications are sent only after you allow them in your device\'s settings, and you can withdraw that permission at any time.' },
           { paragraph: 'Email: we send email only about your account — confirming your email address, resetting your password and the code for changing your address. We send no newsletters and no advertising.' },
+          { paragraph: 'Suggestions: when you write to us from the Suggestions tab, we keep the kind of message, its text, the app\'s platform and version and the date it was sent. The message is also emailed to us, through Resend, at the contact address above, together with your account\'s name and email address, so that we can reply. Purpose: replying to you and improving the app. Legal basis: our legitimate interest (Article 6(1)(f) GDPR). Please do not put in a message anything you do not want to send us.' },
           { paragraph: 'Security and operation:' },
           {
             list: [
@@ -265,7 +271,7 @@ export const privacyPolicy: LegalDocuments = {
               'Account, vehicle and document data, and photographs: for as long as you have an account.',
               'A vehicle\'s photograph is deleted when you replace it, when you delete the vehicle, or when you delete your account.',
               'Sign-in sessions expire after 30 days; codes sent by email expire after 15 minutes.',
-              'Deleting your account is permanent and immediate: the vehicles, certificates, documents, instalments, reminders, registered devices and photographs are deleted with it.',
+              'Deleting your account is permanent and immediate: the vehicles, certificates, documents, instalments, reminders, registered devices, photographs and the messages sent from the Suggestions tab are deleted with it. The copy of a message received by email is kept for as long as it takes to reply to you.',
               'We keep no backups of the database, so deleted data cannot be recovered. The server\'s technical logs disappear automatically after at most 7 days.',
             ],
           },

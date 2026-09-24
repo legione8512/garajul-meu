@@ -35,4 +35,12 @@ public interface EmailProvider {
 	 *                  change is recognisable
 	 */
 	void sendEmailChangeCode(String recipient, String newEmail, String code, Language language);
+
+	/**
+	 * A message from the Sugestii tab, to the operator (1.1). Composed by the
+	 * feedback package rather than by {@code EmailMessages}, because it is not
+	 * one of the account's own emails: it goes to one fixed reader, in Romanian,
+	 * and its Reply-To is the person who wrote it.
+	 */
+	void sendFeedback(String recipient, String replyTo, String subject, String body);
 }

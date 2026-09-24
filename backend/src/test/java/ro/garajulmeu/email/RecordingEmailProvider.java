@@ -81,6 +81,12 @@ public class RecordingEmailProvider implements EmailProvider {
 		record("email-change", recipient, newEmail, code, language);
 	}
 
+	/** The subject stands in the code's column, so the suite can see which message it was. */
+	@Override
+	public void sendFeedback(String recipient, String replyTo, String subject, String body) {
+		record("feedback", recipient, replyTo, subject, Language.RO);
+	}
+
 	private synchronized void record(String purpose, String recipient, String requestedAddress,
 			String code, Language language) {
 

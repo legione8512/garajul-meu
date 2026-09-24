@@ -98,7 +98,8 @@ describe('protected routes', () => {
 })
 
 describe('primary navigation', () => {
-  it('offers exactly the three destinations section 5 fixes', async () => {
+  /** Section 5's three, and Sugestii since 1.1 at the owner's request. */
+  it('offers the four destinations', async () => {
     stubSignedIn()
 
     renderApp(paths.dashboard)
@@ -107,7 +108,9 @@ describe('primary navigation', () => {
     expect(nav).toBeInTheDocument()
     expect(screen.getByRole('link', { name: ro.navigation.home })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: ro.navigation.garage })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: ro.navigation.feedback })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: ro.navigation.profile })).toBeInTheDocument()
+    expect(within(nav).getAllByRole('link')).toHaveLength(4)
   })
 
   /** Without this a screen reader announces three identical links and no position. */
@@ -134,7 +137,9 @@ describe('primary navigation', () => {
 
     const nav = await screen.findByRole('navigation', { name: ro.navigation.label })
 
-    for (const name of [ro.navigation.home, ro.navigation.garage, ro.navigation.profile]) {
+    for (const name of [
+      ro.navigation.home, ro.navigation.garage, ro.navigation.feedback, ro.navigation.profile,
+    ]) {
       const link = within(nav).getByRole('link', { name })
 
       expect(link).toHaveAccessibleName(name)

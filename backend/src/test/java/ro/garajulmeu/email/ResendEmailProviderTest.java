@@ -170,4 +170,32 @@ class ResendEmailProviderTest {
 						messages, builder))
 				.isInstanceOf(IllegalStateException.class).hasMessageContaining("from");
 	}
+
+	/** 1.1: a Sugestii message goes to the operator, and answering it answers the sender. */
+	@Test
+	void aFeedbackMessageCarriesTheSenderAsReplyTo() {
+		resend.expect(requestTo("https://api.resend.com/emails")).andExpect(method(HttpMethod.POST))
+				.andExpect(jsonPath("$.to[0]").value("in.garaj.meu@gmail.com"))
+				.andExpect(jsonPath("$.reply_to").value("ana@example.com"))
+				.andExpect(jsonPath("$.subject").value("Garajul Meu — Idee: un calendar"))
+				.andExpect(jsonPath("$.text").value("corpul"))
+				.andRespond(withSuccess("{\"id\":\"f1\"}", MediaType.APPLICATION_JSON));
+
+		provider().sendFeedback("in.garaj.meu@gmail.com", "ana@example.com",
+				"Garajul Meu — Idee: un calendar", "corpul");
+
+		resend.verify();
+	}
+
+	/** The account's own emails have nobody to reply to, and say nothing about it. */
+	@Test
+	void anAccountEmailSendsNoReplyTo() {
+		resend.expect(requestTo("https://api.resend.com/emails"))
+				.andExpect(jsonPath("$.reply_to").doesNotExist())
+				.andRespond(withSuccess("{\"id\":\"a1\"}", MediaType.APPLICATION_JSON));
+
+		provider().sendVerificationCode("marius@example.com", "602431", Language.RO);
+
+		resend.verify();
+	}
 }

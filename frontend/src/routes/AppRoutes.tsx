@@ -15,6 +15,7 @@ import { GaragePage } from '../pages/GaragePage.tsx'
 import { LoginPage } from '../pages/LoginPage.tsx'
 import { NotFoundPage } from '../pages/NotFoundPage.tsx'
 import { PrivacyPage } from '../pages/PrivacyPage.tsx'
+import { FeedbackPage } from '../pages/FeedbackPage.tsx'
 import { ProfilePage } from '../pages/ProfilePage.tsx'
 import { RegisterPage } from '../pages/RegisterPage.tsx'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage.tsx'
@@ -70,6 +71,7 @@ export function AppRoutes() {
           <Route path={paths.paymentsPattern} element={<VehiclePaymentsPage />} />
           <Route path={paths.documentPattern} element={<VehicleDocumentDetailsPage />} />
           <Route path={paths.historyPattern} element={<VehicleHistoryPage />} />
+          <Route path={paths.feedback} element={<FeedbackPage />} />
           <Route path={paths.profile} element={<ProfilePage />} />
           <Route path={paths.changePassword} element={<ChangePasswordPage />} />
           <Route path={paths.changeEmail} element={<ChangeEmailPage />} />

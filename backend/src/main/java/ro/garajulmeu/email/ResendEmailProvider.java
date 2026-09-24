@@ -2,6 +2,9 @@ package ro.garajulmeu.email;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +51,9 @@ public class ResendEmailProvider implements EmailProvider {
 	private static final Logger log = LoggerFactory.getLogger(ResendEmailProvider.class);
 
 	/** Resend's documented request shape: from, to, subject, and text or html. */
-	private record Payload(String from, List<String> to, String subject, String text) {
+	/** {@code reply_to} is left out of the JSON when there is none, as the account's own emails have. */
+	private record Payload(String from, List<String> to, String subject, String text,
+			@JsonProperty("reply_to") @JsonInclude(JsonInclude.Include.NON_NULL) String replyTo) {
 	}
 
 	private record Sent(String id) {
@@ -120,14 +125,23 @@ public class ResendEmailProvider implements EmailProvider {
 		send("email change code", recipient, messages.emailChange(newEmail, code, language));
 	}
 
+	@Override
+	public void sendFeedback(String recipient, String replyTo, String subject, String body) {
+		send("feedback message", recipient, replyTo, new EmailMessages.Message(subject, body));
+	}
+
 	private void send(String purpose, String recipient, EmailMessages.Message message) {
+		send(purpose, recipient, null, message);
+	}
+
+	private void send(String purpose, String recipient, String replyTo, EmailMessages.Message message) {
 		Sent sent;
 
 		try {
 			sent = client.post()
 					.uri("/emails")
 					.contentType(MediaType.APPLICATION_JSON)
-					.body(new Payload(from, List.of(recipient), message.subject(), message.body()))
+					.body(new Payload(from, List.of(recipient), message.subject(), message.body(), replyTo))
 					.retrieve()
 					.body(Sent.class);
 		}

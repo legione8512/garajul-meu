@@ -29,6 +29,7 @@ export const ro = {
     label: 'Navigare principală',
     home: 'Acasă',
     garage: 'Garaj',
+    feedback: 'Sugestii',
     profile: 'Profil',
   },
   fields: {
@@ -315,6 +316,21 @@ export const ro = {
       many: 'Peste {{days}} de zile ({{date}}).',
     },
   },
+  // The Sugestii tab, 1.1: an idea, a problem or a wished-for function, stored
+  // and emailed to the operator, who answers at the account's own address.
+  feedback: {
+    intro: 'Ai o idee, ai dat de o problemă sau îți lipsește ceva din aplicație? Scrie-ne. '
+      + 'Citim fiecare mesaj și, dacă e nevoie, îți răspundem pe adresa de email a contului.',
+    category: 'Despre ce e vorba',
+    categories: {
+      IDEA: 'O idee',
+      PROBLEM: 'O problemă',
+      FEATURE: 'O funcție pe care mi-aș dori-o',
+    },
+    message: 'Mesajul tău',
+    send: 'Trimite',
+    thanks: 'Mulțumim! Mesajul a ajuns la noi.',
+  },
   history: {
     title: 'Istoric',
     open: 'Istoricul documentelor',
@@ -555,6 +571,7 @@ export const ro = {
     features: 'Despre aplicație',
     dashboard: 'Acasă',
     garage: 'Garajul meu',
+    feedback: 'Sugestii',
     profile: 'Profil',
     addVehicle: 'Vehicul nou',
     vehicleDetails: 'Detalii vehicul',
@@ -630,5 +647,6 @@ export const ro = {
     DOCUMENT_TYPE_INVALID: 'Tipul de document nu este recunoscut.',
     PAYMENT_NOT_FOUND: 'Rata nu a fost găsită.',
     PAYMENT_INVALID_SCHEDULE: 'Verifică ratele: ultima trebuie să fie după prima, și cel mult 120 de rate.',
+    FEEDBACK_LIMIT_REACHED: 'Ai trimis deja 5 mesaje în ultimele 24 de ore. Mai încearcă mâine.',
   },
 }

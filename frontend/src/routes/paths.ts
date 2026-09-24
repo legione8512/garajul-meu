@@ -36,6 +36,7 @@ export const paths = {
   payments: (vehicleId: string) => `/garage/${vehicleId}/payments`,
   historyPattern: '/garage/:vehicleId/history',
   history: (vehicleId: string) => `/garage/${vehicleId}/history`,
+  feedback: '/feedback',
   profile: '/profile',
   /**
    * Screens 16, 17 and 22, nested under the profile they are reached from.

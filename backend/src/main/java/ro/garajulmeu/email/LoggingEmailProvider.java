@@ -43,6 +43,12 @@ public class LoggingEmailProvider implements EmailProvider {
 		write("email change code", recipient, newEmail, code, language);
 	}
 
+	/** The subject only: the message is somebody's own words, and this is a log. */
+	@Override
+	public void sendFeedback(String recipient, String replyTo, String subject, String body) {
+		log.info("DEVELOPMENT EMAIL - feedback to {}, reply to {}: {}", recipient, replyTo, subject);
+	}
+
 	private void write(String purpose, String recipient, String requestedAddress,
 			String code, Language language) {
 		log.info("""

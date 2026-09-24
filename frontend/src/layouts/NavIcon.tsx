@@ -27,6 +27,12 @@ const SHAPES = {
     'M15 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
     'M5 17H3v-6l2-5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0H9m-6-6h15m-6 0V6',
   ],
+  // Tabler's bulb, since 1.1: the Sugestii tab is for ideas first.
+  feedback: [
+    'M3 12h1m8-9v1m8 8h1m-15.4-6.4l.7.7m12.1-.7l-.7.7',
+    'M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0-1 3a2 2 0 0 1-4 0a3.5 3.5 0 0 0-1-3',
+    'M9.7 17h4.6',
+  ],
   profile: [
     'M8 7a4 4 0 1 0 8 0a4 4 0 0 0-8 0',
     'M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2',

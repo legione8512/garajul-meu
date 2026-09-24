@@ -22,6 +22,11 @@ import { NavIcon } from './NavIcon.tsx'
  * <p>Tabs since 1.0.2 (2026-09-22), at the developer's request: the same three
  * links, each with a picture above its word - see `NavIcon.tsx` - laid out and
  * marked by the stylesheet's `nav` rules. The words did not change.
+ *
+ * <p><strong>Four since 1.1</strong>: *Sugestii*, between the garage and the
+ * profile, at the owner's request - a step past section 5's three, taken
+ * deliberately so that sending an idea or a problem is one tap from anywhere
+ * rather than a link inside the profile.
  */
 export function AppLayout() {
   const { t } = useTranslation()
@@ -44,6 +49,10 @@ export function AppLayout() {
         <NavLink to={paths.garage}>
           <NavIcon name="garage" />
           {t('navigation.garage')}
+        </NavLink>
+        <NavLink to={paths.feedback}>
+          <NavIcon name="feedback" />
+          {t('navigation.feedback')}
         </NavLink>
         <NavLink to={paths.profile}>
           <NavIcon name="profile" />

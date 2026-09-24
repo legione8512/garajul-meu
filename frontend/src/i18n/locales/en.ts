@@ -22,6 +22,7 @@ export const en: typeof ro = {
     label: 'Primary navigation',
     home: 'Home',
     garage: 'Garage',
+    feedback: 'Suggestions',
     profile: 'Profile',
   },
   fields: {
@@ -294,6 +295,19 @@ export const en: typeof ro = {
       many: 'In {{days}} days ({{date}}).',
     },
   },
+  feedback: {
+    intro: 'Have an idea, run into a problem, or miss something in the app? Write to us. '
+      + 'We read every message and, where needed, reply to your account\'s email address.',
+    category: 'What it is about',
+    categories: {
+      IDEA: 'An idea',
+      PROBLEM: 'A problem',
+      FEATURE: 'A feature I would like',
+    },
+    message: 'Your message',
+    send: 'Send',
+    thanks: 'Thank you! Your message has reached us.',
+  },
   history: {
     title: 'History',
     open: 'Document history',
@@ -510,6 +524,7 @@ export const en: typeof ro = {
     features: 'About the app',
     dashboard: 'Home',
     garage: 'My garage',
+    feedback: 'Suggestions',
     profile: 'Profile',
     addVehicle: 'New vehicle',
     vehicleDetails: 'Vehicle details',
@@ -563,5 +578,6 @@ export const en: typeof ro = {
     DOCUMENT_TYPE_INVALID: 'That document type is not recognised.',
     PAYMENT_NOT_FOUND: 'That instalment could not be found.',
     PAYMENT_INVALID_SCHEDULE: 'Check the instalments: the last must come after the first, and there can be at most 120.',
+    FEEDBACK_LIMIT_REACHED: 'You have already sent 5 messages in the last 24 hours. Please try again tomorrow.',
   },
 }
