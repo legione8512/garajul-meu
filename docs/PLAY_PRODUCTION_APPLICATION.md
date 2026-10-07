@@ -65,3 +65,28 @@ No tester's name or address belongs in this file: the repository is public.
 > 12 testers used the app on their own phones for more than 14 days with no crashes or functional problems reported. Reminders are delivered in production both in the background and in the foreground. The backend has 387 automated tests and the frontend 409, run automatically on every change. The same app has been live on the Apple App Store since September 2026.
 
 Update the test counts from `PROJECT_STATE.md` if they have changed by the day.
+
+---
+
+## As sent, 2026-10-07
+
+The real form differed from the draft above: three steps, every text field
+limited to **300 characters**, and the installs as ranges. What was sent:
+
+**About your closed test**
+
+- *How did you recruit users?* — I invited friends, family and colleagues who own cars in Romania. All 12 joined through the opt-in link. Two first gave emails not linked to their phone's Play account, so I collected the right ones, and I added Germany to the track for one tester living there.
+- *How easy was it to recruit testers?* — **Difficult** (the developer's choice).
+- *Engagement* — All 12 testers registered, verified their email and added their own vehicles and documents (insurance, inspection, road tax). They received expiry reminders as push notifications and updated to 1.1.0 (instalments, Suggestions tab) via the test track. Usage matched real users.
+- *Feedback and how it was collected* — Collected in person and by messages, and since 1.1.0 through the app's Suggestions tab. Feedback was positive: testers found the expiry overview and reminders useful and the app easy to use. No crashes or functional problems were reported.
+
+**About your app**
+
+- *Intended audience* — Car owners in Romania who want to keep track of their vehicles' documents and expiry dates: mandatory insurance (RCA), technical inspection (ITP), road tax, CASCO, fire extinguisher and first-aid kit, and loan or CASCO instalments. Adults, 18+.
+- *Value* — Missing an expiry in Romania means fines or driving uninsured. The app keeps every vehicle and its documents in one place, shows what is valid, expiring or expired, and sends reminders before each expiry or instalment. Vehicles can be added by photographing the registration certificate.
+- *Installs in the first year* — **0 – 10K**.
+
+**Your production readiness**
+
+- *Changes made during the test* — 1.0.1: correct Romanian plurals; a clear message for undeliverable emails. 1.0.2: own notification channel, Romanian by default, tab navigation, extinguisher and first-aid kit, vehicle photo on cards. 1.1.0: loan and CASCO instalment reminders and an in-app Suggestions tab.
+- *How readiness was decided* — 12 testers used it on their own phones for 14+ days with no crashes or functional problems reported. Reminders are delivered in background and foreground. 400+ automated tests run on every change. The same app is live on the Apple App Store.
