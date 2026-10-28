@@ -90,3 +90,33 @@ limited to **300 characters**, and the installs as ranges. What was sent:
 
 - *Changes made during the test* — 1.0.1: correct Romanian plurals; a clear message for undeliverable emails. 1.0.2: own notification channel, Romanian by default, tab navigation, extinguisher and first-aid kit, vehicle photo on cards. 1.1.0: loan and CASCO instalment reminders and an in-app Suggestions tab.
 - *How readiness was decided* — 12 testers used it on their own phones for 14+ days with no crashes or functional problems reported. Reminders are delivered in background and foreground. 400+ automated tests run on every change. The same app is live on the Apple App Store.
+
+---
+
+## Second application, as sent, 2026-10-28
+
+The first was refused on 2026-10-09 ("requires more testing", 14 more days).
+Before reapplying, real usage was read from the production database rather than
+taken from impressions: **17 verified accounts, 5 with a vehicle, 6 documents,
+0 instalments, 0 Sugestii messages** - the 5 including the developer's own and
+the demo account. **The first application's "all 12 testers added their own
+vehicles and documents" was therefore not accurate**, and these answers say what
+the numbers say. A fourth step, *Additional testing*, appeared on this second
+application.
+
+**About your closed test**
+
+- *How did you recruit users?* — I invited friends, family and colleagues who own cars in Romania through an email list and the opt-in link. 12+ have stayed opted in for over five weeks. Two first gave the wrong Google address, and one lives in Germany, so I added Germany to the track.
+- *Engagement* — 17 accounts were created and verified; 5 added vehicles and documents (6 documents in all). Most testers explored the screens rather than entering all their cars, and nobody used the newer instalments or Suggestions tab yet. A real user would add every car on day one.
+- *Feedback* — Collected in person and by message. One tester showed me a bug: on Android, opening the keyboard while adding a document leaves a black gap between the form and the keyboard. The others found the app clear and useful; some suggested brighter colours.
+
+**About your app** — the same audience and value answers as the first application; installs 0 – 10K.
+
+**Your production readiness**
+
+- *Changes made* — During the test I shipped 1.0.1 (Romanian plurals, clearer email errors), 1.0.2 (own notification channel, Romanian default, tab navigation, equipment types, car photos) and 1.1.0 (instalment reminders, Suggestions tab). The keyboard gap a tester found is next, in 1.1.1.
+- *Readiness* — 12+ testers for over five weeks with no crashes reported. Reminders reach phones in the background and the foreground. 850+ automated tests run on every change. The same app is live on the Apple App Store. The one bug found, the keyboard gap, is being fixed.
+
+**Additional testing**
+
+- *What did you do differently this time?* — I asked testers to use the app on their own phones and show me anything wrong. One found a real bug, a black gap above the keyboard on Android, now being fixed for 1.1.1. I also checked actual usage in our database and report those numbers here, rather than impressions.
